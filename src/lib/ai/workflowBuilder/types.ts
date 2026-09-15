@@ -352,10 +352,17 @@ export interface WorkflowBuilderSession {
   compiledNodes?: any[];
   /**
    * When AI Suggest runs on an open designer graph with existing nodes:
-   * extend = graft new nodes onto current canvas; replace = wipe and rebuild.
+   * edit = update one existing node in place
+   * append/extend = graft new nodes onto current canvas
+   * replace = wipe and rebuild
    * null/undefined = not asked yet (or canvas was empty).
    */
-  applyMode?: 'extend' | 'replace' | null;
+  applyMode?: 'edit' | 'append' | 'extend' | 'replace' | null;
+  /** When applyMode is edit — which canvas node to update */
+  editTargetNodeId?: string | null;
+  editTargetNodeType?: string | null;
+  editTargetNodeLabel?: string | null;
+  editTargetActionType?: string | null;
   /** Compact architecture summary of the open workflow (designer AI Suggest) */
   existingGraphSummary?: {
     nodeCount: number;
@@ -366,6 +373,18 @@ export interface WorkflowBuilderSession {
     actionTypes?: string[];
     hasCondition?: boolean;
     hasApprovalPattern?: boolean;
+    nodes?: Array<{
+      id: string;
+      type: string;
+      label: string;
+      actionType?: string;
+    }>;
+    editableNodes?: Array<{
+      id: string;
+      type: string;
+      label: string;
+      actionType?: string;
+    }>;
   } | null;
   status: WorkflowBuilderStatus;
   /** Last assistant message shown to user */

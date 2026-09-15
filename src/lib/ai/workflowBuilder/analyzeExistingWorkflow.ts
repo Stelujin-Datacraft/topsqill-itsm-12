@@ -1,8 +1,8 @@
 /**
  * Analyze an open designer workflow graph so AI Suggest can continue it
- * (EXTEND) or REPLACE it intentionally.
+ * (edit / append) or REPLACE it intentionally.
  */
-export type WorkflowApplyMode = 'extend' | 'replace';
+export type WorkflowApplyMode = 'edit' | 'append' | 'extend' | 'replace';
 
 export interface ExistingWorkflowNodeSummary {
   id: string;
@@ -31,6 +31,8 @@ export interface ExistingWorkflowGraphSummary {
   hasCondition: boolean;
   hasApprovalPattern: boolean;
   nodes: ExistingWorkflowNodeSummary[];
+  /** Nodes the user can edit in-place (excludes End) */
+  editableNodes: ExistingWorkflowNodeSummary[];
   lines: string[];
 }
 
@@ -160,6 +162,8 @@ export function analyzeExistingWorkflowGraph(
     lines.push('(empty workflow)');
   }
 
+  const editableNodes = summaries.filter((n) => n.type !== 'end');
+
   return {
     nodeCount: nodes.length,
     connectionCount: connections.length,
@@ -174,6 +178,7 @@ export function analyzeExistingWorkflowGraph(
     hasCondition,
     hasApprovalPattern,
     nodes: summaries,
+    editableNodes,
     lines,
   };
 }

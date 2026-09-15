@@ -181,6 +181,7 @@ function planGenericActionRequirements(
   formsCatalog: DiscoveredForm[] = [],
   originalRequest = '',
   emailTemplates: EmailTemplateChoice[] = [],
+  editTarget?: { nodeType: string; actionType?: string; label?: string } | null,
 ): MissingRequirement[] {
   const answered = new Map(
     previous.filter((m) => m.answered).map((m) => [m.id, m]),
@@ -252,10 +253,44 @@ function planGenericActionRequirements(
   const allFields = fieldChoices(hydratedForm);
   const xrFields = suggestCrossReferenceFields(hydratedForm);
   const isCombination = action.actionType === 'create_combination_records';
+  const editType = String(editTarget?.nodeType || '').toLowerCase();
+  const editingAction = Boolean(editTarget && (
+    editType === 'action' || editType === 'notification' || editType === 'approval'
+  ));
+  const editingCondition = editType === 'condition';
+  const editingStart = editType === 'start';
+  const editingWait = editType === 'wait';
+  const skipConditionQuestions = editingAction || editingStart || editingWait;
+  const skipActionQuestions = editingCondition || editingStart || editingWait;
+
+  // When editing an existing action node, keep/align its action type
+  if (editingAction && editTarget?.actionType) {
+    const at = editTarget.actionType as WorkflowActionSpec['actionType'];
+    if (at && at !== action.actionType) {
+      action.actionType = at;
+    }
+  }
+
+  // Skip condition Q&A when editing action/start/wait — keep existing condition on canvas
+  if (skipConditionQuestions) {
+    if (!condition?.fieldId && !condition?.fieldLabel) {
+      definition.conditions = [{
+        fieldId: '__keep_existing__',
+        fieldLabel: 'Keep existing condition',
+        operator: '==',
+        value: true,
+        resolved: true,
+        pendingOptionCreate: false,
+      }];
+      condition = definition.conditions[0];
+    } else if (condition) {
+      condition.resolved = true;
+    }
+  }
 
   // Combination: Condition is configured on the Condition node in the designer.
   // Do not ask for condition field/value during AI Suggest — leave empty for later.
-  if (!isCombination) {
+  if (!isCombination && !skipConditionQuestions) {
     // Auto-bind condition field (+ value) from prompt hints before asking
     if (!condition?.fieldId && !condition?.fieldLabel && hints.conditionFieldHint && hydratedForm) {
       const matched = searchFields(hydratedForm, hints.conditionFieldHint).matched
@@ -1073,6 +1108,54 @@ function planGenericActionRequirements(
     }
 
     action.configured = actionConfigured(action);
+    return mergeUnansweredFirst(out);
+  }
+
+  // Edit condition/start/wait: only condition (or nothing) — do not reconfigure action
+  if (skipActionQuestions) {
+    // Soft-fill so validation does not block publishing when action is unused on apply
+    if (action.actionType === 'change_field_value') {
+      action.targetFieldId = action.targetFieldId || '__keep_existing__';
+      action.targetFieldLabel = action.targetFieldLabel || 'Keep existing';
+      action.staticValue = action.staticValue ?? '(unchanged)';
+    } else if (action.actionType === 'send_notification') {
+      action.notificationType = action.notificationType || 'in_app';
+      action.notificationSubject = action.notificationSubject || 'Workflow notification';
+      action.notificationMessage = action.notificationMessage || 'A workflow condition was met.';
+    } else if (
+      action.actionType === 'create_record'
+      || action.actionType === 'create_linked_record'
+      || action.actionType === 'update_linked_records'
+    ) {
+      action.skipCreateFieldValues = true;
+      action.createFieldsDone = true;
+      action.targetFormId = action.targetFormId || definition.trigger.formId || '__keep__';
+      action.targetFormName = action.targetFormName || definition.trigger.formName || 'Keep existing';
+      if (action.actionType !== 'create_record') {
+        action.crossReferenceFieldId = action.crossReferenceFieldId || '__keep__';
+        action.crossReferenceFieldLabel = action.crossReferenceFieldLabel || 'Keep existing';
+      }
+      if (action.actionType === 'update_linked_records') {
+        action.createFieldValues = action.createFieldValues?.length
+          ? action.createFieldValues
+          : [{ fieldId: '__keep__', fieldLabel: 'Keep', staticValue: '(unchanged)' }];
+      }
+    } else if (action.actionType === 'create_combination_records') {
+      action.comboConfirmDone = true;
+      action.comboTriggerMapsDone = true;
+      action.comboLinkedMapsDone = true;
+      action.comboSecondLinkedMapsDone = true;
+      action.comboDestConfirmed = true;
+      action.comboLinkBackDone = true;
+      action.skipComboLinkBack = true;
+      action.sourceCrossRefFieldId = action.sourceCrossRefFieldId || '__keep__';
+      action.sourceCrossRefFieldLabel = action.sourceCrossRefFieldLabel || 'Keep existing';
+      action.sourceLinkedFormId = action.sourceLinkedFormId || '__keep__';
+      action.sourceLinkedFormName = action.sourceLinkedFormName || 'Keep existing';
+      action.targetFormId = action.targetFormId || definition.trigger.formId || '__keep__';
+      action.targetFormName = action.targetFormName || definition.trigger.formName || 'Keep existing';
+    }
+    action.configured = true;
     return mergeUnansweredFirst(out);
   }
 
@@ -2012,6 +2095,10 @@ export function planMissingRequirements(
   opts?: {
     existingGraph?: ExistingWorkflowGraphSummary | null;
     applyMode?: WorkflowApplyMode | null;
+    editTargetNodeId?: string | null;
+    editTargetNodeType?: string | null;
+    editTargetNodeLabel?: string | null;
+    editTargetActionType?: string | null;
   },
 ): MissingRequirement[] {
   const answered = new Map(
@@ -2019,7 +2106,7 @@ export function planMissingRequirements(
   );
   const prefix: MissingRequirement[] = [];
 
-  // When the open designer canvas already has nodes, ask Extend vs Replace first.
+  // When the open designer canvas already has nodes, ask Edit / Append / Replace first.
   const graph = opts?.existingGraph;
   if (graph?.hasMeaningfulNodes && !opts?.applyMode) {
     const prev = answered.get('apply.mode');
@@ -2034,13 +2121,17 @@ export function planMissingRequirements(
           'This workflow already has nodes on the canvas:',
           ...graph.lines.map((l) => `- ${l}`),
           '',
-          'How should I apply the new suggestion?',
+          'What do you want to do?',
         ].join('\n'),
         inputKind: 'choice',
         options: [
           {
-            value: 'extend',
-            label: 'Continue / extend this workflow (keep existing nodes)',
+            value: 'edit',
+            label: 'Edit an existing node (update config in place)',
+          },
+          {
+            value: 'append',
+            label: 'Add / append new node(s) to this workflow',
           },
           {
             value: 'replace',
@@ -2052,6 +2143,44 @@ export function planMissingRequirements(
     }
   }
 
+  // After choosing Edit, pick which node to update
+  if (
+    graph?.hasMeaningfulNodes
+    && (opts?.applyMode === 'edit')
+    && !opts?.editTargetNodeId
+  ) {
+    const prev = answered.get('apply.edit_node');
+    if (prev) {
+      prefix.push(prev);
+    } else {
+      const editable = (graph.editableNodes?.length
+        ? graph.editableNodes
+        : (graph.nodes || []).filter((n) => n.type !== 'end'));
+      prefix.push({
+        id: 'apply.edit_node',
+        scope: 'workflow',
+        key: 'apply_edit_node',
+        question: 'Which **existing node** should I edit?',
+        inputKind: 'choice',
+        options: editable.map((n) => ({
+          value: n.id,
+          label: n.actionType
+            ? `${n.label} (${n.type} · ${n.actionType})`
+            : `${n.label} (${n.type})`,
+        })),
+        answered: false,
+      });
+    }
+  }
+
+  const editTarget = opts?.applyMode === 'edit' && opts.editTargetNodeId
+    ? {
+      nodeType: String(opts.editTargetNodeType || '').toLowerCase(),
+      actionType: opts.editTargetActionType || undefined,
+      label: opts.editTargetNodeLabel || undefined,
+    }
+    : null;
+
   const rest = isApprovalStyleDefinition(definition)
     ? planApprovalRequirements(definition, form, previous, orgUsers)
     : planGenericActionRequirements(
@@ -2061,12 +2190,17 @@ export function planMissingRequirements(
       formsCatalog,
       originalRequest,
       emailTemplates,
+      editTarget,
     );
 
-  // If apply_mode is unanswered, ask it before other questions
+  // Ask apply_mode / edit_node before other questions
   const applyQ = prefix.find((m) => m.key === 'apply_mode' && !m.answered);
   if (applyQ) {
-    return [applyQ, ...rest.filter((m) => m.key !== 'apply_mode')];
+    return [applyQ, ...rest.filter((m) => m.key !== 'apply_mode' && m.key !== 'apply_edit_node')];
+  }
+  const editNodeQ = prefix.find((m) => m.key === 'apply_edit_node' && !m.answered);
+  if (editNodeQ) {
+    return [editNodeQ, ...rest.filter((m) => m.key !== 'apply_edit_node')];
   }
 
   return [...prefix.filter((m) => m.answered), ...rest];

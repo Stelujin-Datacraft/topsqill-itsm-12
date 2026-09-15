@@ -58,10 +58,21 @@ function touch(session: WorkflowBuilderSession): WorkflowBuilderSession {
 function graphPlanOpts(session: WorkflowBuilderSession): {
   existingGraph: ExistingWorkflowGraphSummary | null;
   applyMode: WorkflowApplyMode | null;
+  editTargetNodeId?: string | null;
+  editTargetNodeType?: string | null;
+  editTargetNodeLabel?: string | null;
+  editTargetActionType?: string | null;
 } {
   const s = session.existingGraphSummary;
   if (!s?.hasMeaningfulNodes) {
-    return { existingGraph: null, applyMode: session.applyMode ?? null };
+    return {
+      existingGraph: null,
+      applyMode: session.applyMode ?? null,
+      editTargetNodeId: session.editTargetNodeId ?? null,
+      editTargetNodeType: session.editTargetNodeType ?? null,
+      editTargetNodeLabel: session.editTargetNodeLabel ?? null,
+      editTargetActionType: session.editTargetActionType ?? null,
+    };
   }
   return {
     existingGraph: {
@@ -75,10 +86,15 @@ function graphPlanOpts(session: WorkflowBuilderSession): {
       actionTypes: s.actionTypes || [],
       hasCondition: Boolean(s.hasCondition),
       hasApprovalPattern: Boolean(s.hasApprovalPattern),
-      nodes: [],
+      nodes: s.nodes || [],
+      editableNodes: s.editableNodes || s.nodes || [],
       lines: s.lines || [],
     },
     applyMode: session.applyMode ?? null,
+    editTargetNodeId: session.editTargetNodeId ?? null,
+    editTargetNodeType: session.editTargetNodeType ?? null,
+    editTargetNodeLabel: session.editTargetNodeLabel ?? null,
+    editTargetActionType: session.editTargetActionType ?? null,
   };
 }
 
@@ -243,9 +259,25 @@ export function startWorkflowBuilderSession(params: {
       actionTypes: existingGraph.actionTypes,
       hasCondition: existingGraph.hasCondition,
       hasApprovalPattern: existingGraph.hasApprovalPattern,
+      nodes: existingGraph.nodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        label: n.label,
+        actionType: n.actionType,
+      })),
+      editableNodes: existingGraph.editableNodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        label: n.label,
+        actionType: n.actionType,
+      })),
     }
     : null;
   session.applyMode = existingGraph.hasMeaningfulNodes ? null : 'replace';
+  session.editTargetNodeId = null;
+  session.editTargetNodeType = null;
+  session.editTargetNodeLabel = null;
+  session.editTargetActionType = null;
 
   // Prefer trigger form already configured on the open canvas Start node
   if (existingGraph.triggerFormId && !session.requirements.trigger.formId) {
@@ -728,10 +760,21 @@ export function continueWorkflowBuilderSession(params: {
     };
   }
 
-  // Apply mode is session-level (extend vs replace open designer canvas)
+  // Apply mode is session-level (edit / append / replace open designer canvas)
   if (unanswered.key === 'apply_mode') {
-    const mode = answer === 'replace' || /^replace$/i.test(answer) ? 'replace' : 'extend';
+    let mode: WorkflowApplyMode = 'append';
+    if (answer === 'replace' || /^replace$/i.test(answer)) mode = 'replace';
+    else if (answer === 'edit' || /^edit$/i.test(answer)) mode = 'edit';
+    else if (answer === 'extend' || answer === 'append' || /append|extend|continue|add/i.test(answer)) {
+      mode = 'append';
+    }
     session.applyMode = mode;
+    if (mode !== 'edit') {
+      session.editTargetNodeId = null;
+      session.editTargetNodeType = null;
+      session.editTargetNodeLabel = null;
+      session.editTargetActionType = null;
+    }
     session.missingInformation = replanMissing(
       session,
       form,
@@ -742,9 +785,66 @@ export function continueWorkflowBuilderSession(params: {
       emailTemplates,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
-    const ack = mode === 'extend'
-      ? "Got it — I'll **continue this workflow** and keep the existing nodes."
-      : "Got it — I'll **replace** the current canvas with a new plan.";
+    const ack = mode === 'edit'
+      ? "Got it — I'll **edit an existing node** in place."
+      : mode === 'append' || mode === 'extend'
+        ? "Got it — I'll **add / append new node(s)** and keep the rest of the workflow."
+        : "Got it — I'll **replace** the current canvas with a new plan.";
+    const msg = nextQ ? `${ack}\n\n${formatQuestion(nextQ)}` : ack;
+    session = touch({
+      ...session,
+      status: 'collecting',
+      lastAssistantMessage: msg,
+    });
+    return {
+      session,
+      assistantMessage: msg,
+      promptControls: nextQ,
+      readyToPublish: false,
+    };
+  }
+
+  if (unanswered.key === 'apply_edit_node') {
+    const nodes = session.existingGraphSummary?.editableNodes
+      || session.existingGraphSummary?.nodes
+      || [];
+    const picked = nodes.find((n) => n.id === answer)
+      || nodes.find((n) => n.label.toLowerCase() === answer.toLowerCase());
+    session.editTargetNodeId = picked?.id || answer;
+    session.editTargetNodeType = picked?.type || null;
+    session.editTargetNodeLabel = picked?.label || answer;
+    session.editTargetActionType = picked?.actionType || null;
+    session.applyMode = 'edit';
+
+    // Align inferred action with the node being edited when it's an action node
+    const t = String(picked?.type || '').toLowerCase();
+    if (
+      session.requirements.action
+      && (t === 'action' || t === 'notification' || t === 'approval')
+      && picked?.actionType
+    ) {
+      session.requirements = {
+        ...session.requirements,
+        action: {
+          ...session.requirements.action,
+          actionType: picked.actionType as any,
+          configured: false,
+        },
+      };
+    }
+
+    session.missingInformation = replanMissing(
+      session,
+      form,
+      session.missingInformation,
+      formsCatalog,
+      session.originalRequest,
+      orgUsers,
+      emailTemplates,
+    );
+    const nextQ = getNextMissingRequirement(session.missingInformation);
+    const label = picked?.label || answer;
+    const ack = `Editing **${label}** — I'll update that node only.`;
     const msg = nextQ ? `${ack}\n\n${formatQuestion(nextQ)}` : ack;
     session = touch({
       ...session,
@@ -886,7 +986,14 @@ function buildAck(
     if (answer === 'replace' || /^replace$/i.test(answer)) {
       return "Okay — I'll replace the current canvas with a new plan.";
     }
-    return "Okay — I'll continue this workflow and keep the existing nodes.";
+    if (answer === 'edit' || /^edit$/i.test(answer)) {
+      return "Okay — I'll edit an existing node in place.";
+    }
+    return "Okay — I'll add / append new node(s) and keep the rest of the workflow.";
+  }
+  if (req.key === 'apply_edit_node') {
+    const label = optionLabel || answer;
+    return `Okay — editing **${label}**.`;
   }
 
   if (req.key.includes('approver')) {
@@ -1132,11 +1239,13 @@ function finalizeOrPreview(
   session.preview = preview;
   session.requirements = { ...session.requirements, status: 'VALIDATED' };
   const markdown = formatPreviewAsMarkdown(preview);
-  const modeNote = session.applyMode === 'extend'
-    ? '\n\n**Apply mode:** Continue / extend the open workflow (existing nodes kept).'
-    : session.applyMode === 'replace' && session.existingGraphSummary?.hasMeaningfulNodes
-      ? '\n\n**Apply mode:** Replace the open workflow canvas.'
-      : '';
+  const modeNote = session.applyMode === 'edit'
+    ? `\n\n**Apply mode:** Edit existing node **${session.editTargetNodeLabel || session.editTargetNodeId || ''}** in place.`
+    : session.applyMode === 'append' || session.applyMode === 'extend'
+      ? '\n\n**Apply mode:** Add / append new node(s) (existing nodes kept).'
+      : session.applyMode === 'replace' && session.existingGraphSummary?.hasMeaningfulNodes
+        ? '\n\n**Apply mode:** Replace the open workflow canvas.'
+        : '';
   session = touch({
     ...session,
     status: 'preview',
