@@ -50,6 +50,15 @@ export function extractGenericPromptHints(prompt: string): GenericPromptHints {
   return out;
 }
 
+/** Infer In-App vs Email channel from notify/email wording in the prompt. */
+export function inferNotificationChannelFromPrompt(prompt: string): 'in_app' | 'email' | undefined {
+  const text = String(prompt || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!text) return undefined;
+  if (/\bin[-\s]?app\b|\binapp\b/.test(text)) return 'in_app';
+  if (/\bemail\b|\bmail\b|\be-mail\b/.test(text)) return 'email';
+  return undefined;
+}
+
 /** Form name hint from "create a new Incident record" / "create an Incident". */
 export function extractCreateTargetFormHint(prompt: string): string | undefined {
   const text = String(prompt || '').replace(/\s+/g, ' ').trim();

@@ -177,6 +177,21 @@ export function validateWorkflowDefinition(
         // Mappings optional per designer section; AI Suggest asks each section (skip allowed).
         break;
       }
+      case 'send_notification':
+        if (!action.notificationType) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_NOTIFICATION_CHANNEL',
+            message: 'Choose In-App or Email for the Send Notification action.',
+          });
+        } else if (action.notificationType === 'email' && !action.emailTemplateId) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_EMAIL_TEMPLATE',
+            message: 'Email notifications require an email template.',
+          });
+        }
+        break;
       default:
         break;
     }

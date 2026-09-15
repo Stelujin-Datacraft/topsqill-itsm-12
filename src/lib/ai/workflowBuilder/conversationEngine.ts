@@ -21,6 +21,7 @@ import {
   SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,
   type DiscoveredWorkflow,
+  type EmailTemplateChoice,
   type OrgUserChoice,
   findExistingWorkflowsForForm,
 } from './metadataDiscovery';
@@ -146,11 +147,13 @@ export function startWorkflowBuilderSession(params: {
   userId?: string;
   projectId?: string;
   orgUsers?: OrgUserChoice[];
+  emailTemplates?: EmailTemplateChoice[];
 }): BuilderTurnResult {
   const { prompt, workflows = [], userId, projectId } = params;
   const form = hydrateDiscoveredForm(params.form);
   const formsCatalog = (params.formsCatalog || []).map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
   const orgUsers = params.orgUsers || [];
+  const emailTemplates = params.emailTemplates || [];
   const analysis = analyzeWorkflowIntent(prompt, {
     formId: form?.id,
     formName: form?.name,
@@ -197,6 +200,11 @@ export function startWorkflowBuilderSession(params: {
         + 'only if target is the cross-ref child. '
         + 'Set the **Condition** node later in the designer.',
       );
+    } else if (actionType === 'send_notification') {
+      intro.push(
+        'I will ask for the **condition**, then whether to send an **In-App** or **Email** notification '
+        + '(and which email template, if Email).',
+      );
     } else {
       intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
     }
@@ -239,11 +247,12 @@ export function startWorkflowBuilderSession(params: {
     formsCatalog,
     prompt,
     orgUsers,
+    emailTemplates,
   );
   const nextQ = getNextMissingRequirement(session.missingInformation);
 
   if (!nextQ) {
-    return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers);
+    return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers, emailTemplates);
   }
 
   session.lastAssistantMessage = `${intro.join('\n')}\n\n${formatQuestion(nextQ)}`;
@@ -266,11 +275,13 @@ export function continueWorkflowBuilderSession(params: {
   form?: DiscoveredForm;
   formsCatalog?: DiscoveredForm[];
   orgUsers?: OrgUserChoice[];
+  emailTemplates?: EmailTemplateChoice[];
 }): BuilderTurnResult {
   let { session } = params;
   const form = hydrateDiscoveredForm(params.form);
   const formsCatalog = (params.formsCatalog || []).map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
   const orgUsers = params.orgUsers || [];
+  const emailTemplates = params.emailTemplates || [];
   const raw = String(params.userMessage || '').trim();
   const lower = raw.toLowerCase();
 
@@ -305,7 +316,7 @@ export function continueWorkflowBuilderSession(params: {
           confirmed: true,
           at: new Date().toISOString(),
         });
-        return finalizeOrPreview(session, form, { createsAllowed: true }, formsCatalog, orgUsers);
+        return finalizeOrPreview(session, form, { createsAllowed: true }, formsCatalog, orgUsers, emailTemplates);
       }
 
       // Deny creates — clear pending create labels so planner re-asks for existing fields
@@ -353,6 +364,7 @@ export function continueWorkflowBuilderSession(params: {
         formsCatalog,
         session.originalRequest,
         orgUsers,
+        emailTemplates,
       );
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
@@ -421,6 +433,7 @@ export function continueWorkflowBuilderSession(params: {
           formsCatalog,
           session.originalRequest,
           orgUsers,
+          emailTemplates,
         ),
       });
       const nextQ = getNextMissingRequirement(session.missingInformation);
@@ -439,7 +452,7 @@ export function continueWorkflowBuilderSession(params: {
 
   const unanswered = getNextMissingRequirement(session.missingInformation);
   if (!unanswered) {
-    return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers);
+    return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers, emailTemplates);
   }
 
   // Free-text field name → try metadata match for field_select questions
@@ -592,6 +605,7 @@ export function continueWorkflowBuilderSession(params: {
       answer,
       form,
       formsCatalog,
+      emailTemplates,
     );
     session.missingInformation = planMissingRequirements(
       session.requirements,
@@ -600,6 +614,7 @@ export function continueWorkflowBuilderSession(params: {
       formsCatalog,
       session.originalRequest,
       orgUsers,
+      emailTemplates,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     const msg = nextQ
@@ -624,6 +639,7 @@ export function continueWorkflowBuilderSession(params: {
     answer,
     form,
     formsCatalog,
+    emailTemplates,
   );
 
   // Re-plan with updated definition
@@ -634,6 +650,7 @@ export function continueWorkflowBuilderSession(params: {
     formsCatalog,
     session.originalRequest,
     orgUsers,
+    emailTemplates,
   );
 
   const forceConfirm: string[] = [];
@@ -694,7 +711,7 @@ export function continueWorkflowBuilderSession(params: {
     };
   }
 
-  return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers);
+  return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers, emailTemplates);
 }
 
 function buildAck(
@@ -724,6 +741,20 @@ function buildAck(
   if (req.key === 'approver_user') {
     const label = user?.label || user?.email || answer;
     return `Level ${req.level} approver set to **${label}** (via ${SUBMISSION_ACCESS_FIELD_LABEL}).`;
+  }
+
+  if (req.key === 'action_notification_channel') {
+    if (answer === 'email' || /^email$/i.test(answer)) {
+      return "Got it — I'll send an **Email** notification.";
+    }
+    return "Got it — I'll send an **In-App** notification.";
+  }
+  if (req.key === 'action_email_template') {
+    if (answer === 'in_app' || /^in[-\s]?app$/i.test(answer)) {
+      return 'Okay — switching to an **In-App** notification instead.';
+    }
+    const label = optionLabel || answer;
+    return `I'll use the **${label}** email template.`;
   }
 
   if (req.key.includes('approver')) {
@@ -898,6 +929,7 @@ function finalizeOrPreview(
   opts?: { createsAllowed?: boolean },
   formsCatalog: DiscoveredForm[] = [],
   orgUsers: OrgUserChoice[] = [],
+  emailTemplates: EmailTemplateChoice[] = [],
 ): BuilderTurnResult {
   session.pendingActions = mergePendingConfirmation(
     session.pendingActions,
@@ -925,6 +957,7 @@ function finalizeOrPreview(
       formsCatalog,
       session.originalRequest,
       orgUsers,
+      emailTemplates,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     session = touch({

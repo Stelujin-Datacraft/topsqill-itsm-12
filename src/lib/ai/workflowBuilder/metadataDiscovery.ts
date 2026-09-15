@@ -41,6 +41,13 @@ export interface OrgUserChoice {
   label: string;
 }
 
+/** Project email template choice for Send Notification (email channel) */
+export interface EmailTemplateChoice {
+  id: string;
+  name: string;
+  subject: string;
+}
+
 export interface DiscoveredForm {
   id: string;
   name: string;

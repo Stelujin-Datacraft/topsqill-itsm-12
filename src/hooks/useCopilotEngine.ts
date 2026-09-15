@@ -1628,6 +1628,25 @@ export function useCopilotEngine() {
         }
       }
 
+      let emailTemplates: Array<{ id: string; name: string; subject: string }> = [];
+      if (activeProject?.id) {
+        try {
+          const { data: templateRows } = await supabase
+            .from('email_templates')
+            .select('id, name, subject')
+            .eq('project_id', activeProject.id)
+            .eq('is_active', true)
+            .order('name');
+          emailTemplates = (templateRows || []).map((t: any) => ({
+            id: String(t.id),
+            name: String(t.name || 'Untitled template'),
+            subject: String(t.subject || ''),
+          }));
+        } catch (e) {
+          console.error('Failed to load email templates for notification workflow:', e);
+        }
+      }
+
       const turn = maybeStartOrContinue({
         prompt: trimmed,
         form: builderForm ? mapDiscoveredForm(builderForm) : undefined,
@@ -1636,6 +1655,7 @@ export function useCopilotEngine() {
         userId: user?.id,
         projectId: activeProject?.id,
         orgUsers,
+        emailTemplates,
         forceStart: createType === 'workflow' || isBuilderActive,
       });
 
