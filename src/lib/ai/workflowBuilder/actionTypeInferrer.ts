@@ -10,14 +10,34 @@ export type InferredWorkflowActionType =
   | 'create_combination_records'
   | 'send_notification';
 
+/** Cross-ref / linked / child wording used by Create/Update Linked actions. */
+const CROSS_REF_NOUN =
+  '(?:cross\\s*-?\\s*refs?(?:erence)?s?|crossrefs?|x-?refs?|\\bxrs?\\b|linked|child)';
+
 /** Phrases that mean "create something" but not a form record. */
 function looksLikeNonRecordCreate(t: string): boolean {
   return /\bcreate\s+(?:an?\s+)?(?:new\s+)?(?:field|option|value|workflow|form|level|approver|user|role|group|status|dropdown|email|notification|rule)\b/.test(t);
 }
 
+/** Nouns that must not be treated as a form name for bare "create an X". */
+function looksLikeBareCreateNoun(t: string): boolean {
+  // "create an Incident" / "create a Task" — but not cross/linked/child/etc.
+  const m = t.match(/\bcreate\s+(?:an?\s+)(?!new\b)([a-z][\w/-]{1,40})\b/i);
+  if (!m?.[1]) return false;
+  const noun = m[1].toLowerCase();
+  if (
+    /^(?:cross|crossref|xref|xr|linked|child|parent|combination|combo|record|records|ticket|tickets|submission|submissions|entry|entries|field|form|workflow|action)$/.test(noun)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 /** Explicit create-record / create-records wording (incl. plurals & action-type mentions). */
 function looksLikeCreateRecord(t: string): boolean {
   if (looksLikeNonRecordCreate(t)) return false;
+  // Never steal cross-ref / linked create prompts
+  if (looksLikeCreateLinkedRecord(t) || looksLikeUpdateLinkedRecord(t)) return false;
 
   // Direct plurals / singulars: "create record(s)", "creating records", "new records"
   if (
@@ -39,13 +59,65 @@ function looksLikeCreateRecord(t: string): boolean {
   }
 
   // Named form/object between create and record(s)/ticket/…
-  // e.g. "create a new Incident record", "create Incident tickets"
   if (
     /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+records?\b/.test(t)
     || /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+(?:ticket|submission|entry|tickets|submissions|entries)\b/.test(t)
     || /\bcreate\s+(?:an?\s+)?new\s+[\w][\w/-]+\b/.test(t)
-    // "create an Incident" / "create a Task" (form-like noun, not "create a field")
-    || /\bcreate\s+(?:an?\s+)(?!new\b)[a-z][\w/-]{1,40}\b/.test(t)
+    || looksLikeBareCreateNoun(t)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function looksLikeUpdateLinkedRecord(t: string): boolean {
+  // Explicit action-type wording
+  if (
+    /\bupdate[_\s-]?linked[_\s-]?records?\s+action\b/.test(t)
+    || /\baction\s+type\s*(?:is|:|=)?\s*update[_\s-]?linked[_\s-]?records?\b/.test(t)
+    || /\buse\s+update[_\s-]?linked[_\s-]?records?\b/.test(t)
+    || /\bupdate\s+cross\s*-?\s*refs?(?:erence)?\s+action\b/.test(t)
+  ) {
+    return true;
+  }
+
+  // "update/set/change … on/via cross-ref / linked / child"
+  if (
+    /\bupdate\s+linked\b/.test(t)
+    || /\bupdate\s+(?:the\s+)?(?:linked|child)\b/.test(t)
+    || new RegExp(`\\bupdate\\s+(?:the\\s+)?${CROSS_REF_NOUN}\\b`).test(t)
+    || new RegExp(`\\bupdate\\b.{0,60}\\b(?:linked|child|${CROSS_REF_NOUN})\\s+records?\\b`).test(t)
+    || new RegExp(`\\b(?:set|change|update)\\b.{0,40}\\bon\\s+(?:the\\s+)?${CROSS_REF_NOUN}\\b`).test(t)
+    || new RegExp(`\\b(?:set|change|update)\\b.{0,40}\\bon\\s+(?:the\\s+)?(?:linked|child)\\s+records?\\b`).test(t)
+    || /\bset\b.+\bon\s+(?:the\s+)?linked\b/.test(t)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function looksLikeCreateLinkedRecord(t: string): boolean {
+  // Explicit action-type wording
+  if (
+    /\bcreate[_\s-]?linked[_\s-]?records?\s+action\b/.test(t)
+    || /\baction\s+type\s*(?:is|:|=)?\s*create[_\s-]?linked[_\s-]?records?\b/.test(t)
+    || /\buse\s+create[_\s-]?linked[_\s-]?records?\b/.test(t)
+    || /\badd\s+(?:a\s+)?create[_\s-]?linked[_\s-]?records?\b/.test(t)
+    || /\bcreate\s+cross\s*-?\s*refs?(?:erence)?\s+action\b/.test(t)
+  ) {
+    return true;
+  }
+
+  // "create linked/child/cross-ref (record)"
+  if (
+    /\bcreate\s+linked\b/.test(t)
+    || /\bcreate\s+(?:an?\s+)?(?:new\s+)?(?:linked|child)\s+records?\b/.test(t)
+    || new RegExp(`\\bcreat(?:e|ing)\\s+(?:an?\\s+)?(?:new\\s+)?${CROSS_REF_NOUN}\\b`).test(t)
+    || new RegExp(`\\bcreat(?:e|ing)\\s+(?:an?\\s+)?(?:new\\s+)?${CROSS_REF_NOUN}\\s+records?\\b`).test(t)
+    || /\blinked\s+records?\b/.test(t)
+    || new RegExp(`\\b${CROSS_REF_NOUN}\\b.{0,40}\\bcreat(?:e|ing)\\b|\\bcreat(?:e|ing)\\b.{0,40}\\b${CROSS_REF_NOUN}\\b`).test(t)
   ) {
     return true;
   }
@@ -63,28 +135,18 @@ export function inferActionTypeFromPrompt(prompt: string): InferredWorkflowActio
     || /\bcreate\s+combination\b/.test(t)
     || /\bcombination\s+record/.test(t)
     || /\bcartesian\b/.test(t)
-    || /\bparent\b.+\bcross[- ]?ref|\bcross[- ]?ref.+\bparent\b/.test(t)
+    || (/\bparent\b/.test(t) && /\bcross[- ]?refs?(?:erence)?\b|\bxrs?\b/.test(t) && /\bcombin|fan-?out|cartesian\b/.test(t))
   ) {
     return 'create_combination_records';
   }
 
-  // Update linked
-  if (
-    /\bupdate\s+linked\b/.test(t)
-    || /\bupdate\s+(?:the\s+)?(?:linked|child|cross[- ]?ref(?:erence)?)\b/.test(t)
-    || /\bupdate\b.+\b(?:linked|cross[- ]?ref(?:erence)?)\s+record/.test(t)
-    || /\bset\b.+\bon\s+(?:the\s+)?linked\b/.test(t)
-  ) {
+  // Update linked / cross-ref (before create so "update cross ref" wins)
+  if (looksLikeUpdateLinkedRecord(t)) {
     return 'update_linked_records';
   }
 
-  // Create linked
-  if (
-    /\bcreate\s+linked\b/.test(t)
-    || /\bcreate\s+(?:a\s+)?(?:linked|child|cross[- ]?ref(?:erence)?)\s+record/.test(t)
-    || /\blinked\s+record\b/.test(t)
-    || /\bcross[- ]?reference\b.+\bcreate|\bcreate\b.+\bcross[- ]?reference\b/.test(t)
-  ) {
+  // Create linked / cross-ref (before plain create_record)
+  if (looksLikeCreateLinkedRecord(t)) {
     return 'create_linked_record';
   }
 
