@@ -15,6 +15,44 @@ function looksLikeNonRecordCreate(t: string): boolean {
   return /\bcreate\s+(?:an?\s+)?(?:new\s+)?(?:field|option|value|workflow|form|level|approver|user|role|group|status|dropdown|email|notification|rule)\b/.test(t);
 }
 
+/** Explicit create-record / create-records wording (incl. plurals & action-type mentions). */
+function looksLikeCreateRecord(t: string): boolean {
+  if (looksLikeNonRecordCreate(t)) return false;
+
+  // Direct plurals / singulars: "create record(s)", "creating records", "new records"
+  if (
+    /\bcreat(?:e|ing|es)\s+(?:an?\s+)?(?:new\s+)?records?\b/.test(t)
+    || /\bnew\s+records?\b/.test(t)
+    || /\bcreat(?:e|ing)\s+(?:an?\s+)?submission\b/.test(t)
+  ) {
+    return true;
+  }
+
+  // Explicit action-type wording: "create record action", "action type create record"
+  if (
+    /\bcreate[_\s-]?records?\s+action\b/.test(t)
+    || /\baction\s+type\s*(?:is|:|=)?\s*create[_\s-]?records?\b/.test(t)
+    || /\buse\s+create[_\s-]?records?\b/.test(t)
+    || /\badd\s+(?:a\s+)?create[_\s-]?records?\b/.test(t)
+  ) {
+    return true;
+  }
+
+  // Named form/object between create and record(s)/ticket/…
+  // e.g. "create a new Incident record", "create Incident tickets"
+  if (
+    /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+records?\b/.test(t)
+    || /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+(?:ticket|submission|entry|tickets|submissions|entries)\b/.test(t)
+    || /\bcreate\s+(?:an?\s+)?new\s+[\w][\w/-]+\b/.test(t)
+    // "create an Incident" / "create a Task" (form-like noun, not "create a field")
+    || /\bcreate\s+(?:an?\s+)(?!new\b)[a-z][\w/-]{1,40}\b/.test(t)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function inferActionTypeFromPrompt(prompt: string): InferredWorkflowActionType {
   const t = String(prompt || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (!t) return 'change_field_value';
@@ -50,22 +88,9 @@ export function inferActionTypeFromPrompt(prompt: string): InferredWorkflowActio
     return 'create_linked_record';
   }
 
-  // Create record (new submission on a form)
-  // Allow form/object names between "new" and "record":
-  // e.g. "create a new Incident record", "create an Incident ticket"
-  if (
-    !looksLikeNonRecordCreate(t)
-    && (
-      /\bcreate\s+(?:an?\s+)?(?:new\s+)?record\b/.test(t)
-      || /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+records?\b/.test(t)
-      || /\bnew\s+record\b/.test(t)
-      || /\bcreate\s+(?:an?\s+)?submission\b/.test(t)
-      || /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+(?:ticket|submission|entry)\b/.test(t)
-      || /\bcreate\s+(?:an?\s+)?new\s+[\w][\w/-]+\b/.test(t)
-      // "create an Incident" / "create a Task" (form-like noun, not "create a field")
-      || /\bcreate\s+(?:an?\s+)(?!new\b)[a-z][\w/-]{1,40}\b/.test(t)
-    )
-  ) {
+  // Create record (new submission on a form) — before change_field so
+  // "create a record and set Title to X" still becomes create_record.
+  if (looksLikeCreateRecord(t)) {
     return 'create_record';
   }
 

@@ -36,7 +36,7 @@ import {
   type EmailTemplateChoice,
   type OrgUserChoice,
 } from './metadataDiscovery';
-import { describeActionType } from './actionTypeInferrer';
+import { describeActionType, inferActionTypeFromPrompt } from './actionTypeInferrer';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint, inferCombinationModeFromPrompt, inferNotificationChannelFromPrompt } from './promptHints';
 import type { ExistingWorkflowGraphSummary, WorkflowApplyMode } from './analyzeExistingWorkflow';
@@ -215,6 +215,35 @@ function planGenericActionRequirements(
   const action = definition.action;
   if (!action) {
     return mergeUnansweredFirst(out);
+  }
+
+  // Re-infer create/linked actions when the prompt clearly asks for them but
+  // intent fell through to change_field_value (e.g. "create records").
+  if (
+    action.actionType === 'change_field_value'
+    && !editTarget // don't override when editing a specific existing node
+  ) {
+    const reinferred = inferActionTypeFromPrompt(originalRequest || definition.description || '');
+    if (
+      reinferred === 'create_record'
+      || reinferred === 'create_linked_record'
+      || reinferred === 'update_linked_records'
+      || reinferred === 'create_combination_records'
+    ) {
+      action.actionType = reinferred;
+      action.configured = false;
+      action.createFieldsDone = undefined;
+      action.skipCreateFieldValues = undefined;
+      if (reinferred === 'create_record' && !action.targetFormId && !action.targetFormName) {
+        const formHint = extractCreateTargetFormHint(originalRequest || definition.description || '');
+        if (formHint) {
+          action.targetFormName = formHint;
+        } else if (hydratedForm?.id) {
+          action.targetFormId = hydratedForm.id;
+          action.targetFormName = hydratedForm.name;
+        }
+      }
+    }
   }
 
   // Soft-prefill notification channel from prompt wording when still unset
@@ -1609,15 +1638,14 @@ function planGenericActionRequirements(
         key: 'action_field',
         question: [
           added
-            ? `Add another field to ${actionVerb} on ${formScopeLabel}?`
+            ? `Field(s) so far: ${summaryParts.join(' · ') || '(none)'}.`
             : staticFieldAskPrompt,
-          summaryParts.length ? summaryParts.join(' · ') : '',
-          '',
-          isUpdateLinked
-            ? (added
-              ? 'Pick another **child-form** field for a **static value**, **Map Field from trigger form**, or **Done**.'
-              : `${staticFieldAskHint} At least one update is required.`)
+          added
+            ? 'Pick **another field**, **Map Field from trigger form**, or **Done** when you are finished adding fields.'
             : staticFieldAskHint,
+          !added && !isUpdateLinked
+            ? 'You can add **multiple fields** — after each one I will ask again until you choose Done or Skip.'
+            : '',
         ].filter(Boolean).join('\n'),
         inputKind: 'field_select',
         options: [
@@ -2943,6 +2971,8 @@ export function applyAnswerToDefinition(
       next.action.createMapSourceFieldId = undefined;
       next.action.createMapSourceFieldLabel = undefined;
       next.action.createMapSourceFieldType = undefined;
+      next.action.createFieldsDone = false;
+      next.action.skipCreateFieldValues = false;
     }
     next.action.configured = actionConfigured(next.action);
     return next;
@@ -2954,6 +2984,9 @@ export function applyAnswerToDefinition(
       : undefined;
     const isLinked = next.action.actionType === 'update_linked_records'
       || next.action.actionType === 'create_linked_record';
+    const isCreate = next.action.actionType === 'create_record'
+      || next.action.actionType === 'create_linked_record'
+      || next.action.actionType === 'update_linked_records';
     const xrField = form?.fields.find((f) =>
       f.id === next.action!.crossReferenceFieldId
       || (next.action!.crossReferenceFieldLabel
@@ -2980,6 +3013,38 @@ export function applyAnswerToDefinition(
     } else {
       next.action.staticValue = value;
     }
+
+    // Create / linked: commit this field immediately so we loop for more fields
+    // until the user chooses Done / Skip (do not treat as single change_field_value).
+    if (
+      isCreate
+      && (next.action.targetFieldId || next.action.targetFieldLabel)
+      && next.action.staticValue !== undefined
+      && next.action.staticValue !== null
+      && String(next.action.staticValue) !== ''
+      && !(field && fieldNeedsOptionCreateCheck(field) && !fieldHasOption(field, next.action.staticValue))
+    ) {
+      next.action.createFieldValues = next.action.createFieldValues || [];
+      next.action.createFieldMappings = next.action.createFieldMappings || [];
+      next.action.createFieldValues.push({
+        fieldId: next.action.targetFieldId,
+        fieldLabel: next.action.targetFieldLabel,
+        fieldType: next.action.targetFieldType || field?.type,
+        staticValue: next.action.pendingOptionLabel || next.action.staticValue,
+        pendingOptionCreate: false,
+        pendingOptionLabel: undefined,
+      });
+      next.action.createDraftKind = undefined;
+      next.action.targetFieldId = undefined;
+      next.action.targetFieldLabel = undefined;
+      next.action.targetFieldType = undefined;
+      next.action.staticValue = undefined;
+      next.action.pendingOptionCreate = false;
+      next.action.pendingOptionLabel = undefined;
+      next.action.createFieldsDone = false;
+      next.action.skipCreateFieldValues = false;
+    }
+
     next.action.configured = actionConfigured(next.action);
     return next;
   }
@@ -2989,6 +3054,28 @@ export function applyAnswerToDefinition(
       next.action.pendingOptionCreate = true;
       next.action.pendingOptionLabel = next.action.pendingOptionLabel || String(next.action.staticValue || '');
       next.action.staticValue = next.action.pendingOptionLabel;
+      const isCreate = next.action.actionType === 'create_record'
+        || next.action.actionType === 'create_linked_record'
+        || next.action.actionType === 'update_linked_records';
+      if (isCreate && (next.action.targetFieldId || next.action.targetFieldLabel)) {
+        next.action.createFieldValues = next.action.createFieldValues || [];
+        next.action.createFieldMappings = next.action.createFieldMappings || [];
+        next.action.createFieldValues.push({
+          fieldId: next.action.targetFieldId,
+          fieldLabel: next.action.targetFieldLabel,
+          fieldType: next.action.targetFieldType,
+          staticValue: next.action.pendingOptionLabel || next.action.staticValue,
+          pendingOptionCreate: true,
+          pendingOptionLabel: next.action.pendingOptionLabel,
+        });
+        next.action.createDraftKind = undefined;
+        next.action.targetFieldId = undefined;
+        next.action.targetFieldLabel = undefined;
+        next.action.targetFieldType = undefined;
+        next.action.staticValue = undefined;
+        next.action.createFieldsDone = false;
+        next.action.skipCreateFieldValues = false;
+      }
     } else {
       next.action.staticValue = '';
       next.action.pendingOptionCreate = false;
