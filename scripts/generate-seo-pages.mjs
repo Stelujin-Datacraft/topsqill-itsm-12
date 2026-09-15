@@ -44,7 +44,18 @@ function buildBody(route) {
     )
     .join('\n');
 
+  // #app-boot is a brief branded placeholder for humans (no raw SEO copy flash).
+  // #seo-prerender stays in the DOM for crawlers but is visually hidden via #seo-boot-style.
   return `
+  <div id="app-boot" aria-hidden="true">
+    <img
+      src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
+      alt=""
+      width="48"
+      height="48"
+      decoding="async"
+    />
+  </div>
   <main id="seo-prerender" data-seo-path="${escapeHtml(route.path)}">
     <header>
       <p><a href="${escapeHtml(absoluteUrl('https://topsqill.com', '/'))}">TopSqill</a></p>
@@ -66,6 +77,38 @@ function buildBody(route) {
       </ul>
     </nav>
   </main>`;
+}
+
+const SEO_BOOT_STYLE = `
+    <style id="seo-boot-style">
+      #seo-prerender {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+      }
+      #app-boot {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+      }
+      #app-boot img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+      }
+    </style>`;
+
+function ensureBootStyle(html) {
+  if (/id="seo-boot-style"/i.test(html)) return html;
+  return html.replace('</head>', `${SEO_BOOT_STYLE}\n  </head>`);
 }
 
 function applyMeta(html, { title, description, canonical, ogImage, noindex = false }) {
@@ -275,7 +318,7 @@ function main() {
     process.exit(1);
   }
 
-  const template = fs.readFileSync(templatePath, 'utf8');
+  const template = ensureBootStyle(fs.readFileSync(templatePath, 'utf8'));
   fs.mkdirSync(workerPrerenderDir, { recursive: true });
 
   for (const route of routes) {
