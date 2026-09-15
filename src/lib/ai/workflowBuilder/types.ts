@@ -363,6 +363,15 @@ export interface WorkflowBuilderSession {
   editTargetNodeType?: string | null;
   editTargetNodeLabel?: string | null;
   editTargetActionType?: string | null;
+  /** User finished the edit-another loop (Done) — proceed to preview */
+  editLoopDone?: boolean;
+  /** Queued in-place patches from one or more edit-node passes */
+  editPatches?: Array<{
+    nodeId: string;
+    nodeType?: string | null;
+    label?: string;
+    config: Record<string, any>;
+  }>;
   /** Compact architecture summary of the open workflow (designer AI Suggest) */
   existingGraphSummary?: {
     nodeCount: number;
@@ -378,12 +387,14 @@ export interface WorkflowBuilderSession {
       type: string;
       label: string;
       actionType?: string;
+      configSnapshot?: Record<string, any>;
     }>;
     editableNodes?: Array<{
       id: string;
       type: string;
       label: string;
       actionType?: string;
+      configSnapshot?: Record<string, any>;
     }>;
   } | null;
   status: WorkflowBuilderStatus;

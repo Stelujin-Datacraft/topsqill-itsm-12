@@ -672,6 +672,12 @@ const WorkflowDesignerPage = () => {
     description: string;
     applyMode?: 'edit' | 'append' | 'extend' | 'replace';
     editTargetNodeId?: string;
+    editPatches?: Array<{
+      nodeId: string;
+      nodeType?: string | null;
+      label?: string;
+      config: Record<string, any>;
+    }>;
     nodes: Array<{
       type: string;
       label: string;
@@ -711,6 +717,7 @@ const WorkflowDesignerPage = () => {
       suggestionNodes: suggestion.nodes,
       normalizeConfig: (nodeType, config) => normalizeNodeConfig(nodeType, config || {}, triggerFormInfo),
       editTargetNodeId: suggestion.editTargetNodeId,
+      editPatches: suggestion.editPatches,
     });
 
     const newNodes = merged.nodes;

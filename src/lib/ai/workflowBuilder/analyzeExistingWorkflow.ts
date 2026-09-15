@@ -14,6 +14,8 @@ export interface ExistingWorkflowNodeSummary {
   conditionFieldLabel?: string;
   conditionOperator?: string;
   conditionValue?: string;
+  /** Snapshot of action/start config so edit mode can seed XR / target form / fields */
+  configSnapshot?: Record<string, any>;
 }
 
 export interface ExistingWorkflowGraphSummary {
@@ -108,6 +110,11 @@ export function analyzeExistingWorkflowGraph(
         ...base,
         triggerFormId: c.triggerFormId || c.formId || c.sourceFormId,
         triggerFormName: c.triggerFormName || c.formName || c.sourceFormName,
+        configSnapshot: {
+          triggerFormId: c.triggerFormId || c.formId || c.sourceFormId,
+          triggerFormName: c.triggerFormName || c.formName || c.sourceFormName,
+          triggerType: c.triggerType,
+        },
       };
     }
     if (type === 'action' || type === 'notification' || type === 'approval') {
@@ -116,10 +123,30 @@ export function analyzeExistingWorkflowGraph(
       return {
         ...base,
         actionType: rawAt && rawAt !== 'action' ? rawAt : undefined,
+        configSnapshot: {
+          actionType: rawAt && rawAt !== 'action' ? rawAt : undefined,
+          crossReferenceFieldId: c.crossReferenceFieldId,
+          crossReferenceFieldName: c.crossReferenceFieldName,
+          targetFormId: c.targetFormId,
+          targetFormName: c.targetFormName,
+          fieldValues: c.fieldValues,
+          fieldMappings: c.fieldMappings,
+          fieldConfigMode: c.fieldConfigMode,
+          updateScope: c.updateScope,
+          autoLinkBack: c.autoLinkBack,
+          recordCount: c.recordCount,
+          targetFieldId: c.targetFieldId,
+          targetFieldName: c.targetFieldName,
+          staticValue: c.staticValue,
+          fieldUpdates: c.fieldUpdates,
+          notificationConfig: c.notificationConfig,
+          notificationType: c.notificationType,
+          emailTemplateId: c.emailTemplateId,
+        },
       };
     }
     if (type === 'condition') {
-      return { ...base, ...conditionSummary(n) };
+      return { ...base, ...conditionSummary(n), configSnapshot: { ...c } };
     }
     return base;
   });
