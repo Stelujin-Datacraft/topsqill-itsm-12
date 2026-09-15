@@ -109,6 +109,15 @@ export function inferDesignerActionType(
     if (next.crossReferenceFieldId || next.crossReferenceFieldName || next.autoLinkBack) {
       return 'create_linked_record';
     }
+    if (
+      next.targetFormId
+      && (
+        (Array.isArray(next.fieldMappings) && next.fieldMappings.length > 0)
+        || (Array.isArray(next.fieldValues) && next.fieldValues.length > 0)
+      )
+    ) {
+      return 'create_record';
+    }
   }
   if (/set|change|update/.test(haystack) && /field|value|status|married|gender|dob|birth/.test(haystack)) {
     return 'change_field_value';
