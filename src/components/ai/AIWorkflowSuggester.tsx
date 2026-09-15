@@ -305,6 +305,26 @@ export function AIWorkflowSuggester({
     setAnswerDraft('');
 
     const session = turn.session;
+
+    // Keep left-panel trigger in sync when the conversation sets/changes the Start form
+    const sessionFormId = session.requirements?.trigger?.formId;
+    const sessionFormName = session.requirements?.trigger?.formName;
+    if (sessionFormId) {
+      setTriggerFormId(sessionFormId);
+      const fromAvailable = availableForms.find((f) => f.id === sessionFormId);
+      if (fromAvailable) {
+        setSelectedForms((prev) => (
+          prev.some((f) => f.id === sessionFormId) ? prev : [...prev, fromAvailable]
+        ));
+      } else if (sessionFormName) {
+        setSelectedForms((prev) => (
+          prev.some((f) => f.id === sessionFormId)
+            ? prev
+            : [...prev, { id: sessionFormId, name: sessionFormName, fields: [] } as any]
+        ));
+      }
+    }
+
     const formFields = (triggerForm?.fields || []).map((f) => ({
       id: f.id,
       label: f.label,
@@ -358,8 +378,14 @@ export function AIWorkflowSuggester({
   };
 
   const runBuilderTurn = (prompt: string, forceStart = false) => {
-    const formsCatalog = (selectedForms.length ? selectedForms : availableForms).map(mapDiscoveredForm);
-    const form = triggerForm ? mapDiscoveredForm(triggerForm) : formsCatalog[0];
+    // Prefer full available forms so Edit → Start can list every form (not only context picks)
+    const formsCatalog = (availableForms.length ? availableForms : selectedForms).map(mapDiscoveredForm);
+    const sessionTriggerId = getBuilderSession()?.requirements?.trigger?.formId;
+    const formFromSession = sessionTriggerId
+      ? formsCatalog.find((f) => f.id === sessionTriggerId)
+      : undefined;
+    const form = formFromSession
+      || (triggerForm ? mapDiscoveredForm(triggerForm) : formsCatalog[0]);
     const turn = maybeStartOrContinue({
       prompt,
       form,
@@ -447,10 +473,14 @@ export function AIWorkflowSuggester({
   };
 
   const handleApply = async () => {
-    const formId = triggerFormId || triggerForm?.id;
-    const formName = triggerForm?.name;
     const forms = selectedForms.length > 0 ? selectedForms : availableForms;
     const builderSession = getBuilderSession();
+    const sessionFormId = builderSession?.requirements?.trigger?.formId;
+    const sessionFormName = builderSession?.requirements?.trigger?.formName;
+    const formId = sessionFormId || triggerFormId || triggerForm?.id;
+    const formName = sessionFormName
+      || forms.find((f) => f.id === formId)?.name
+      || triggerForm?.name;
 
     // Conversational path: create SAC / merge users / compile, then apply
     if (builderMode && builderSession) {

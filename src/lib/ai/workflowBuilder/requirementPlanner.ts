@@ -174,6 +174,54 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
   }
 }
 
+/** Soft-fill action so validation passes when we only edit condition/start/wait. */
+function softFillActionForNonActionEdit(
+  action: WorkflowActionSpec,
+  definition: AIWorkflowDefinition,
+): void {
+  if (action.actionType === 'change_field_value') {
+    action.targetFieldId = action.targetFieldId || '__keep_existing__';
+    action.targetFieldLabel = action.targetFieldLabel || 'Keep existing';
+    action.staticValue = action.staticValue ?? '(unchanged)';
+  } else if (action.actionType === 'send_notification') {
+    action.notificationType = action.notificationType || 'in_app';
+    action.notificationSubject = action.notificationSubject || 'Workflow notification';
+    action.notificationMessage = action.notificationMessage || 'A workflow condition was met.';
+  } else if (
+    action.actionType === 'create_record'
+    || action.actionType === 'create_linked_record'
+    || action.actionType === 'update_linked_records'
+  ) {
+    action.skipCreateFieldValues = true;
+    action.createFieldsDone = true;
+    action.targetFormId = action.targetFormId || definition.trigger.formId || '__keep__';
+    action.targetFormName = action.targetFormName || definition.trigger.formName || 'Keep existing';
+    if (action.actionType !== 'create_record') {
+      action.crossReferenceFieldId = action.crossReferenceFieldId || '__keep__';
+      action.crossReferenceFieldLabel = action.crossReferenceFieldLabel || 'Keep existing';
+    }
+    if (action.actionType === 'update_linked_records') {
+      action.createFieldValues = action.createFieldValues?.length
+        ? action.createFieldValues
+        : [{ fieldId: '__keep__', fieldLabel: 'Keep', staticValue: '(unchanged)' }];
+    }
+  } else if (action.actionType === 'create_combination_records') {
+    action.comboConfirmDone = true;
+    action.comboTriggerMapsDone = true;
+    action.comboLinkedMapsDone = true;
+    action.comboSecondLinkedMapsDone = true;
+    action.comboDestConfirmed = true;
+    action.comboLinkBackDone = true;
+    action.skipComboLinkBack = true;
+    action.sourceCrossRefFieldId = action.sourceCrossRefFieldId || '__keep__';
+    action.sourceCrossRefFieldLabel = action.sourceCrossRefFieldLabel || 'Keep existing';
+    action.sourceLinkedFormId = action.sourceLinkedFormId || '__keep__';
+    action.sourceLinkedFormName = action.sourceLinkedFormName || 'Keep existing';
+    action.targetFormId = action.targetFormId || definition.trigger.formId || '__keep__';
+    action.targetFormName = action.targetFormName || definition.trigger.formName || 'Keep existing';
+  }
+}
+
 function planGenericActionRequirements(
   definition: AIWorkflowDefinition,
   form: DiscoveredForm | undefined,
@@ -212,10 +260,22 @@ function planGenericActionRequirements(
   }
 
   // Ensure action exists (should be set by intent analyzer)
-  const action = definition.action;
-  if (!action) {
-    return mergeUnansweredFirst(out);
+  // Start-node edits may run on approval-style defs that have no generic action —
+  // stub one so we can still ask for the trigger form.
+  if (!definition.action) {
+    if (String(editTarget?.nodeType || '').toLowerCase() === 'start') {
+      definition.action = {
+        actionType: 'change_field_value',
+        targetFieldId: '__keep_existing__',
+        targetFieldLabel: 'Keep existing',
+        staticValue: '(unchanged)',
+        configured: true,
+      };
+    } else {
+      return mergeUnansweredFirst(out);
+    }
   }
+  const action = definition.action;
 
   // Re-infer create/linked actions when the prompt clearly asks for them but
   // intent fell through to change_field_value (e.g. "create records").
@@ -315,6 +375,24 @@ function planGenericActionRequirements(
     } else if (condition) {
       condition.resolved = true;
     }
+  }
+
+  // Editing Start: ask which form to use (do not jump straight to preview / Restart)
+  if (editingStart) {
+    softFillActionForNonActionEdit(action, definition);
+    action.configured = true;
+    const currentName = definition.trigger.formName || definition.trigger.formId;
+    push(req({
+      id: 'trigger.form.edit_start',
+      scope: 'workflow',
+      key: 'trigger_form',
+      question: currentName
+        ? `Which **form** should the Start node use? (currently **${currentName}**)`
+        : 'Which **form** should the Start node use?',
+      inputKind: 'choice',
+      options: hydratedCatalog.map((f) => ({ value: f.id, label: f.name })),
+    }));
+    return mergeUnansweredFirst(out);
   }
 
   // Combination: Condition is configured on the Condition node in the designer.
@@ -1140,50 +1218,10 @@ function planGenericActionRequirements(
     return mergeUnansweredFirst(out);
   }
 
-  // Edit condition/start/wait: only condition (or nothing) — do not reconfigure action
+  // Edit condition/wait: only condition (or nothing) — do not reconfigure action
+  // (Start edits return earlier with a form picker.)
   if (skipActionQuestions) {
-    // Soft-fill so validation does not block publishing when action is unused on apply
-    if (action.actionType === 'change_field_value') {
-      action.targetFieldId = action.targetFieldId || '__keep_existing__';
-      action.targetFieldLabel = action.targetFieldLabel || 'Keep existing';
-      action.staticValue = action.staticValue ?? '(unchanged)';
-    } else if (action.actionType === 'send_notification') {
-      action.notificationType = action.notificationType || 'in_app';
-      action.notificationSubject = action.notificationSubject || 'Workflow notification';
-      action.notificationMessage = action.notificationMessage || 'A workflow condition was met.';
-    } else if (
-      action.actionType === 'create_record'
-      || action.actionType === 'create_linked_record'
-      || action.actionType === 'update_linked_records'
-    ) {
-      action.skipCreateFieldValues = true;
-      action.createFieldsDone = true;
-      action.targetFormId = action.targetFormId || definition.trigger.formId || '__keep__';
-      action.targetFormName = action.targetFormName || definition.trigger.formName || 'Keep existing';
-      if (action.actionType !== 'create_record') {
-        action.crossReferenceFieldId = action.crossReferenceFieldId || '__keep__';
-        action.crossReferenceFieldLabel = action.crossReferenceFieldLabel || 'Keep existing';
-      }
-      if (action.actionType === 'update_linked_records') {
-        action.createFieldValues = action.createFieldValues?.length
-          ? action.createFieldValues
-          : [{ fieldId: '__keep__', fieldLabel: 'Keep', staticValue: '(unchanged)' }];
-      }
-    } else if (action.actionType === 'create_combination_records') {
-      action.comboConfirmDone = true;
-      action.comboTriggerMapsDone = true;
-      action.comboLinkedMapsDone = true;
-      action.comboSecondLinkedMapsDone = true;
-      action.comboDestConfirmed = true;
-      action.comboLinkBackDone = true;
-      action.skipComboLinkBack = true;
-      action.sourceCrossRefFieldId = action.sourceCrossRefFieldId || '__keep__';
-      action.sourceCrossRefFieldLabel = action.sourceCrossRefFieldLabel || 'Keep existing';
-      action.sourceLinkedFormId = action.sourceLinkedFormId || '__keep__';
-      action.sourceLinkedFormName = action.sourceLinkedFormName || 'Keep existing';
-      action.targetFormId = action.targetFormId || definition.trigger.formId || '__keep__';
-      action.targetFormName = action.targetFormName || definition.trigger.formName || 'Keep existing';
-    }
+    softFillActionForNonActionEdit(action, definition);
     action.configured = true;
     return mergeUnansweredFirst(out);
   }
@@ -2209,9 +2247,9 @@ export function planMissingRequirements(
     }
     : null;
 
-  const rest = isApprovalStyleDefinition(definition)
-    ? planApprovalRequirements(definition, form, previous, orgUsers)
-    : planGenericActionRequirements(
+  // Start-node edits only need a form picker — avoid approval SAC / level Q&A.
+  const rest = editTarget?.nodeType === 'start' || !isApprovalStyleDefinition(definition)
+    ? planGenericActionRequirements(
       definition,
       form,
       previous,
@@ -2219,7 +2257,8 @@ export function planMissingRequirements(
       originalRequest,
       emailTemplates,
       editTarget,
-    );
+    )
+    : planApprovalRequirements(definition, form, previous, orgUsers);
 
   // Ask apply_mode / edit_node before other questions
   const applyQ = prefix.find((m) => m.key === 'apply_mode' && !m.answered);
