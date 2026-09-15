@@ -826,18 +826,32 @@ export function continueWorkflowBuilderSession(params: {
     session.editTargetActionType = picked?.actionType || null;
     session.applyMode = 'edit';
 
-    // Align inferred action with the node being edited when it's an action node
+    // Align inferred action with the node being edited when it's an action node.
+    // Do NOT overwrite a prompt-inferred create/linked/update/combo/notification
+    // type with the existing node's type (e.g. keep create_linked_record when
+    // the canvas node was still create_record).
     const t = String(picked?.type || '').toLowerCase();
+    const existingAt = String(picked?.actionType || '').toLowerCase();
+    const inferredAt = String(session.requirements.action?.actionType || '').toLowerCase();
+    const promptHasSpecificAction = [
+      'create_record',
+      'create_linked_record',
+      'update_linked_records',
+      'create_combination_records',
+      'send_notification',
+    ].includes(inferredAt);
     if (
       session.requirements.action
       && (t === 'action' || t === 'notification' || t === 'approval')
-      && picked?.actionType
+      && existingAt
+      && existingAt !== 'action'
+      && !promptHasSpecificAction
     ) {
       session.requirements = {
         ...session.requirements,
         action: {
           ...session.requirements.action,
-          actionType: picked.actionType as any,
+          actionType: picked!.actionType as any,
           configured: false,
         },
       };

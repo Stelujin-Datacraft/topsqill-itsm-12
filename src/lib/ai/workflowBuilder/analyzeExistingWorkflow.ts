@@ -111,9 +111,11 @@ export function analyzeExistingWorkflowGraph(
       };
     }
     if (type === 'action' || type === 'notification' || type === 'approval') {
+      const rawAt = c.actionType ? String(c.actionType) : undefined;
+      // Never fall back to node type ("action") — that is not a designer actionType
       return {
         ...base,
-        actionType: c.actionType || type,
+        actionType: rawAt && rawAt !== 'action' ? rawAt : undefined,
       };
     }
     if (type === 'condition') {
