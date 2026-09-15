@@ -89,6 +89,7 @@ export function validateWorkflowDefinition(
         }
         break;
       case 'create_linked_record':
+      case 'link_existing_record':
       case 'update_linked_records': {
         const hasXr = Boolean(
           action.crossReferenceFieldId
@@ -120,6 +121,16 @@ export function validateWorkflowDefinition(
             code: 'MISSING_CREATE_FIELDS',
             message: 'Add static values and/or map fields from the trigger form, or choose Done/Skip.',
           });
+        }
+        if (action.actionType === 'link_existing_record') {
+          const hasMaps = (action.createFieldMappings || []).length > 0;
+          if (!action.createFieldsDone || !hasMaps) {
+            issues.push({
+              severity: 'error',
+              code: 'MISSING_MATCH_MAPPINGS',
+              message: 'Add at least one Parent → Child match field mapping, then choose Done.',
+            });
+          }
         }
         if (action.actionType === 'update_linked_records') {
           const hasUpdates = (action.createFieldValues || []).length > 0

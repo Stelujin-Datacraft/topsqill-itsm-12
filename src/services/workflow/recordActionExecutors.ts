@@ -2,6 +2,10 @@ import { workflowDb } from './db';
 import { NodeExecutionContext } from '../nodeActions';
 import { ActionExecutionResult } from './actionExecutors';
 import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
+import {
+  appendCrossRefLink,
+  findMatchingChildRecords,
+} from './crossRefLinkHelpers';
 
 // Helper to get workflow creator ID for history logging
 async function getWorkflowCreatorId(workflowId: string): Promise<string | null> {
@@ -1040,6 +1044,198 @@ export class RecordActionExecutors {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         actionDetails
+      };
+    }
+  }
+
+  /**
+   * Find an existing child record by Parent→Child field mappings and append
+   * it to the parent cross-reference field. Never creates a new child record.
+   */
+  static async executeLinkExistingRecordAction(context: NodeExecutionContext): Promise<ActionExecutionResult> {
+    console.log('🔗 EXECUTING LINK EXISTING RECORD ACTION');
+    const config = context.config;
+    const actionDetails = {
+      actionType: 'link_existing_record',
+      crossReferenceFieldId: config.crossReferenceFieldId,
+      targetFormId: config.targetFormId,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      if (!config.crossReferenceFieldId) {
+        return {
+          success: false,
+          error: 'Missing cross-reference field selection',
+          actionDetails,
+        };
+      }
+      if (!config.targetFormId) {
+        return {
+          success: false,
+          error: 'Missing child (target) form for link existing record',
+          actionDetails,
+        };
+      }
+
+      const fieldMappings = (Array.isArray(config.fieldMappings) ? config.fieldMappings : [])
+        .filter((m: any) => m?.sourceFieldId && m?.targetFieldId);
+      if (!fieldMappings.length) {
+        return {
+          success: false,
+          error: 'At least one Parent → Child field mapping is required to find a matching record',
+          actionDetails,
+        };
+      }
+
+      const triggerSubmissionId = context.submissionId;
+      if (!triggerSubmissionId) {
+        return {
+          success: false,
+          error: 'Missing parent submission ID — cannot update cross-reference link',
+          actionDetails,
+        };
+      }
+
+      const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
+      const matchScope: 'first' | 'all' = config.matchScope === 'all' ? 'all' : 'first';
+
+      // Load child candidates for the target form
+      const { data: candidates, error: listError } = await workflowDb()
+        .from('form_submissions')
+        .select('id, submission_ref_id, submission_data')
+        .eq('form_id', config.targetFormId);
+
+      if (listError) {
+        return {
+          success: false,
+          error: `Failed to search child form records: ${listError.message}`,
+          actionDetails,
+        };
+      }
+
+      const matches = findMatchingChildRecords(
+        triggerSubmissionData,
+        candidates || [],
+        fieldMappings,
+        matchScope,
+      );
+
+      if (!matches.length) {
+        return {
+          success: true,
+          output: {
+            linked: false,
+            alreadyLinked: false,
+            matchedCount: 0,
+            message: 'No matching child record found for the mapped field values',
+            crossReferenceFieldId: config.crossReferenceFieldId,
+            targetFormId: config.targetFormId,
+          },
+          actionDetails,
+        };
+      }
+
+      const { data: parentSubmission, error: fetchError } = await workflowDb()
+        .from('form_submissions')
+        .select('submission_data')
+        .eq('id', triggerSubmissionId)
+        .single();
+
+      if (fetchError || !parentSubmission) {
+        return {
+          success: false,
+          error: `Could not load parent submission to update cross-reference: ${fetchError?.message || 'not found'}`,
+          actionDetails,
+        };
+      }
+
+      const currentData = (parentSubmission.submission_data && typeof parentSubmission.submission_data === 'object')
+        ? { ...(parentSubmission.submission_data as Record<string, any>) }
+        : {};
+      let xrValue = currentData[config.crossReferenceFieldId];
+      const linkedRecords: Array<{ id: string; submission_ref_id?: string | null }> = [];
+      const alreadyLinkedRecords: Array<{ id: string; submission_ref_id?: string | null }> = [];
+      let addedCount = 0;
+
+      for (const match of matches) {
+        const result = appendCrossRefLink(
+          xrValue,
+          { id: match.id, submission_ref_id: match.submission_ref_id },
+          config.targetFormId,
+        );
+        xrValue = result.value;
+        if (result.alreadyLinked) {
+          alreadyLinkedRecords.push({
+            id: match.id,
+            submission_ref_id: match.submission_ref_id,
+          });
+        } else if (result.added) {
+          addedCount += 1;
+          linkedRecords.push({
+            id: match.id,
+            submission_ref_id: match.submission_ref_id,
+          });
+        }
+      }
+
+      if (addedCount === 0) {
+        return {
+          success: true,
+          output: {
+            linked: false,
+            alreadyLinked: true,
+            matchedCount: matches.length,
+            alreadyLinkedCount: alreadyLinkedRecords.length,
+            alreadyLinkedRecords,
+            message: 'Matching child record(s) found but already linked — no duplicate created',
+            crossReferenceFieldId: config.crossReferenceFieldId,
+            targetFormId: config.targetFormId,
+            parentUpdated: false,
+          },
+          actionDetails,
+        };
+      }
+
+      currentData[config.crossReferenceFieldId] = xrValue;
+      const { error: updateError } = await workflowDb()
+        .from('form_submissions')
+        .update({ submission_data: currentData })
+        .eq('id', triggerSubmissionId);
+
+      if (updateError) {
+        return {
+          success: false,
+          error: `Failed to update parent cross-reference: ${updateError.message}`,
+          actionDetails,
+        };
+      }
+
+      return {
+        success: true,
+        output: {
+          linked: true,
+          alreadyLinked: alreadyLinkedRecords.length > 0,
+          matchedCount: matches.length,
+          linkedCount: addedCount,
+          linkedRecords,
+          alreadyLinkedCount: alreadyLinkedRecords.length,
+          alreadyLinkedRecords,
+          message: `Linked ${addedCount} existing child record(s) to the parent cross-reference`,
+          crossReferenceFieldId: config.crossReferenceFieldId,
+          targetFormId: config.targetFormId,
+          parentSubmissionId: triggerSubmissionId,
+          parentUpdated: true,
+          linkedAt: new Date().toISOString(),
+        },
+        actionDetails,
+      };
+    } catch (error) {
+      console.error('❌ Error in link existing record action:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        actionDetails,
       };
     }
   }

@@ -37,6 +37,7 @@ export type ActionType =
   | 'change_record_status'
   | 'create_record'
   | 'create_linked_record'
+  | 'link_existing_record'
   | 'update_linked_records'
   | 'create_combination_records';
 

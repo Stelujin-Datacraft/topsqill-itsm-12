@@ -80,6 +80,10 @@ export class NodeExecutors {
           console.log('🔗 CALLING RecordActionExecutors.executeCreateLinkedRecordAction');
           actionResult = await RecordActionExecutors.executeCreateLinkedRecordAction(nodeContext);
           break;
+        case 'link_existing_record':
+          console.log('🔗 CALLING RecordActionExecutors.executeLinkExistingRecordAction');
+          actionResult = await RecordActionExecutors.executeLinkExistingRecordAction(nodeContext);
+          break;
         case 'update_linked_records':
           console.log('🔄 CALLING RecordActionExecutors.executeUpdateLinkedRecordsAction');
           actionResult = await RecordActionExecutors.executeUpdateLinkedRecordsAction(nodeContext);

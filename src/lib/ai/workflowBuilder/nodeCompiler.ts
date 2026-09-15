@@ -281,6 +281,36 @@ function buildActionNodeConfig(
         autoLinkBack: true,
       };
     }
+    case 'link_existing_record': {
+      const mappings = (action.createFieldMappings || [])
+        .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
+        .map((m) => {
+          const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
+          const source = findField(formFields, m.sourceFieldId, m.sourceFieldLabel);
+          return {
+            sourceFieldId: m.sourceFieldId || source?.id || '',
+            sourceFieldName: source?.label || m.sourceFieldLabel || '',
+            sourceFieldType: source?.type || m.sourceFieldType || '',
+            targetFieldId: m.targetFieldId || target?.id || '',
+            targetFieldName: target?.label || m.targetFieldLabel || '',
+            targetFieldType: target?.type || m.targetFieldType || '',
+          };
+        })
+        .filter((m) => m.sourceFieldId && m.targetFieldId);
+      const xrId = action.crossReferenceFieldId || action.sourceCrossRefFieldId;
+      const xrName = action.crossReferenceFieldLabel || action.sourceCrossRefFieldLabel;
+      const cleanXrId = xrId && xrId !== '__keep__' ? xrId : undefined;
+      const cleanXrName = xrName && xrName !== 'Keep existing' ? xrName : undefined;
+      return {
+        ...base,
+        targetFormId: action.targetFormId || formId,
+        targetFormName: action.targetFormName || formName,
+        crossReferenceFieldId: cleanXrId,
+        crossReferenceFieldName: cleanXrName,
+        fieldMappings: mappings,
+        matchScope: action.matchScope === 'all' ? 'all' : 'first',
+      };
+    }
     case 'update_linked_records': {
       const values = (!action.skipCreateFieldValues ? (action.createFieldValues || []) : [])
         .filter((f) => f.fieldId || f.fieldLabel)

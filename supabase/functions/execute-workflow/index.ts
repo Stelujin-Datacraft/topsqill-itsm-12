@@ -391,6 +391,8 @@ async function executeActionNode(
       return await executeCreateRecord(supabase, config, triggerData, submissionId, submitterId)
     case 'create_linked_record':
       return await executeCreateLinkedRecord(supabase, config, triggerData, submissionId, submitterId)
+    case 'link_existing_record':
+      return await executeLinkExistingRecord(supabase, config, triggerData, submissionId)
     case 'update_linked_records':
       return await executeUpdateLinkedRecords(supabase, config, triggerData)
     case 'create_combination_records':
@@ -656,6 +658,180 @@ async function executeCreateLinkedRecord(
     createdCount: createdRecords.length,
     createdRecordIds: createdRecords.map(record => record.id),
     targetFormId
+  }
+}
+
+function normalizeComparableValueEdge(value: any): string {
+  if (value === undefined || value === null) return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) return value.map((v) => normalizeComparableValueEdge(v)).filter(Boolean).join(',')
+  if (typeof value === 'object') {
+    if (value.submission_ref_id != null) return normalizeComparableValueEdge(value.submission_ref_id)
+    if (value.id != null) return normalizeComparableValueEdge(value.id)
+    if (value.value != null) return normalizeComparableValueEdge(value.value)
+    try { return JSON.stringify(value) } catch { return String(value) }
+  }
+  return String(value).trim()
+}
+
+function extractLinkedKeysEdge(xrValue: any): Set<string> {
+  const keys = new Set<string>()
+  const list = Array.isArray(xrValue) ? xrValue : (xrValue == null || xrValue === '' ? [] : [xrValue])
+  for (const item of list) {
+    if (typeof item === 'string' || typeof item === 'number') {
+      const n = normalizeComparableValueEdge(item)
+      if (n) keys.add(n)
+      continue
+    }
+    if (item && typeof item === 'object') {
+      for (const k of [item.submission_ref_id, item.id, item.value]) {
+        const n = normalizeComparableValueEdge(k)
+        if (n) keys.add(n)
+      }
+    }
+  }
+  return keys
+}
+
+async function executeLinkExistingRecord(
+  supabase: any,
+  config: any,
+  triggerData: any,
+  submissionId?: string,
+): Promise<any> {
+  console.log('🔗 Executing link_existing_record action')
+
+  const crossRefFieldId = config.crossReferenceFieldId || config.crossRefFieldId
+  const targetFormId = config.targetFormId
+  const triggerSubmissionId = triggerData?.submissionId || submissionId
+  const triggerSubmissionData = triggerData?.submissionData || {}
+  const fieldMappings = (Array.isArray(config.fieldMappings) ? config.fieldMappings : [])
+    .filter((m: any) => m?.sourceFieldId && m?.targetFieldId)
+  const matchScope = config.matchScope === 'all' ? 'all' : 'first'
+
+  if (!crossRefFieldId || !targetFormId || !triggerSubmissionId) {
+    return { success: false, error: 'Missing required configuration for link existing record' }
+  }
+  if (!fieldMappings.length) {
+    return { success: false, error: 'At least one Parent → Child field mapping is required' }
+  }
+
+  const { data: candidates, error: listError } = await supabase
+    .from('form_submissions')
+    .select('id, submission_ref_id, submission_data')
+    .eq('form_id', targetFormId)
+
+  if (listError) {
+    return { success: false, error: `Failed to search child records: ${listError.message}` }
+  }
+
+  const matches: any[] = []
+  for (const candidate of candidates || []) {
+    const childData = candidate.submission_data || {}
+    let ok = true
+    for (const m of fieldMappings) {
+      const parentVal = normalizeComparableValueEdge(triggerSubmissionData[m.sourceFieldId])
+      const childVal = normalizeComparableValueEdge(childData[m.targetFieldId])
+      if (!parentVal || parentVal !== childVal) { ok = false; break }
+    }
+    if (!ok) continue
+    matches.push(candidate)
+    if (matchScope === 'first') break
+  }
+
+  if (!matches.length) {
+    return {
+      success: true,
+      linked: false,
+      matchedCount: 0,
+      message: 'No matching child record found for the mapped field values',
+      crossReferenceFieldId: crossRefFieldId,
+      targetFormId,
+    }
+  }
+
+  const { data: parentSubmission, error: fetchError } = await supabase
+    .from('form_submissions')
+    .select('submission_data')
+    .eq('id', triggerSubmissionId)
+    .single()
+
+  if (fetchError || !parentSubmission) {
+    return { success: false, error: `Could not load parent submission: ${fetchError?.message || 'not found'}` }
+  }
+
+  const currentData = typeof parentSubmission.submission_data === 'object' && parentSubmission.submission_data
+    ? { ...parentSubmission.submission_data }
+    : {}
+  let xrValue = currentData[crossRefFieldId]
+  const linkedRecords: any[] = []
+  const alreadyLinkedRecords: any[] = []
+  let addedCount = 0
+
+  for (const match of matches) {
+    const keys = extractLinkedKeysEdge(xrValue)
+    const ref = match.submission_ref_id || ''
+    const id = match.id || ''
+    const already = (ref && keys.has(normalizeComparableValueEdge(ref)))
+      || (id && keys.has(normalizeComparableValueEdge(id)))
+    const asList = Array.isArray(xrValue)
+      ? [...xrValue]
+      : (xrValue == null || xrValue === '' ? [] : [xrValue])
+    if (already) {
+      alreadyLinkedRecords.push({ id: match.id, submission_ref_id: match.submission_ref_id })
+      xrValue = asList
+      continue
+    }
+    const prefersObjects = asList.some((item: any) => item && typeof item === 'object')
+    if (prefersObjects || targetFormId) {
+      asList.push({ id: match.id, submission_ref_id: match.submission_ref_id, form_id: targetFormId })
+    } else if (ref) {
+      asList.push(ref)
+    } else {
+      asList.push(id)
+    }
+    xrValue = asList
+    addedCount += 1
+    linkedRecords.push({ id: match.id, submission_ref_id: match.submission_ref_id })
+  }
+
+  if (addedCount === 0) {
+    return {
+      success: true,
+      linked: false,
+      alreadyLinked: true,
+      matchedCount: matches.length,
+      alreadyLinkedCount: alreadyLinkedRecords.length,
+      message: 'Matching child record(s) found but already linked — no duplicate created',
+      crossReferenceFieldId: crossRefFieldId,
+      targetFormId,
+      parentUpdated: false,
+    }
+  }
+
+  currentData[crossRefFieldId] = xrValue
+  const { error: updateError } = await supabase
+    .from('form_submissions')
+    .update({ submission_data: currentData })
+    .eq('id', triggerSubmissionId)
+
+  if (updateError) {
+    return { success: false, error: `Failed to update parent cross-reference: ${updateError.message}` }
+  }
+
+  return {
+    success: true,
+    linked: true,
+    matchedCount: matches.length,
+    linkedCount: addedCount,
+    linkedRecords,
+    alreadyLinkedCount: alreadyLinkedRecords.length,
+    alreadyLinkedRecords,
+    message: `Linked ${addedCount} existing child record(s) to the parent cross-reference`,
+    crossReferenceFieldId: crossRefFieldId,
+    targetFormId,
+    parentUpdated: true,
   }
 }
 

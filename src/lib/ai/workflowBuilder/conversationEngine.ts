@@ -87,6 +87,7 @@ function seedActionFromCanvasSnapshot(
   if (
     type === 'create_linked_record'
     || type === 'update_linked_records'
+    || type === 'link_existing_record'
   ) {
     const xrId = snap.crossReferenceFieldId;
     const xrName = snap.crossReferenceFieldName;
@@ -102,6 +103,9 @@ function seedActionFromCanvasSnapshot(
     }
     if (type === 'update_linked_records' && snap.updateScope) {
       action.updateScope = snap.updateScope;
+    }
+    if (type === 'link_existing_record') {
+      action.matchScope = snap.matchScope === 'all' ? 'all' : 'first';
     }
     // Re-ask fields so user can change values with proper child-form options
     action.createFieldsDone = undefined;
@@ -456,12 +460,15 @@ export function startWorkflowBuilderSession(params: {
     } else if (
       actionType === 'create_record'
       || actionType === 'create_linked_record'
+      || actionType === 'link_existing_record'
       || actionType === 'update_linked_records'
     ) {
       intro.push(
-        'I will ask for the **condition**, then the target form/fields. '
-        + 'You can set **multiple fields** (static values or maps from the trigger form) — '
-        + 'I will keep asking until you choose **Done** or **Skip**.',
+        actionType === 'link_existing_record'
+          ? 'I will ask for the **condition**, the **cross-reference field**, and Parent → Child **match field mappings** — then link an existing child (no create).'
+          : 'I will ask for the **condition**, then the target form/fields. '
+            + 'You can set **multiple fields** (static values or maps from the trigger form) — '
+            + 'I will keep asking until you choose **Done** or **Skip**.',
       );
     } else {
       intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
@@ -961,6 +968,7 @@ export function continueWorkflowBuilderSession(params: {
     const promptHasSpecificAction = !subsequentEdit && [
       'create_record',
       'create_linked_record',
+      'link_existing_record',
       'update_linked_records',
       'create_combination_records',
       'send_notification',
@@ -984,10 +992,11 @@ export function continueWorkflowBuilderSession(params: {
         };
       }
 
-      // For linked create/update, always re-run XR + field Q&A with proper options
+      // For linked create/update/link-existing, always re-run XR + field Q&A with proper options
       const effectiveType = String(session.requirements.action?.actionType || '').toLowerCase();
       const isLinkedEdit = effectiveType === 'create_linked_record'
-        || effectiveType === 'update_linked_records';
+        || effectiveType === 'update_linked_records'
+        || effectiveType === 'link_existing_record';
       const upgradingToLinked = promptHasSpecificAction
         && isLinkedEdit
         && existingAt !== effectiveType;
@@ -1041,6 +1050,8 @@ export function continueWorkflowBuilderSession(params: {
     const actionType = session.requirements.action?.actionType;
     const linkedHint = actionType === 'create_linked_record'
       ? ' I will ask for the **cross-reference field**, linked form, and field values.'
+      : actionType === 'link_existing_record'
+        ? ' I will ask for the **cross-reference field** and Parent → Child match mappings (no create).'
       : actionType === 'update_linked_records'
         ? ' I will ask for the **cross-reference field** and which linked fields to update.'
         : '';

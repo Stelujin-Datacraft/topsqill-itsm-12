@@ -86,6 +86,7 @@ export type WorkflowActionType =
   | 'change_field_value'
   | 'create_record'
   | 'create_linked_record'
+  | 'link_existing_record'
   | 'update_linked_records'
   | 'create_combination_records'
   | 'send_notification';
@@ -137,6 +138,8 @@ export interface WorkflowActionSpec {
   sourceLinkedFormName?: string;
   recordCount?: number;
   updateScope?: 'all' | 'first' | 'last';
+  /** link_existing_record: link first match or all matches */
+  matchScope?: 'first' | 'all';
   combinationMode?: 'single' | 'dual';
   /**
    * Combination: user confirmed the XR + destination + mappings summary
