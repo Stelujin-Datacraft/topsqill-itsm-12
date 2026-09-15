@@ -69,11 +69,24 @@ interface WorkflowSuggestion {
 }
 
 interface AIWorkflowSuggesterProps {
-  onApply: (workflow: WorkflowSuggestion) => void;
+  onApply: (workflow: WorkflowSuggestion & { applyMode?: 'extend' | 'replace' }) => void;
   availableForms?: WorkflowFormOption[];
   /** Reload forms/fields from DB after option/field creates so we don't re-ask */
   onFormsRefresh?: () => void | Promise<void>;
-  existingNodes?: Array<{ id: string; type: string; label: string }>;
+  existingNodes?: Array<{
+    id: string;
+    type: string;
+    label: string;
+    position?: { x: number; y: number };
+    data?: { config?: Record<string, any>; description?: string };
+  }>;
+  existingConnections?: Array<{
+    id?: string;
+    source: string;
+    target: string;
+    sourceHandle?: string | null;
+    label?: string;
+  }>;
   buttonLabel?: string;
   buttonVariant?: 'default' | 'outline' | 'ghost' | 'secondary';
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
@@ -155,6 +168,7 @@ export function AIWorkflowSuggester({
   availableForms = [],
   onFormsRefresh,
   existingNodes = [],
+  existingConnections = [],
   buttonLabel = 'AI Suggest Workflow',
   buttonVariant = 'outline',
   buttonSize = 'sm'
@@ -219,6 +233,20 @@ export function AIWorkflowSuggester({
     void loadTemplates();
     return () => { cancelled = true; };
   }, [activeProject?.id]);
+
+  // Prefer the open workflow's Start trigger form as AI Suggest context
+  useEffect(() => {
+    if (selectedForms.length || !availableForms.length || !existingNodes.length) return;
+    const start = existingNodes.find((n) => String(n.type).toLowerCase() === 'start');
+    const formId = start?.data?.config?.triggerFormId
+      || start?.data?.config?.formId
+      || start?.data?.config?.sourceFormId;
+    if (!formId) return;
+    const form = availableForms.find((f) => f.id === formId);
+    if (!form) return;
+    setSelectedForms([form]);
+    setTriggerFormId(form.id);
+  }, [existingNodes, availableForms, selectedForms.length]);
 
   // Keep selected forms' field options in sync after creates / parent refresh
   React.useEffect(() => {
@@ -335,6 +363,8 @@ export function AIWorkflowSuggester({
       formsCatalog,
       orgUsers,
       emailTemplates,
+      existingNodes,
+      existingConnections,
       forceStart: forceStart || isBuilderActive,
     });
     if (turn) applyTurn(turn);
@@ -506,7 +536,12 @@ export function AIWorkflowSuggester({
           nodes = bindConditionNodesToDecisionValues(nodes, liveFieldsForBind);
         }
 
-        onApply({ name, description, nodes });
+        onApply({
+          name,
+          description,
+          nodes,
+          applyMode: (getBuilderSession()?.applyMode === 'extend' ? 'extend' : 'replace'),
+        });
         clearBuilderSession();
         resetForm();
         toast.success('Workflow suggestion applied');
@@ -578,7 +613,7 @@ export function AIWorkflowSuggester({
       })),
     }));
 
-    onApply({ ...pending, nodes });
+    onApply({ ...pending, nodes, applyMode: 'replace' });
     resetForm();
     toast.success('Workflow suggestion applied');
   };
@@ -750,7 +785,7 @@ export function AIWorkflowSuggester({
             {existingNodes.length > 0 && (
               <div className="p-3 bg-muted rounded-md">
                 <Label className="text-xs text-muted-foreground">
-                  Existing workflow has {existingNodes.length} nodes - AI will consider these
+                  Existing workflow has {existingNodes.length} nodes — AI will analyze them and ask to continue or replace
                 </Label>
               </div>
             )}

@@ -15,3 +15,5 @@ export * from './actionTypeInferrer';
 export * from './pendingOptionActions';
 export * from './promptHints';
 export * from './goalExpander';
+export * from './analyzeExistingWorkflow';
+export * from './extendWorkflowGraph';

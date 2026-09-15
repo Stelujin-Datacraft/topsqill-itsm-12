@@ -39,6 +39,7 @@ import {
 import { describeActionType } from './actionTypeInferrer';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint, inferCombinationModeFromPrompt, inferNotificationChannelFromPrompt } from './promptHints';
+import type { ExistingWorkflowGraphSummary, WorkflowApplyMode } from './analyzeExistingWorkflow';
 import { matchFormFieldByHint } from '@/lib/ai/inferWorkflowIntent';
 import { sanitizeConditionValueHint } from './decisionOptionResolver';
 import {
@@ -2008,18 +2009,67 @@ export function planMissingRequirements(
   originalRequest = '',
   orgUsers: OrgUserChoice[] = [],
   emailTemplates: EmailTemplateChoice[] = [],
+  opts?: {
+    existingGraph?: ExistingWorkflowGraphSummary | null;
+    applyMode?: WorkflowApplyMode | null;
+  },
 ): MissingRequirement[] {
-  if (isApprovalStyleDefinition(definition)) {
-    return planApprovalRequirements(definition, form, previous, orgUsers);
-  }
-  return planGenericActionRequirements(
-    definition,
-    form,
-    previous,
-    formsCatalog,
-    originalRequest,
-    emailTemplates,
+  const answered = new Map(
+    previous.filter((m) => m.answered).map((m) => [m.id, m]),
   );
+  const prefix: MissingRequirement[] = [];
+
+  // When the open designer canvas already has nodes, ask Extend vs Replace first.
+  const graph = opts?.existingGraph;
+  if (graph?.hasMeaningfulNodes && !opts?.applyMode) {
+    const prev = answered.get('apply.mode');
+    if (prev) {
+      prefix.push(prev);
+    } else {
+      prefix.push({
+        id: 'apply.mode',
+        scope: 'workflow',
+        key: 'apply_mode',
+        question: [
+          'This workflow already has nodes on the canvas:',
+          ...graph.lines.map((l) => `- ${l}`),
+          '',
+          'How should I apply the new suggestion?',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: [
+          {
+            value: 'extend',
+            label: 'Continue / extend this workflow (keep existing nodes)',
+          },
+          {
+            value: 'replace',
+            label: 'Replace the whole workflow with a new plan',
+          },
+        ],
+        answered: false,
+      });
+    }
+  }
+
+  const rest = isApprovalStyleDefinition(definition)
+    ? planApprovalRequirements(definition, form, previous, orgUsers)
+    : planGenericActionRequirements(
+      definition,
+      form,
+      previous,
+      formsCatalog,
+      originalRequest,
+      emailTemplates,
+    );
+
+  // If apply_mode is unanswered, ask it before other questions
+  const applyQ = prefix.find((m) => m.key === 'apply_mode' && !m.answered);
+  if (applyQ) {
+    return [applyQ, ...rest.filter((m) => m.key !== 'apply_mode')];
+  }
+
+  return [...prefix.filter((m) => m.answered), ...rest];
 }
 
 /** Next unanswered question (progressive discovery — one logical question). */

@@ -31,6 +31,12 @@ import { compileWorkflowDefinition } from './nodeCompiler';
 import { isApprovalStyleDefinition } from './types';
 import { describeActionType } from './actionTypeInferrer';
 import { buildOptionCreatePendingActions } from './pendingOptionActions';
+import {
+  analyzeExistingWorkflowGraph,
+  formatExistingGraphForIntro,
+  type ExistingWorkflowGraphSummary,
+  type WorkflowApplyMode,
+} from './analyzeExistingWorkflow';
 
 export interface BuilderTurnResult {
   session: WorkflowBuilderSession;
@@ -40,11 +46,63 @@ export interface BuilderTurnResult {
   /** Ready to execute create_workflow */
   readyToPublish: boolean;
   compiled?: ReturnType<typeof compileWorkflowDefinition>;
+  /** Designer: extend existing canvas vs replace */
+  applyMode?: WorkflowApplyMode | null;
 }
 
 function touch(session: WorkflowBuilderSession): WorkflowBuilderSession {
   return { ...session, updatedAt: new Date().toISOString() };
 }
+
+
+function graphPlanOpts(session: WorkflowBuilderSession): {
+  existingGraph: ExistingWorkflowGraphSummary | null;
+  applyMode: WorkflowApplyMode | null;
+} {
+  const s = session.existingGraphSummary;
+  if (!s?.hasMeaningfulNodes) {
+    return { existingGraph: null, applyMode: session.applyMode ?? null };
+  }
+  return {
+    existingGraph: {
+      nodeCount: s.nodeCount,
+      connectionCount: 0,
+      hasMeaningfulNodes: true,
+      triggerFormId: s.triggerFormId,
+      triggerFormName: s.triggerFormName,
+      endNodeIds: [],
+      tailNodeIds: [],
+      actionTypes: s.actionTypes || [],
+      hasCondition: Boolean(s.hasCondition),
+      hasApprovalPattern: Boolean(s.hasApprovalPattern),
+      nodes: [],
+      lines: s.lines || [],
+    },
+    applyMode: session.applyMode ?? null,
+  };
+}
+
+function replanMissing(
+  session: WorkflowBuilderSession,
+  form: DiscoveredForm | undefined,
+  previous: MissingRequirement[],
+  formsCatalog: DiscoveredForm[],
+  originalRequest: string,
+  orgUsers: OrgUserChoice[],
+  emailTemplates: EmailTemplateChoice[],
+) {
+  return planMissingRequirements(
+    session.requirements,
+    form,
+    previous,
+    formsCatalog,
+    originalRequest,
+    orgUsers,
+    emailTemplates,
+    graphPlanOpts(session),
+  );
+}
+
 
 function formatQuestion(req: MissingRequirement): string {
   const lines = [req.question];
@@ -148,12 +206,19 @@ export function startWorkflowBuilderSession(params: {
   projectId?: string;
   orgUsers?: OrgUserChoice[];
   emailTemplates?: EmailTemplateChoice[];
+  /** Open designer canvas — when present, AI can EXTEND instead of REPLACE */
+  existingNodes?: Array<{ id: string; type: string; label: string; position?: { x: number; y: number }; data?: any }>;
+  existingConnections?: Array<{ id?: string; source: string; target: string; sourceHandle?: string | null; label?: string }>;
 }): BuilderTurnResult {
   const { prompt, workflows = [], userId, projectId } = params;
   const form = hydrateDiscoveredForm(params.form);
   const formsCatalog = (params.formsCatalog || []).map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
   const orgUsers = params.orgUsers || [];
   const emailTemplates = params.emailTemplates || [];
+  const existingGraph = analyzeExistingWorkflowGraph(
+    params.existingNodes || [],
+    params.existingConnections || [],
+  );
   const analysis = analyzeWorkflowIntent(prompt, {
     formId: form?.id,
     formName: form?.name,
@@ -168,11 +233,41 @@ export function startWorkflowBuilderSession(params: {
   });
   session.requirements = analysis.definition;
   session.status = 'collecting';
+  session.existingGraphSummary = existingGraph.hasMeaningfulNodes
+    ? {
+      nodeCount: existingGraph.nodeCount,
+      hasMeaningfulNodes: true,
+      triggerFormId: existingGraph.triggerFormId,
+      triggerFormName: existingGraph.triggerFormName,
+      lines: existingGraph.lines,
+      actionTypes: existingGraph.actionTypes,
+      hasCondition: existingGraph.hasCondition,
+      hasApprovalPattern: existingGraph.hasApprovalPattern,
+    }
+    : null;
+  session.applyMode = existingGraph.hasMeaningfulNodes ? null : 'replace';
+
+  // Prefer trigger form already configured on the open canvas Start node
+  if (existingGraph.triggerFormId && !session.requirements.trigger.formId) {
+    session.requirements.trigger = {
+      ...session.requirements.trigger,
+      formId: existingGraph.triggerFormId,
+      formName: existingGraph.triggerFormName || form?.name,
+    };
+    session.requirements.objectId = session.requirements.objectId || existingGraph.triggerFormId;
+    session.requirements.objectName = session.requirements.objectName || existingGraph.triggerFormName || form?.name;
+  }
 
   // Existing workflow detection
   const existing = findExistingWorkflowsForForm(workflows, form?.name);
   const intro: string[] = [];
   const isApproval = isApprovalStyleDefinition(analysis.definition);
+
+  const graphIntro = formatExistingGraphForIntro(existingGraph);
+  if (graphIntro) {
+    intro.push(graphIntro);
+    intro.push('');
+  }
 
   if (isApproval) {
     intro.push(
@@ -240,15 +335,15 @@ export function startWorkflowBuilderSession(params: {
     }
   }
 
-  session.missingInformation = planMissingRequirements(
-    session.requirements,
-    form,
-    [],
-    formsCatalog,
-    prompt,
-    orgUsers,
-    emailTemplates,
-  );
+  session.missingInformation = replanMissing(
+      session,
+      form,
+      [],
+      formsCatalog,
+      prompt,
+      orgUsers,
+      emailTemplates,
+    );
   const nextQ = getNextMissingRequirement(session.missingInformation);
 
   if (!nextQ) {
@@ -357,15 +452,15 @@ export function continueWorkflowBuilderSession(params: {
           return next;
         }),
       };
-      session.missingInformation = planMissingRequirements(
-        session.requirements,
-        form,
-        [],
-        formsCatalog,
-        session.originalRequest,
-        orgUsers,
-        emailTemplates,
-      );
+      session.missingInformation = replanMissing(
+      session,
+      form,
+      [],
+      formsCatalog,
+      session.originalRequest,
+      orgUsers,
+      emailTemplates,
+    );
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
         ? `Okay — I will not create new fields. Let's pick from existing ones.\n\n${formatQuestion(nextQ)}`
@@ -426,15 +521,15 @@ export function continueWorkflowBuilderSession(params: {
       session = touch({
         ...session,
         status: 'collecting',
-        missingInformation: planMissingRequirements(
-          session.requirements,
-          form,
-          [],
-          formsCatalog,
-          session.originalRequest,
-          orgUsers,
-          emailTemplates,
-        ),
+        missingInformation: replanMissing(
+      session,
+      form,
+      [],
+      formsCatalog,
+      session.originalRequest,
+      orgUsers,
+      emailTemplates,
+    ),
       });
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
@@ -607,8 +702,8 @@ export function continueWorkflowBuilderSession(params: {
       formsCatalog,
       emailTemplates,
     );
-    session.missingInformation = planMissingRequirements(
-      session.requirements,
+    session.missingInformation = replanMissing(
+      session,
       form,
       session.missingInformation.filter((m) => m.id !== unanswered.id && !m.id.endsWith('.create_permission')),
       formsCatalog,
@@ -633,6 +728,37 @@ export function continueWorkflowBuilderSession(params: {
     };
   }
 
+  // Apply mode is session-level (extend vs replace open designer canvas)
+  if (unanswered.key === 'apply_mode') {
+    const mode = answer === 'replace' || /^replace$/i.test(answer) ? 'replace' : 'extend';
+    session.applyMode = mode;
+    session.missingInformation = replanMissing(
+      session,
+      form,
+      session.missingInformation,
+      formsCatalog,
+      session.originalRequest,
+      orgUsers,
+      emailTemplates,
+    );
+    const nextQ = getNextMissingRequirement(session.missingInformation);
+    const ack = mode === 'extend'
+      ? "Got it — I'll **continue this workflow** and keep the existing nodes."
+      : "Got it — I'll **replace** the current canvas with a new plan.";
+    const msg = nextQ ? `${ack}\n\n${formatQuestion(nextQ)}` : ack;
+    session = touch({
+      ...session,
+      status: 'collecting',
+      lastAssistantMessage: msg,
+    });
+    return {
+      session,
+      assistantMessage: msg,
+      promptControls: nextQ,
+      readyToPublish: false,
+    };
+  }
+
   session.requirements = applyAnswerToDefinition(
     session.requirements,
     unanswered,
@@ -643,15 +769,15 @@ export function continueWorkflowBuilderSession(params: {
   );
 
   // Re-plan with updated definition
-  session.missingInformation = planMissingRequirements(
-    session.requirements,
-    form,
-    session.missingInformation,
-    formsCatalog,
-    session.originalRequest,
-    orgUsers,
-    emailTemplates,
-  );
+  session.missingInformation = replanMissing(
+      session,
+      form,
+      session.missingInformation,
+      formsCatalog,
+      session.originalRequest,
+      orgUsers,
+      emailTemplates,
+    );
 
   const forceConfirm: string[] = [];
   if (answer === '__create__' || answer.startsWith('__create_named__:')) {
@@ -755,6 +881,12 @@ function buildAck(
     }
     const label = optionLabel || answer;
     return `I'll use the **${label}** email template.`;
+  }
+  if (req.key === 'apply_mode') {
+    if (answer === 'replace' || /^replace$/i.test(answer)) {
+      return "Okay — I'll replace the current canvas with a new plan.";
+    }
+    return "Okay — I'll continue this workflow and keep the existing nodes.";
   }
 
   if (req.key.includes('approver')) {
@@ -950,8 +1082,8 @@ function finalizeOrPreview(
       '',
       'Please provide the missing details.',
     ].join('\n');
-    session.missingInformation = planMissingRequirements(
-      session.requirements,
+    session.missingInformation = replanMissing(
+      session,
       form,
       session.missingInformation,
       formsCatalog,
@@ -1000,16 +1132,22 @@ function finalizeOrPreview(
   session.preview = preview;
   session.requirements = { ...session.requirements, status: 'VALIDATED' };
   const markdown = formatPreviewAsMarkdown(preview);
+  const modeNote = session.applyMode === 'extend'
+    ? '\n\n**Apply mode:** Continue / extend the open workflow (existing nodes kept).'
+    : session.applyMode === 'replace' && session.existingGraphSummary?.hasMeaningfulNodes
+      ? '\n\n**Apply mode:** Replace the open workflow canvas.'
+      : '';
   session = touch({
     ...session,
     status: 'preview',
-    lastAssistantMessage: markdown,
+    lastAssistantMessage: markdown + modeNote,
   });
 
   return {
     session,
-    assistantMessage: markdown,
+    assistantMessage: markdown + modeNote,
     promptControls: null,
     readyToPublish: false,
+    applyMode: session.applyMode ?? null,
   };
 }

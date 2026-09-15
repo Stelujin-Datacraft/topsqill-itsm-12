@@ -350,6 +350,23 @@ export interface WorkflowBuilderSession {
   preview?: WorkflowBuilderPreview;
   /** Compiled designer nodes ready for create_workflow */
   compiledNodes?: any[];
+  /**
+   * When AI Suggest runs on an open designer graph with existing nodes:
+   * extend = graft new nodes onto current canvas; replace = wipe and rebuild.
+   * null/undefined = not asked yet (or canvas was empty).
+   */
+  applyMode?: 'extend' | 'replace' | null;
+  /** Compact architecture summary of the open workflow (designer AI Suggest) */
+  existingGraphSummary?: {
+    nodeCount: number;
+    hasMeaningfulNodes: boolean;
+    triggerFormId?: string;
+    triggerFormName?: string;
+    lines: string[];
+    actionTypes?: string[];
+    hasCondition?: boolean;
+    hasApprovalPattern?: boolean;
+  } | null;
   status: WorkflowBuilderStatus;
   /** Last assistant message shown to user */
   lastAssistantMessage?: string;
