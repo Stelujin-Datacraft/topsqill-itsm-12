@@ -211,6 +211,12 @@ export function mergeAiSuggestionIntoWorkflow(params: {
 
       if (match) {
         const normalized = params.normalizeConfig(target.type, match.config || {});
+        // For action nodes, replace config (don't shallow-merge) so an old
+        // create_record actionType / fields cannot stick around when upgrading
+        // to create_linked_record.
+        const replaceActionConfig = targetType === 'action'
+          || targetType === 'notification'
+          || targetType === 'approval';
         const nodes = params.existingNodes.map((n) => {
           if (n.id !== target.id) return n;
           return {
@@ -218,10 +224,12 @@ export function mergeAiSuggestionIntoWorkflow(params: {
             label: match.label || n.label,
             data: {
               ...n.data,
-              config: {
-                ...(n.data?.config || {}),
-                ...normalized,
-              },
+              config: replaceActionConfig
+                ? { ...normalized }
+                : {
+                  ...(n.data?.config || {}),
+                  ...normalized,
+                },
               description: match.description || n.data?.description || '',
             },
           };

@@ -101,11 +101,23 @@ export function inferDesignerActionType(
   if (NOTIFICATION_ALIASES.has(rawAction)) {
     return 'send_notification';
   }
+  // Config shape (when actionType missing) — linked before plain create
+  if (!rawAction) {
+    if (next.updateScope || (next.crossReferenceFieldId && /update/i.test(haystack))) {
+      return 'update_linked_records';
+    }
+    if (next.crossReferenceFieldId || next.crossReferenceFieldName || next.autoLinkBack) {
+      return 'create_linked_record';
+    }
+  }
   if (/set|change|update/.test(haystack) && /field|value|status|married|gender|dob|birth/.test(haystack)) {
     return 'change_field_value';
   }
-  if (/create\s+linked|linked\s+record/.test(haystack)) {
+  if (/create\s+linked|linked\s+record|create\s+cross\s*-?\s*ref|\bxr\b/.test(haystack)) {
     return 'create_linked_record';
+  }
+  if (/update\s+linked|update\s+cross\s*-?\s*ref|update\s+xr\b/.test(haystack)) {
+    return 'update_linked_records';
   }
   if (/create\s+combination|combination\s+record/.test(haystack)) {
     return 'create_combination_records';

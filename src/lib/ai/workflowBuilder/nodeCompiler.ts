@@ -263,12 +263,16 @@ function buildActionNodeConfig(
       if (hasMaps && hasValues) fieldConfigMode = 'field_mapping';
       else if (hasMaps) fieldConfigMode = 'field_mapping';
       else if (hasValues) fieldConfigMode = 'field_values';
+      const xrId = action.crossReferenceFieldId || action.sourceCrossRefFieldId;
+      const xrName = action.crossReferenceFieldLabel || action.sourceCrossRefFieldLabel;
+      const cleanXrId = xrId && xrId !== '__keep__' ? xrId : undefined;
+      const cleanXrName = xrName && xrName !== 'Keep existing' ? xrName : undefined;
       return {
         ...base,
         targetFormId: action.targetFormId || formId,
         targetFormName: action.targetFormName || formName,
-        crossReferenceFieldId: action.crossReferenceFieldId,
-        crossReferenceFieldName: action.crossReferenceFieldLabel,
+        crossReferenceFieldId: cleanXrId,
+        crossReferenceFieldName: cleanXrName,
         recordCount: action.recordCount || 1,
         fieldValues: values,
         fieldMappings: mappings,
@@ -319,12 +323,16 @@ function buildActionNodeConfig(
       if (hasMaps && hasValues) fieldConfigMode = 'both';
       else if (hasMaps) fieldConfigMode = 'field_mapping';
       else fieldConfigMode = 'field_values';
+      const xrId = action.crossReferenceFieldId || action.sourceCrossRefFieldId;
+      const xrName = action.crossReferenceFieldLabel || action.sourceCrossRefFieldLabel;
+      const cleanXrId = xrId && xrId !== '__keep__' ? xrId : undefined;
+      const cleanXrName = xrName && xrName !== 'Keep existing' ? xrName : undefined;
       return {
         ...base,
         targetFormId: action.targetFormId || formId,
         targetFormName: action.targetFormName || formName,
-        crossReferenceFieldId: action.crossReferenceFieldId,
-        crossReferenceFieldName: action.crossReferenceFieldLabel,
+        crossReferenceFieldId: cleanXrId,
+        crossReferenceFieldName: cleanXrName,
         updateScope: action.updateScope || 'all',
         fieldConfigMode,
         fieldMappings: mappings,

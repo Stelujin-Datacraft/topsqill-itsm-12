@@ -446,12 +446,28 @@ const WorkflowDesignerPage = () => {
       case 'action':
         // Normalize action type variations
         if (!config.actionType) {
-          // Infer from config structure
+          // Infer from config structure — linked/update shapes before plain create
           if (config.notificationConfig || config.message || config.recipients) {
             config.actionType = 'send_notification';
           } else if (config.fieldUpdates || config.targetFieldId) {
             config.actionType = 'change_field_value';
-          } else if (config.targetFormId && config.fieldMappings) {
+          } else if (
+            config.crossReferenceFieldId
+            || config.crossReferenceFieldName
+            || config.autoLinkBack
+          ) {
+            config.actionType = config.updateScope
+              ? 'update_linked_records'
+              : 'create_linked_record';
+          } else if (config.updateScope) {
+            config.actionType = 'update_linked_records';
+          } else if (
+            config.targetFormId
+            && (
+              (Array.isArray(config.fieldMappings) && config.fieldMappings.length > 0)
+              || (Array.isArray(config.fieldValues) && config.fieldValues.length > 0)
+            )
+          ) {
             config.actionType = 'create_record';
           } else {
             config.actionType = 'send_notification'; // Default

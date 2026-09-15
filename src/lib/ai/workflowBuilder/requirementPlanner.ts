@@ -352,11 +352,25 @@ function planGenericActionRequirements(
   const skipConditionQuestions = editingAction || editingStart || editingWait;
   const skipActionQuestions = editingCondition || editingStart || editingWait;
 
-  // When editing an existing action node, keep/align its action type
+  // When editing an existing action node, align type only if the prompt did not
+  // already infer a specific action (don't downgrade create_linked_record → create_record).
   if (editingAction && editTarget?.actionType) {
-    const at = editTarget.actionType as WorkflowActionSpec['actionType'];
-    if (at && at !== action.actionType) {
-      action.actionType = at;
+    const at = String(editTarget.actionType || '').toLowerCase();
+    const inferred = String(action.actionType || '').toLowerCase();
+    const promptHasSpecificAction = [
+      'create_record',
+      'create_linked_record',
+      'update_linked_records',
+      'create_combination_records',
+      'send_notification',
+    ].includes(inferred);
+    if (
+      at
+      && at !== 'action'
+      && at !== inferred
+      && !promptHasSpecificAction
+    ) {
+      action.actionType = editTarget.actionType as WorkflowActionSpec['actionType'];
     }
   }
 
