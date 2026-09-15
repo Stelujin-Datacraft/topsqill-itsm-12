@@ -19,6 +19,7 @@ import { AIWorkflowSuggester } from '@/components/ai/AIWorkflowSuggester';
 import { backend as supabase } from '@/services/api';
 import { normalizeRelativeDateCondition } from '@/utils/conditionOperators';
 import { normalizeAiWorkflowNodeConfig } from '@/lib/normalizeAiWorkflowNodes';
+import { mergeAiSuggestionIntoWorkflow } from '@/lib/ai/workflowBuilder/extendWorkflowGraph';
 
 const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -649,10 +650,11 @@ const WorkflowDesignerPage = () => {
     return config;
   };
 
-  // Handle AI workflow suggestions
+  // Handle AI workflow suggestions (REPLACE full graph, or EXTEND existing nodes)
   const handleAIWorkflowApply = (suggestion: {
     name: string;
     description: string;
+    applyMode?: 'extend' | 'replace';
     nodes: Array<{
       type: string;
       label: string;
@@ -662,122 +664,51 @@ const WorkflowDesignerPage = () => {
       tempId?: string;
     }>;
   }) => {
-   // Try to extract trigger form info from the first start node config if available
-   const startNode = suggestion.nodes.find(n => n.type.toLowerCase() === 'start' || n.type.toLowerCase() === 'trigger');
-   const startFormId = startNode?.config?.triggerFormId || startNode?.config?.formId;
-   const matchedAvailable = startFormId
-     ? availableForms.find((f) => f.id === startFormId)
-     : undefined;
-   const triggerFormInfo = startFormId ? {
-     id: startFormId,
-     name: startNode?.config?.triggerFormName || matchedAvailable?.name || 'Trigger Form'
-   } : null;
-   
-    // Convert AI suggestions to workflow format with valid node types and normalized configs
-    const newNodes: WorkflowNode[] = suggestion.nodes.map((node, index) => {
-      const nodeType = mapNodeType(node.type);
-     const normalizedConfig = normalizeNodeConfig(nodeType, node.config || {}, triggerFormInfo);
-      
-      // Calculate positions - condition nodes need more space for branches
-      const yOffset = 100 + index * 150;
-      const xOffset = nodeType === 'condition' ? 350 : 250;
-      
-      return {
-        id: crypto.randomUUID(),
-        type: nodeType as any,
-        label: node.label,
-        position: { x: xOffset, y: yOffset },
-        data: { 
-          config: normalizedConfig,
-          description: node.description || ''
-        }
-      };
+    const suggestionStart = suggestion.nodes.find(
+      (n) => n.type.toLowerCase() === 'start' || n.type.toLowerCase() === 'trigger',
+    );
+    const existingStart = workflowData.nodes.find((n) => n.type === 'start');
+    const startFormId = suggestionStart?.config?.triggerFormId
+      || suggestionStart?.config?.formId
+      || existingStart?.data?.config?.triggerFormId
+      || existingStart?.data?.config?.formId;
+    const matchedAvailable = startFormId
+      ? availableForms.find((f) => f.id === startFormId)
+      : undefined;
+    const triggerFormInfo = startFormId ? {
+      id: startFormId,
+      name: suggestionStart?.config?.triggerFormName
+        || existingStart?.data?.config?.triggerFormName
+        || matchedAvailable?.name
+        || 'Trigger Form',
+    } : null;
+
+    const merged = mergeAiSuggestionIntoWorkflow({
+      applyMode: suggestion.applyMode === 'extend' ? 'extend' : 'replace',
+      existingNodes: workflowData.nodes,
+      existingConnections: workflowData.connections,
+      suggestionNodes: suggestion.nodes,
+      normalizeConfig: (nodeType, config) => normalizeNodeConfig(nodeType, config || {}, triggerFormInfo),
     });
 
-    // Build connections from node.connections with proper edge handling
-    const newConnections: WorkflowConnection[] = [];
-    let unresolvedEdges = 0;
+    const newNodes = merged.nodes;
+    const newConnections = merged.connections;
 
-    suggestion.nodes.forEach((node, sourceIndex) => {
-      const sourceNode = newNodes[sourceIndex];
-
-      if (node.connections && node.connections.length > 0) {
-        let resolvedAny = false;
-        node.connections.forEach((conn) => {
-          // Resolve by label OR tempId (node_N) after AI remapping
-          const targetIndex = suggestion.nodes.findIndex((n, idx) => {
-            const to = String(conn.to || '').toLowerCase();
-            return n.label.toLowerCase() === to
-              || `node_${idx}` === to
-              || String((n as any).tempId || '').toLowerCase() === to;
-          });
-
-          if (targetIndex !== -1) {
-            resolvedAny = true;
-            const targetNode = newNodes[targetIndex];
-            const conditionRaw = String(
-              (conn as any).conditionType || conn.condition || (conn as any).sourceHandle || '',
-            ).toLowerCase();
-
-            // Determine source handle for condition nodes
-            let sourceHandle: string | undefined;
-            if (sourceNode.type === 'condition' && (conditionRaw === 'true' || conditionRaw === 'false')) {
-              sourceHandle = conditionRaw;
-            }
-
-            newConnections.push({
-              id: crypto.randomUUID(),
-              source: sourceNode.id,
-              target: targetNode.id,
-              sourceHandle,
-              label: sourceNode.type === 'condition' ? conditionRaw || undefined : undefined,
-            });
-          } else {
-            unresolvedEdges += 1;
-          }
-        });
-
-        // If declared edges failed to resolve, fall back to sequential connect
-        if (!resolvedAny && sourceNode.type !== 'end' && sourceIndex < suggestion.nodes.length - 1) {
-          const nextNode = newNodes[sourceIndex + 1];
-          newConnections.push({
-            id: crypto.randomUUID(),
-            source: sourceNode.id,
-            target: nextNode.id,
-          });
-        }
-      } else if (sourceNode.type !== 'end' && sourceIndex < suggestion.nodes.length - 1) {
-        // Auto-connect sequential nodes if no connections specified (except for end nodes)
-        const nextNode = newNodes[sourceIndex + 1];
-        newConnections.push({
-          id: crypto.randomUUID(),
-          source: sourceNode.id,
-          target: nextNode.id,
-        });
-      }
-    });
-
-    if (unresolvedEdges > 0) {
-      console.warn(`AI workflow apply: ${unresolvedEdges} connection target(s) could not be resolved`);
-    }
-
-    console.log('🤖 AI Workflow Applied:', { 
-      nodes: newNodes.length, 
+    console.log('🤖 AI Workflow Applied:', {
+      mode: merged.applyMode,
+      nodes: newNodes.length,
+      added: merged.addedNodeCount,
       connections: newConnections.length,
-      nodeTypes: newNodes.map(n => n.type)
+      nodeTypes: newNodes.map((n) => n.type),
     });
 
-    // Update local state
     setWorkflowData({ nodes: newNodes, connections: newConnections });
 
-    // Persist immediately — otherwise Activate/submit still see the old Start config
-    // and Execution History stays empty.
     if (id) {
       void (async () => {
         try {
           const success = await saveWorkflowNodes(id, newNodes, newConnections);
           if (success) {
-            // Ensure workflow_triggers row exists for form matching fallback
             const start = newNodes.find((n) => n.type === 'start');
             const cfg = start?.data?.config;
             if (cfg?.triggerFormId && userProfile?.organization_id) {
@@ -802,32 +733,39 @@ const WorkflowDesignerPage = () => {
               }
             }
             toast({
-              title: "AI Workflow Applied & Saved",
-              description: `Created ${newNodes.length} nodes. Activate the workflow, then submit the form to run it.`,
+              title: merged.applyMode === 'extend'
+                ? 'AI Workflow Extended & Saved'
+                : 'AI Workflow Applied & Saved',
+              description: merged.applyMode === 'extend'
+                ? `Added ${merged.addedNodeCount} node(s); canvas now has ${newNodes.length}. Activate, then submit the form to run it.`
+                : `Created ${newNodes.length} nodes. Activate the workflow, then submit the form to run it.`,
             });
           } else {
             toast({
-              title: "AI Workflow Applied",
-              description: "Nodes were applied locally but save failed — click Save before activating.",
-              variant: "destructive",
+              title: 'AI Workflow Applied',
+              description: 'Nodes were applied locally but save failed — click Save before activating.',
+              variant: 'destructive',
             });
           }
         } catch (e) {
           console.error('AI apply auto-save failed:', e);
           toast({
-            title: "AI Workflow Applied",
-            description: "Click Save before activating so the trigger form is stored.",
-            variant: "destructive",
+            title: 'AI Workflow Applied',
+            description: 'Click Save before activating so the trigger form is stored.',
+            variant: 'destructive',
           });
         }
       })();
     } else {
       toast({
-        title: "AI Workflow Applied",
-        description: `Created ${newNodes.length} nodes with ${newConnections.length} connections. Configure each node as needed.`,
+        title: merged.applyMode === 'extend' ? 'AI Workflow Extended' : 'AI Workflow Applied',
+        description: merged.applyMode === 'extend'
+          ? `Kept existing nodes and added ${merged.addedNodeCount}. Configure as needed.`
+          : `Created ${newNodes.length} nodes with ${newConnections.length} connections. Configure each node as needed.`,
       });
     }
   };
+
 
   return (
     <DashboardLayout 
@@ -838,7 +776,8 @@ const WorkflowDesignerPage = () => {
             onApply={handleAIWorkflowApply}
             availableForms={availableForms}
             onFormsRefresh={refreshAvailableForms}
-            existingNodes={workflowData.nodes.map(n => ({ id: n.id, type: n.type, label: n.label }))}
+            existingNodes={workflowData.nodes}
+            existingConnections={workflowData.connections}
             buttonLabel="AI Suggest"
             buttonVariant="outline"
             buttonSize="default"

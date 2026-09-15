@@ -35,6 +35,8 @@ export function useWorkflowBuilderConversation() {
     projectId?: string;
     orgUsers?: OrgUserChoice[];
     emailTemplates?: EmailTemplateChoice[];
+    existingNodes?: Array<{ id: string; type: string; label: string; position?: { x: number; y: number }; data?: any }>;
+    existingConnections?: Array<{ id?: string; source: string; target: string; sourceHandle?: string | null; label?: string }>;
     /** When true (e.g. createType === 'workflow'), always start conversational builder */
     forceStart?: boolean;
   }): BuilderTurnResult | null => {
@@ -73,6 +75,8 @@ export function useWorkflowBuilderConversation() {
       projectId: params.projectId,
       orgUsers: params.orgUsers,
       emailTemplates: params.emailTemplates,
+      existingNodes: params.existingNodes,
+      existingConnections: params.existingConnections,
     });
     sessionRef.current = result.session;
     setSession(result.session);
