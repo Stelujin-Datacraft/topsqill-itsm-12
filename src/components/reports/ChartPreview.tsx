@@ -1117,6 +1117,21 @@ export function ChartPreview({
         if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode && !isCompareMode) {
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
+          const isPastLastLevel = currentDrilldownLevel >= drilldownLevels.length;
+
+          // Past the last hierarchy level: load raw submissions and render the
+          // matching records instead of re-grouping by the first dimension
+          // (which left the chart empty after the final drill-down).
+          if (isPastLastLevel) {
+            const submissions = await getFormSubmissionData(config.formId);
+            if (currentLoadRequest !== loadRequestRef.current) return;
+            const chartData = processSubmissionData(submissions || []);
+            if (currentLoadRequest === loadRequestRef.current) {
+              setChartData(chartData);
+            }
+            return;
+          }
+
           const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
 
           // Use the current dimension for the chart - show the NEXT level after current drilldown
@@ -1321,8 +1336,15 @@ export function ChartPreview({
     let dimensionFields: string[] = [];
     if (config.drilldownConfig?.enabled && drilldownLevelsLocal.length > 0) {
       const currentDrilldownLevel = drilldownState?.values?.length || 0;
-      const currentDimension = drilldownLevelsLocal[currentDrilldownLevel] || drilldownLevelsLocal[0];
-      dimensionFields = [currentDimension];
+      // Past the last configured level: show matching records individually
+      // instead of falling back to the first hierarchy field (which produced
+      // an empty / useless chart after the final drill-down click).
+      if (currentDrilldownLevel >= drilldownLevelsLocal.length) {
+        dimensionFields = ['_default'];
+      } else {
+        const currentDimension = drilldownLevelsLocal[currentDrilldownLevel];
+        dimensionFields = currentDimension ? [currentDimension] : ['_default'];
+      }
     } else {
       dimensionFields = config.dimensions && config.dimensions.length > 0 ? config.dimensions : config.xAxis ? [config.xAxis] : [];
     }
@@ -2081,6 +2103,24 @@ export function ChartPreview({
       });
     }
     const allFilters = [...(config.filters || []), ...drilldownFilters];
+
+    const matchesDrilldownFilter = (filter: { field: string; operator: string; value: string }) => {
+      const raw = submissionData[filter.field];
+      const fieldType = fieldTypesMap[filter.field] || '';
+      // Prefer typed equals (handles date day-equality, numeric, option objects)
+      if (evaluateFilterCondition(raw, filter.operator, filter.value, fieldType)) {
+        return true;
+      }
+      // Fallback: match the same display string the chart bar used
+      if (raw === null || raw === undefined || raw === '') {
+        return filter.value === 'Not Specified' || filter.value === '' || filter.value === 'Unknown';
+      }
+      if (typeof raw === 'object' && raw !== null) {
+        if (raw.status && String(raw.status) === String(filter.value)) return true;
+        if (raw.label && String(raw.label) === String(filter.value)) return true;
+      }
+      return String(raw) === String(filter.value);
+    };
     
     // Use expression-based evaluation if manual logic is enabled
     if (config.useManualFilterLogic && config.filterLogicExpression && (config.filters?.length || 0) > 1) {
@@ -2093,16 +2133,16 @@ export function ChartPreview({
         fieldTypesMap
       );
       // Drilldown filters must all pass (AND)
-      const drilldownResult = drilldownFilters.length === 0 || drilldownFilters.every(filter => {
-        const value = submissionData[filter.field];
-        const fieldType = fieldTypesMap[filter.field] || '';
-        return evaluateFilterCondition(value, filter.operator, filter.value, fieldType);
-      });
+      const drilldownResult = drilldownFilters.length === 0 || drilldownFilters.every(matchesDrilldownFilter);
       return configResult && drilldownResult;
     }
     
     // Default: AND logic for all filters with field type support
     return allFilters?.every(filter => {
+      // Drilldown filters use the resilient matcher; config filters stay typed
+      if (drilldownFilters.includes(filter)) {
+        return matchesDrilldownFilter(filter);
+      }
       const value = submissionData[filter.field];
       const fieldType = fieldTypesMap[filter.field] || '';
       return evaluateFilterCondition(value, filter.operator, filter.value, fieldType);
@@ -2326,8 +2366,12 @@ export function ChartPreview({
 
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      // The chart currently shows drilldownLevels[currentLevel]. When that IS
+      // the last configured level, there's nowhere left to drill — open the
+      // records dialog with the clicked bar's value applied as the final
+      // filter (plus every prior drill filter) instead of showing "no data".
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
@@ -2485,18 +2529,12 @@ export function ChartPreview({
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      // The chart currently shows drilldownLevels[currentLevel] (or the last
-      // level when currentLevel exceeds the configured count). When the user
-      // clicks while the displayed level IS the last configured level, drilling
-      // further has nowhere to go — open the records dialog with every filter
-      // applied (including the clicked bar) instead of producing a broken
-      // "no further drill" state.
-      // Only treat as "terminal" AFTER the user has already drilled through
-      // every configured level. While still on the last level we should drill
-      // into it (consume its value) and THEN open the dialog on the next
-      // click. This makes a 3-level drill produce: L0 -> L1 -> L2 -> dialog.
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      // The chart currently shows drilldownLevels[currentLevel]. When that IS
+      // the last configured level, there's nowhere left to drill — open the
+      // records dialog with the clicked bar's value applied as the final
+      // filter (plus every prior drill filter) instead of showing "no data".
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
