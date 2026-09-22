@@ -1,5 +1,5 @@
 /**
- * Unit tests for multi-level grouping aggregation used by Report Grouping mode.
+ * Unit tests for multi-level grouping (count-of-records) used by Report Grouping mode.
  * Run: npx tsx src/components/reports/utils/multiLevelGrouping.test.ts
  */
 
@@ -19,42 +19,24 @@ function getDimensionKey(submissionData: Record<string, unknown>, dimensionField
   return dimensionFields.map(dim => getDimensionValue(submissionData, dim)).join(' - ') || 'Not Specified';
 }
 
-function applyAggregation(values: number[], aggregationType: string): number {
-  if (values.length === 0) return 0;
-  switch (aggregationType) {
-    case 'count': return values.length;
-    case 'sum': return values.reduce((a, b) => a + b, 0);
-    case 'avg': return values.reduce((a, b) => a + b, 0) / values.length;
-    case 'min': return Math.min(...values);
-    case 'max': return Math.max(...values);
-    default: return values.reduce((a, b) => a + b, 0);
-  }
-}
-
-/** Mirrors ChartPreview groupingMode path for 2+ levels */
-function processMultiLevelGrouping(
+/** Mirrors ChartPreview groupingMode path — always count of records */
+function processMultiLevelGroupingCount(
   submissions: Array<{ submission_data: Record<string, unknown> }>,
   dimensions: string[],
-  metricField: string,
-  aggregation: string,
 ) {
   if (dimensions.length === 0) return [];
   if (dimensions.length === 1) {
-    const raw: Record<string, number[]> = {};
+    const raw: Record<string, number> = {};
     submissions.forEach(s => {
       const key = getDimensionValue(s.submission_data, dimensions[0]);
-      if (!raw[key]) raw[key] = [];
-      raw[key].push(Number(s.submission_data[metricField]) || 0);
+      raw[key] = (raw[key] || 0) + 1;
     });
-    return Object.entries(raw).map(([name, values]) => ({
-      name,
-      value: applyAggregation(values, aggregation),
-    }));
+    return Object.entries(raw).map(([name, value]) => ({ name, value }));
   }
 
   const primaryDims = dimensions.slice(0, -1);
   const seriesField = dimensions[dimensions.length - 1];
-  const rawGrouped: Record<string, Record<string, number[]>> = {};
+  const rawGrouped: Record<string, Record<string, number>> = {};
   const allSeries = new Set<string>();
 
   submissions.forEach(s => {
@@ -63,14 +45,13 @@ function processMultiLevelGrouping(
     const series = getDimensionValue(data, seriesField);
     allSeries.add(series);
     if (!rawGrouped[dimKey]) rawGrouped[dimKey] = {};
-    if (!rawGrouped[dimKey][series]) rawGrouped[dimKey][series] = [];
-    rawGrouped[dimKey][series].push(Number(data[metricField]) || 0);
+    rawGrouped[dimKey][series] = (rawGrouped[dimKey][series] || 0) + 1;
   });
 
   return Object.entries(rawGrouped).map(([name, groups]) => {
     const point: Record<string, string | number> = { name };
     allSeries.forEach(series => {
-      point[series] = applyAggregation(groups[series] || [], aggregation);
+      point[series] = groups[series] || 0;
     });
     return point;
   });
@@ -90,20 +71,24 @@ const rows = [
   { submission_data: { region: 'EMEA', country: 'DE', city: 'Berlin', amount: 40 } },
 ];
 
-// 1 level
-const one = processMultiLevelGrouping(rows, ['region'], 'amount', 'sum');
-assertEq(one.find(r => r.name === 'APAC')?.value, 60, 'APAC sum');
-assertEq(one.find(r => r.name === 'EMEA')?.value, 40, 'EMEA sum');
+// 1 level — count records
+const one = processMultiLevelGroupingCount(rows, ['region']);
+assertEq(one.find(r => r.name === 'APAC')?.value, 3, 'APAC count');
+assertEq(one.find(r => r.name === 'EMEA')?.value, 1, 'EMEA count');
 
 // 3 levels: X = region - country, series = city
-const three = processMultiLevelGrouping(rows, ['region', 'country', 'city'], 'amount', 'sum');
+const three = processMultiLevelGroupingCount(rows, ['region', 'country', 'city']);
 const apacIn = three.find(r => r.name === 'APAC - IN') as Record<string, number | string> | undefined;
 assert(apacIn, 'APAC - IN row exists');
-assertEq(apacIn!.Mumbai, 10, 'Mumbai series');
-assertEq(apacIn!.Delhi, 20, 'Delhi series');
+assertEq(apacIn!.Mumbai, 1, 'Mumbai series count');
+assertEq(apacIn!.Delhi, 1, 'Delhi series count');
 assertEq(apacIn!.Singapore, 0, 'missing series fills 0');
 
 const apacSg = three.find(r => r.name === 'APAC - SG') as Record<string, number | string> | undefined;
-assertEq(apacSg!.Singapore, 30, 'Singapore under APAC-SG');
+assertEq(apacSg!.Singapore, 1, 'Singapore under APAC-SG');
 
-console.log('All multi-level grouping tests passed.');
+// Numeric / any field can be a grouping level
+const byAmount = processMultiLevelGroupingCount(rows, ['amount']);
+assertEq(byAmount.length, 4, 'numeric field used as grouping level');
+
+console.log('All multi-level grouping count tests passed.');
