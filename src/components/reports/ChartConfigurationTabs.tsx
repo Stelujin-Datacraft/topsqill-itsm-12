@@ -17,6 +17,7 @@ import { ChartDataSection } from './ChartDataSection';
 import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 import { ChartExamples } from './ChartExamples';
 import { DraggableFieldSelector } from './DraggableFieldSelector';
+import { PieDonutOrGroupingDataSection } from './chart-data-sections';
 import { Database, Sparkles, Lightbulb, CheckSquare } from 'lucide-react';
 import { getChartMetricCapabilities } from '@/utils/chartConfig';
 import { AIChartSuggester } from '@/components/ai/AIChartSuggester';
@@ -331,11 +332,20 @@ export function ChartConfigurationTabs({
 
         {/* Only show chart data options when cross-reference mode is NOT enabled */}
         {!config.crossRefConfig?.enabled && (
-          <ChartDataSection
-            config={config}
-            formFields={formFields}
-            onConfigChange={handleConfigUpdate}
-          />
+          (config.chartType === 'pie' || config.chartType === 'donut') ? (
+            <PieDonutOrGroupingDataSection
+              config={config}
+              formFields={formFields}
+              onConfigChange={handleConfigUpdate}
+              chartType={config.chartType}
+            />
+          ) : (
+            <ChartDataSection
+              config={config}
+              formFields={formFields}
+              onConfigChange={handleConfigUpdate}
+            />
+          )
         )}
       </TabsContent>
 

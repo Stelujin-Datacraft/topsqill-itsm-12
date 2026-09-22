@@ -48,6 +48,7 @@ import { TablePreview } from './TablePreview';
 import { ChartDataSection } from './ChartDataSection';
 import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 import { DraggableFieldSelector } from './DraggableFieldSelector';
+import { PieDonutOrGroupingDataSection } from './chart-data-sections';
 import { MetricsSelector } from './MetricsSelector';
 import { DimensionsSelector } from './DimensionsSelector';
 import { FormField } from '@/types/form';
@@ -746,8 +747,16 @@ export function ComponentConfigDialog({
           {/* Only show chart data options when cross-reference mode is NOT enabled */}
           {!config.crossRefConfig?.enabled && (
             <>
-              {/* Unified Calculate | Compare | Grouping for every chart type */}
-              {config.chartType !== 'table' && (
+              {(config.chartType === 'pie' || config.chartType === 'donut') && (
+                <PieDonutOrGroupingDataSection
+                  config={config}
+                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
+                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+                  chartType={config.chartType}
+                />
+              )}
+
+              {config.chartType !== 'table' && config.chartType !== 'pie' && config.chartType !== 'donut' && (
                 <ChartDataSection
                   config={config}
                   formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
