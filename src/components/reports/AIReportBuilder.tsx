@@ -28,6 +28,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  finalizeAiChartConfig,
+  groupingDrilldownConfig,
+  MAX_GROUPING_LEVELS,
+} from '@/components/reports/utils/aiReportGrouping';
 
 interface AIReportBuilderProps {
   open: boolean;
@@ -48,10 +53,11 @@ interface GeneratedConfig {
   aggregationType?: string;
   aggregationEnabled?: boolean;
   compareMode?: boolean;
+  groupingMode?: boolean;
   metricAggregations?: Array<{ field: string; aggregation: string }>;
   colorTheme?: string;
   filters?: Array<{ field: string; operator: string; value: any }>;
-  drilldownConfig?: { enabled: boolean; levels: string[] };
+  drilldownConfig?: { enabled: boolean; levels: string[]; drilldownLevels?: string[] };
   maxDataPoints?: number;
   reasoning?: string;
 }
@@ -103,7 +109,7 @@ function normalizeGeneratedConfig(
   const nextMetrics = metrics.length
     ? metrics
     : [yAxis, resolveFieldId(config.metrics?.[1], fields)].filter(Boolean);
-  const nextDimensions = dimensions.length
+  let nextDimensions = dimensions.length
     ? dimensions
     : [xAxis].filter(Boolean);
 
@@ -112,20 +118,54 @@ function normalizeGeneratedConfig(
     field: resolveFieldId(f.field, fields) || f.field,
   }));
 
-  const levels = (config.drilldownConfig?.levels || [])
+  const levels = (config.drilldownConfig?.levels || config.drilldownConfig?.drilldownLevels || [])
     .map((lvl) => resolveFieldId(lvl, fields))
     .filter(Boolean);
+
+  // If grouping and dimensions missing, fall back to drilldown levels
+  if ((config.groupingMode || levels.length >= 2) && nextDimensions.length < levels.length) {
+    nextDimensions = levels.length ? levels : nextDimensions;
+  }
 
   const metricAggregations = (config.metricAggregations || []).map((m) => ({
     ...m,
     field: resolveFieldId(m.field, fields) || m.field,
   }));
 
+  // Infer grouping when AI asks for multi-level hierarchy / grouping drilldown
+  const isGrouping =
+    config.groupingMode === true ||
+    (!config.compareMode &&
+      nextDimensions.length >= 2 &&
+      (config.aggregationType === 'count' || !nextMetrics.length) &&
+      (Boolean(config.drilldownConfig?.enabled) || levels.length >= 2));
+
+  if (isGrouping) {
+    const groupingDims = nextDimensions.slice(0, MAX_GROUPING_LEVELS);
+    const drill = groupingDrilldownConfig(groupingDims);
+    return {
+      ...config,
+      formId,
+      xAxis: groupingDims[0] || undefined,
+      yAxis: undefined,
+      groupingMode: true,
+      compareMode: false,
+      aggregationEnabled: true,
+      aggregationType: 'count',
+      metrics: [],
+      dimensions: groupingDims,
+      filters,
+      metricAggregations: [{ field: 'count', aggregation: 'count' }],
+      drilldownConfig: drill,
+    };
+  }
+
   return {
     ...config,
     formId,
     xAxis: xAxis || undefined,
     yAxis: yAxis || undefined,
+    groupingMode: false,
     metrics: nextMetrics,
     dimensions: nextDimensions,
     filters,
@@ -318,6 +358,36 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
     });
   };
 
+  const setGroupingLevel = (index: number, fieldId: string) => {
+    if (!generatedConfig) return;
+    const dims = [...(generatedConfig.dimensions || [])];
+    if (!fieldId) {
+      dims.splice(index, 1);
+    } else {
+      dims[index] = fieldId;
+    }
+    const next = dims.filter(Boolean).slice(0, MAX_GROUPING_LEVELS);
+    updateConfig({
+      xAxis: next[0] || undefined,
+      dimensions: next,
+      groupingMode: true,
+      compareMode: false,
+      aggregationEnabled: true,
+      aggregationType: 'count',
+      metrics: [],
+      metricAggregations: [{ field: 'count', aggregation: 'count' }],
+      drilldownConfig: groupingDrilldownConfig(next),
+    });
+  };
+
+  const addGroupingLevel = () => {
+    if (!generatedConfig) return;
+    const dims = [...(generatedConfig.dimensions || [])];
+    if (dims.length >= MAX_GROUPING_LEVELS) return;
+    dims.push('');
+    updateConfig({ dimensions: dims });
+  };
+
   const setPrimaryMetric = (fieldId: string) => {
     if (!generatedConfig) return;
     const second = generatedConfig.metrics?.[1];
@@ -375,6 +445,17 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
   const unresolvedRequired = useMemo(() => {
     if (!generatedConfig) return [] as string[];
     const missing: string[] = [];
+    if (generatedConfig.groupingMode) {
+      const dims = (generatedConfig.dimensions || []).filter(Boolean);
+      if (!dims.length) {
+        missing.push('grouping level 1');
+      } else {
+        dims.forEach((id, i) => {
+          if (!formFields.some((f) => f.id === id)) missing.push(`grouping level ${i + 1}`);
+        });
+      }
+      return missing;
+    }
     const dim = generatedConfig.dimensions?.[0] || generatedConfig.xAxis || '';
     const metric = generatedConfig.metrics?.[0] || generatedConfig.yAxis || '';
     if (!dim || !formFields.some((f) => f.id === dim)) missing.push('grouping / X-axis field');
@@ -394,33 +475,18 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
     }
 
     const { reasoning, ...chartConfig } = generatedConfig;
-    const isCompare = chartConfig.compareMode === true;
-    const dimension = chartConfig.dimensions?.[0] || chartConfig.xAxis || '';
-    const metric = chartConfig.metrics?.[0] || chartConfig.yAxis || '';
-    const finalConfig = {
-      ...chartConfig,
-      formId: selectedFormId,
-      xAxis: dimension || chartConfig.xAxis,
-      yAxis: metric || chartConfig.yAxis,
-      compareMode: isCompare,
-      aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
-      dimensions: isCompare ? [] : (chartConfig.dimensions || []).filter(Boolean),
-      metrics: (chartConfig.metrics || []).filter(Boolean),
-      metricAggregations: isCompare
-        ? []
-        : (chartConfig.metricAggregations?.length
-          ? chartConfig.metricAggregations
-          : metric
-            ? [{ field: metric, aggregation: chartConfig.aggregationType || 'count' }]
-            : []),
-      drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
-      drilldownLevels: chartConfig.drilldownConfig?.levels || [],
-    };
+    const finalConfig = finalizeAiChartConfig(chartConfig, selectedFormId);
 
     onComponentGenerated({ type: 'chart', config: finalConfig });
     setGeneratedConfig(null);
     setPrompt('');
   };
+
+  const modeBadgeLabel = generatedConfig?.groupingMode
+    ? 'Grouping'
+    : generatedConfig?.compareMode
+      ? 'Compare Fields'
+      : 'Calculate Values';
 
   const primaryDimension = generatedConfig?.dimensions?.[0] || generatedConfig?.xAxis || '';
   const primaryMetric = generatedConfig?.metrics?.[0] || generatedConfig?.yAxis || '';
@@ -509,7 +575,7 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
             <label className="text-sm font-medium">Describe your chart</label>
             <Textarea
               placeholder={selectedFormId
-                ? 'e.g., "Bar chart of ticket counts by priority" or "Compare amount vs age"'
+                ? 'e.g., "Count by priority", "Compare amount vs age", or "Grouping by Priority then Age then Severity"'
                 : 'Select a form first to see available fields...'
               }
               value={prompt}
@@ -549,8 +615,11 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="font-medium text-sm">{generatedConfig.title}</h4>
                   <div className="flex gap-1.5 flex-wrap justify-end">
-                    <Badge variant={generatedConfig.compareMode ? 'default' : 'secondary'} className="text-xs">
-                      {generatedConfig.compareMode ? 'Compare Fields' : 'Calculate Values'}
+                    <Badge
+                      variant={generatedConfig.groupingMode || generatedConfig.compareMode ? 'default' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {modeBadgeLabel}
                     </Badge>
                     <Badge variant="secondary" className="capitalize text-xs">{generatedConfig.chartType}</Badge>
                   </div>
@@ -572,77 +641,130 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <FieldSelect
-                      label={generatedConfig.compareMode ? 'X-Axis field' : 'Group by (dimension)'}
-                      value={primaryDimension}
-                      onChange={setPrimaryDimension}
-                      fields={formFields}
-                      unresolvedHint="Required"
-                    />
-                    <FieldSelect
-                      label={generatedConfig.compareMode ? 'Y-Axis field' : 'Metric field'}
-                      value={primaryMetric}
-                      onChange={setPrimaryMetric}
-                      fields={formFields}
-                      unresolvedHint="Required"
-                    />
-
-                    {generatedConfig.compareMode ? (
+                  {generatedConfig.groupingMode ? (
+                    <div className="space-y-3">
+                      <p className="text-[11px] text-muted-foreground">
+                        Count of records, level by level. Click a bar to drill to the next field; last level opens records.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {(generatedConfig.dimensions?.length
+                          ? generatedConfig.dimensions
+                          : ['']
+                        ).map((lvl, i) => (
+                          <FieldSelect
+                            key={i}
+                            label={`Grouping level ${i + 1}`}
+                            value={lvl}
+                            onChange={(fieldId) => setGroupingLevel(i, fieldId)}
+                            fields={formFields}
+                            allowNone={i > 0}
+                            unresolvedHint={i === 0 ? 'Required' : undefined}
+                          />
+                        ))}
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Chart type</Label>
+                          <Select
+                            value={generatedConfig.chartType}
+                            onValueChange={(v) => updateConfig({ chartType: v })}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CHART_TYPES.map((type) => (
+                                <SelectItem key={type} value={type} className="text-xs capitalize">
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {(generatedConfig.dimensions?.length || 0) < MAX_GROUPING_LEVELS && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          onClick={addGroupingLevel}
+                        >
+                          Add grouping level
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <FieldSelect
-                        label="Compare field (2nd metric)"
-                        value={compareMetric}
-                        onChange={setCompareMetric}
+                        label={generatedConfig.compareMode ? 'X-Axis field' : 'Group by (dimension)'}
+                        value={primaryDimension}
+                        onChange={setPrimaryDimension}
                         fields={formFields}
                         unresolvedHint="Required"
                       />
-                    ) : (
+                      <FieldSelect
+                        label={generatedConfig.compareMode ? 'Y-Axis field' : 'Metric field'}
+                        value={primaryMetric}
+                        onChange={setPrimaryMetric}
+                        fields={formFields}
+                        unresolvedHint="Required"
+                      />
+
+                      {generatedConfig.compareMode ? (
+                        <FieldSelect
+                          label="Compare field (2nd metric)"
+                          value={compareMetric}
+                          onChange={setCompareMetric}
+                          fields={formFields}
+                          unresolvedHint="Required"
+                        />
+                      ) : (
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Aggregation</Label>
+                          <Select
+                            value={generatedConfig.aggregationType || 'count'}
+                            onValueChange={(v) => updateConfig({
+                              aggregationType: v,
+                              aggregationEnabled: true,
+                              compareMode: false,
+                              metricAggregations: primaryMetric
+                                ? [{ field: primaryMetric, aggregation: v }]
+                                : [],
+                            })}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AGGREGATIONS.map((agg) => (
+                                <SelectItem key={agg} value={agg} className="text-xs capitalize">
+                                  {agg}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Aggregation</Label>
+                        <Label className="text-xs text-muted-foreground">Chart type</Label>
                         <Select
-                          value={generatedConfig.aggregationType || 'count'}
-                          onValueChange={(v) => updateConfig({
-                            aggregationType: v,
-                            aggregationEnabled: true,
-                            compareMode: false,
-                            metricAggregations: primaryMetric
-                              ? [{ field: primaryMetric, aggregation: v }]
-                              : [],
-                          })}
+                          value={generatedConfig.chartType}
+                          onValueChange={(v) => updateConfig({ chartType: v })}
                         >
                           <SelectTrigger className="h-8 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {AGGREGATIONS.map((agg) => (
-                              <SelectItem key={agg} value={agg} className="text-xs capitalize">
-                                {agg}
+                            {CHART_TYPES.map((type) => (
+                              <SelectItem key={type} value={type} className="text-xs capitalize">
+                                {type}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
-
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Chart type</Label>
-                      <Select
-                        value={generatedConfig.chartType}
-                        onValueChange={(v) => updateConfig({ chartType: v })}
-                      >
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CHART_TYPES.map((type) => (
-                            <SelectItem key={type} value={type} className="text-xs capitalize">
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
-                  </div>
+                  )}
 
                   {generatedConfig.filters && generatedConfig.filters.length > 0 && (
                     <div className="space-y-2 pt-1 border-t">
@@ -660,7 +782,7 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
                     </div>
                   )}
 
-                  {generatedConfig.drilldownConfig?.levels?.length ? (
+                  {!generatedConfig.groupingMode && generatedConfig.drilldownConfig?.levels?.length ? (
                     <div className="space-y-2 pt-1 border-t">
                       <p className="text-xs text-muted-foreground">Drilldown levels</p>
                       {generatedConfig.drilldownConfig.levels.map((lvl, i) => (
