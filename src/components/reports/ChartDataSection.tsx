@@ -94,6 +94,13 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
   const MAX_GROUPING_LEVELS = 5;
 
+  /** Grouping levels drive drilldown automatically (one field per click). */
+  const groupingDrilldownConfig = (dims: string[]) => ({
+    enabled: dims.length > 0,
+    drilldownLevels: dims,
+    levels: dims,
+  });
+
   // Handle mode change
   const handleModeChange = (newMode: ChartMode) => {
     setMode(newMode);
@@ -104,7 +111,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         compareMode: false,
         groupingMode: false,
         metrics: [],
-        metricAggregations: []
+        metricAggregations: [],
+        drilldownConfig: { enabled: false, drilldownLevels: [], levels: [] },
       });
     } else if (newMode === 'calculate') {
       onConfigChange({
@@ -116,6 +124,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         // Calculate keeps at most 2 optional group fields
         dimensions: selectedDimensions.slice(0, 2),
         groupByField: undefined,
+        // Leaving grouping clears auto-drilldown so the Drilldown tab is free again
+        drilldownConfig: { enabled: false, drilldownLevels: [], levels: [] },
       });
     } else if (newMode === 'compare') {
       onConfigChange({
@@ -125,6 +135,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         metrics: selectedMetrics.slice(0, 2),
         metricAggregations: [],
         groupByField: undefined,
+        drilldownConfig: { enabled: false, drilldownLevels: [], levels: [] },
       });
     } else if (newMode === 'grouping') {
       const nextDimensions = selectedDimensions.length > 0
@@ -140,7 +151,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         aggregation: 'count',
         aggregationType: 'count',
         dimensions: nextDimensions,
-        groupByField: nextDimensions.length >= 2 ? nextDimensions[nextDimensions.length - 1] : undefined,
+        groupByField: undefined,
+        // Auto-enable drilldown from grouping levels (click chart → next level)
+        drilldownConfig: groupingDrilldownConfig(nextDimensions),
       });
     }
   };
@@ -203,8 +216,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     const newDimensions = [...selectedDimensions, fieldId];
     const updates: Partial<ChartConfig> = { dimensions: newDimensions };
     if (mode === 'grouping') {
-      // Last level drives series/stack rendering in ChartPreview
-      updates.groupByField = newDimensions.length >= 2 ? newDimensions[newDimensions.length - 1] : undefined;
+      updates.groupByField = undefined;
+      updates.drilldownConfig = groupingDrilldownConfig(newDimensions);
     }
     onConfigChange(updates);
   };
@@ -214,7 +227,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     const newDimensions = selectedDimensions.filter(id => id !== fieldId);
     const updates: Partial<ChartConfig> = { dimensions: newDimensions };
     if (mode === 'grouping') {
-      updates.groupByField = newDimensions.length >= 2 ? newDimensions[newDimensions.length - 1] : undefined;
+      updates.groupByField = undefined;
+      updates.drilldownConfig = groupingDrilldownConfig(newDimensions);
     }
     onConfigChange(updates);
   };
@@ -227,7 +241,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     items.splice(result.destination.index, 0, reorderedItem);
     const updates: Partial<ChartConfig> = { dimensions: items };
     if (mode === 'grouping') {
-      updates.groupByField = items.length >= 2 ? items[items.length - 1] : undefined;
+      updates.groupByField = undefined;
+      updates.drilldownConfig = groupingDrilldownConfig(items);
     }
     onConfigChange(updates);
   };
@@ -366,7 +381,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </TabsContent>
             <TabsContent value="grouping" className="mt-3">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Count records across multiple grouping levels (hierarchy). Uses all form fields.
+                Count records level-by-level: click a bar to drill into the next grouping field.
+                The last level opens the matching records table. Drilldown is configured automatically.
                 <span className="text-muted-foreground/70 italic"> Example: Region → Country → City</span>
               </p>
             </TabsContent>
@@ -694,7 +710,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {mode === 'count'
                   ? 'Add a secondary field to stack or color-code your bars'
                   : mode === 'grouping'
-                    ? 'Add one or more fields in order (any field). Level 1 is the X-axis; the last level becomes the series/stack. Intermediate levels nest into the X-axis label.'
+                    ? 'Add fields in drill order. Click the chart to go level-by-level; the last level opens the records table. The Drilldown tab is managed automatically.'
                     : 'Choose how to categorize your data. Leave empty to show aggregated totals.'
                 }
               </CardDescription>
@@ -899,12 +915,12 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                           const isLast = index === selectedDimensions.length - 1;
                           const levelLabel =
                             selectedDimensions.length === 1
-                              ? 'Level 1 · X-axis'
+                              ? 'Level 1 · Click opens records'
                               : index === 0
-                                ? `Level ${index + 1} · X-axis`
+                                ? `Level ${index + 1} · Start`
                                 : isLast
-                                  ? `Level ${index + 1} · Series / Stack`
-                                  : `Level ${index + 1} · Nested`;
+                                  ? `Level ${index + 1} · Opens records`
+                                  : `Level ${index + 1} · Drill`;
                           return (
                             <Draggable key={dimId} draggableId={dimId} index={index}>
                               {(provided, snapshot) => (
@@ -992,8 +1008,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               )}
 
               <p className="text-xs text-muted-foreground">
-                Drag to reorder levels. Counts records for each unique combination;
-                the last level splits series on the chart. Any field type can be a level.
+                Drag to reorder drill levels. The chart shows one level at a time (count of records).
+                Click a bar to drill into the next field; on the last level, the records table opens.
               </p>
             </>
           )}
@@ -1036,7 +1052,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 )}
                 {mode === 'grouping' && (
                   selectedDimensions.length >= 1
-                    ? `Your chart will count records grouped by ${selectedDimensions.map(id => `"${getFieldLabel(id)}"`).join(' → ')}.`
+                    ? `Your chart will count records and drill ${selectedDimensions.map(id => `"${getFieldLabel(id)}"`).join(' → ')}. Clicking the last level opens matching records.`
                     : 'Add at least one grouping level.'
                 )}
               </p>

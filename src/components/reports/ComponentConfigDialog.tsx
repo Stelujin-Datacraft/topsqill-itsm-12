@@ -630,7 +630,13 @@ export function ComponentConfigDialog({
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
-          <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
+          <TabsTrigger
+            value="drilldown"
+            disabled={!!config.groupingMode}
+            title={config.groupingMode ? 'Drilldown is managed by Grouping mode' : undefined}
+          >
+            Drilldown
+          </TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
         </TabsList>
 
@@ -893,8 +899,18 @@ export function ComponentConfigDialog({
         </TabsContent>
 
         <TabsContent value="drilldown" className="space-y-4">
-          {/* When cross-reference is enabled, disable outer drilldown and show message */}
-          {config.crossRefConfig?.enabled ? (
+          {/* Grouping mode owns drilldown levels — keep this tab locked */}
+          {config.groupingMode ? (
+            <div className="p-4 text-center border border-dashed rounded-lg bg-muted/50">
+              <div className="text-muted-foreground mb-2">
+                Grouping mode is enabled.
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Drilldown levels are taken from your <span className="font-medium">Data → Grouping</span> fields.
+                Click the chart to drill level-by-level; the last level opens the records table.
+              </div>
+            </div>
+          ) : config.crossRefConfig?.enabled ? (
             <div className="p-4 text-center border border-dashed rounded-lg bg-muted/50">
               <div className="text-muted-foreground mb-2">
                 Cross-Reference mode is enabled.
