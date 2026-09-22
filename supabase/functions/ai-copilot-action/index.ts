@@ -199,17 +199,43 @@
          if (reportError) throw new Error(getActionErrorMessage(reportError));
 
          if (chartConfig && formId) {
-           const isCompare = chartConfig.compareMode === true;
-           const finalConfig = {
-             ...chartConfig,
-             formId,
-             compareMode: isCompare,
-             aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
-             dimensions: isCompare ? [] : (chartConfig.dimensions || []),
-             metricAggregations: isCompare ? [] : (chartConfig.metricAggregations || []),
-             drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
-             drilldownLevels: chartConfig.drilldownConfig?.levels || [],
-           };
+           const isGrouping = chartConfig.groupingMode === true;
+           const isCompare = !isGrouping && chartConfig.compareMode === true;
+           const dimensions = isCompare
+             ? []
+             : (chartConfig.dimensions || []).filter(Boolean);
+           const finalConfig = isGrouping
+             ? {
+                 ...chartConfig,
+                 formId,
+                 groupingMode: true,
+                 compareMode: false,
+                 aggregationEnabled: true,
+                 aggregationType: 'count',
+                 aggregation: 'count',
+                 dimensions,
+                 metrics: [],
+                 metricAggregations: [{ field: 'count', aggregation: 'count' }],
+                 drilldownConfig: {
+                   enabled: dimensions.length > 0,
+                   levels: dimensions,
+                   drilldownLevels: dimensions,
+                 },
+                 drilldownEnabled: dimensions.length > 0,
+                 drilldownLevels: dimensions,
+                 xAxis: dimensions[0],
+               }
+             : {
+                 ...chartConfig,
+                 formId,
+                 groupingMode: false,
+                 compareMode: isCompare,
+                 aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
+                 dimensions,
+                 metricAggregations: isCompare ? [] : (chartConfig.metricAggregations || []),
+                 drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
+                 drilldownLevels: chartConfig.drilldownConfig?.levels || [],
+               };
            delete finalConfig.reasoning;
 
            const { error: componentError } = await supabase.from('report_components').insert({
@@ -1294,17 +1320,43 @@
           }
 
           if (chartConfig && formId) {
-            const isCompare = chartConfig.compareMode === true;
-            const finalConfig = {
-              ...chartConfig,
-              formId,
-              compareMode: isCompare,
-              aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
-              dimensions: isCompare ? [] : (chartConfig.dimensions || []),
-              metricAggregations: isCompare ? [] : (chartConfig.metricAggregations || []),
-              drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
-              drilldownLevels: chartConfig.drilldownConfig?.levels || [],
-            };
+            const isGrouping = chartConfig.groupingMode === true;
+            const isCompare = !isGrouping && chartConfig.compareMode === true;
+            const dimensions = isCompare
+              ? []
+              : (chartConfig.dimensions || []).filter(Boolean);
+            const finalConfig = isGrouping
+              ? {
+                  ...chartConfig,
+                  formId,
+                  groupingMode: true,
+                  compareMode: false,
+                  aggregationEnabled: true,
+                  aggregationType: 'count',
+                  aggregation: 'count',
+                  dimensions,
+                  metrics: [],
+                  metricAggregations: [{ field: 'count', aggregation: 'count' }],
+                  drilldownConfig: {
+                    enabled: dimensions.length > 0,
+                    levels: dimensions,
+                    drilldownLevels: dimensions,
+                  },
+                  drilldownEnabled: dimensions.length > 0,
+                  drilldownLevels: dimensions,
+                  xAxis: dimensions[0],
+                }
+              : {
+                  ...chartConfig,
+                  formId,
+                  groupingMode: false,
+                  compareMode: isCompare,
+                  aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
+                  dimensions,
+                  metricAggregations: isCompare ? [] : (chartConfig.metricAggregations || []),
+                  drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
+                  drilldownLevels: chartConfig.drilldownConfig?.levels || [],
+                };
             delete finalConfig.reasoning;
 
             const { data: existingComponents } = await supabase
