@@ -48,13 +48,6 @@ import { TablePreview } from './TablePreview';
 import { ChartDataSection } from './ChartDataSection';
 import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 import { DraggableFieldSelector } from './DraggableFieldSelector';
-import {
-  PieDonutDataSection,
-  LineAreaDataSection,
-  ScatterDataSection,
-  BubbleDataSection,
-  HeatmapDataSection
-} from './chart-data-sections';
 import { MetricsSelector } from './MetricsSelector';
 import { DimensionsSelector } from './DimensionsSelector';
 import { FormField } from '@/types/form';
@@ -750,59 +743,12 @@ export function ComponentConfigDialog({
             onConfigChange={(updates) => setConfig({ ...config, ...updates })}
           />
 
-          {/* Only show chart-specific data options when cross-reference mode is NOT enabled */}
+          {/* Only show chart data options when cross-reference mode is NOT enabled */}
           {!config.crossRefConfig?.enabled && (
             <>
-              {/* Bar and Column charts use the original flexible data section */}
-              {(config.chartType === 'bar' || config.chartType === 'column') && (
+              {/* Unified Calculate | Compare | Grouping for every chart type */}
+              {config.chartType !== 'table' && (
                 <ChartDataSection
-                  config={config}
-                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-                />
-              )}
-
-              {/* Pie and Donut charts */}
-              {(config.chartType === 'pie' || config.chartType === 'donut') && (
-                <PieDonutDataSection
-                  config={config}
-                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-                  chartType={config.chartType}
-                />
-              )}
-
-              {/* Line and Area charts */}
-              {(config.chartType === 'line' || config.chartType === 'area') && (
-                <LineAreaDataSection
-                  config={config}
-                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-                  chartType={config.chartType}
-                />
-              )}
-
-              {/* Scatter chart */}
-              {config.chartType === 'scatter' && (
-                <ScatterDataSection
-                  config={config}
-                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-                />
-              )}
-
-              {/* Bubble chart */}
-              {config.chartType === 'bubble' && (
-                <BubbleDataSection
-                  config={config}
-                  formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
-                  onConfigChange={(updates) => setConfig({ ...config, ...updates })}
-                />
-              )}
-
-              {/* Heatmap chart */}
-              {config.chartType === 'heatmap' && (
-                <HeatmapDataSection
                   config={config}
                   formFields={joinEnabled ? [...formFields, ...secondaryFormFields] : formFields}
                   onConfigChange={(updates) => setConfig({ ...config, ...updates })}

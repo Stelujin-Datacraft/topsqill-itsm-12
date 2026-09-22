@@ -17,13 +17,6 @@ import { ChartDataSection } from './ChartDataSection';
 import { CrossReferenceDataSection } from './CrossReferenceDataSection';
 import { ChartExamples } from './ChartExamples';
 import { DraggableFieldSelector } from './DraggableFieldSelector';
-import { 
-  PieDonutDataSection, 
-  LineAreaDataSection, 
-  ScatterDataSection, 
-  BubbleDataSection, 
-  HeatmapDataSection 
-} from './chart-data-sections';
 import { Database, Sparkles, Lightbulb, CheckSquare } from 'lucide-react';
 import { getChartMetricCapabilities } from '@/utils/chartConfig';
 import { AIChartSuggester } from '@/components/ai/AIChartSuggester';
@@ -336,65 +329,13 @@ export function ChartConfigurationTabs({
           onConfigChange={handleConfigUpdate}
         />
 
-        {/* Only show chart-specific data options when cross-reference mode is NOT enabled */}
+        {/* Only show chart data options when cross-reference mode is NOT enabled */}
         {!config.crossRefConfig?.enabled && (
-          <>
-            {/* Bar charts use the original flexible data section */}
-            {config.chartType === 'bar' && (
-              <ChartDataSection
-                config={config}
-                formFields={formFields}
-                onConfigChange={handleConfigUpdate}
-              />
-            )}
-
-            {/* Pie and Donut charts */}
-            {(config.chartType === 'pie' || config.chartType === 'donut') && (
-              <PieDonutDataSection
-                config={config}
-                formFields={formFields}
-                onConfigChange={handleConfigUpdate}
-                chartType={config.chartType}
-              />
-            )}
-
-            {/* Line and Area charts */}
-            {(config.chartType === 'line' || config.chartType === 'area') && (
-              <LineAreaDataSection
-                config={config}
-                formFields={formFields}
-                onConfigChange={handleConfigUpdate}
-                chartType={config.chartType}
-              />
-            )}
-
-            {/* Scatter chart */}
-            {config.chartType === 'scatter' && (
-              <ScatterDataSection
-                config={config}
-                formFields={formFields}
-                onConfigChange={handleConfigUpdate}
-              />
-            )}
-
-            {/* Bubble chart */}
-            {config.chartType === 'bubble' && (
-              <BubbleDataSection
-                config={config}
-                formFields={formFields}
-                onConfigChange={handleConfigUpdate}
-              />
-            )}
-
-            {/* Heatmap chart */}
-            {config.chartType === 'heatmap' && (
-              <HeatmapDataSection
-                config={config}
-                formFields={formFields}
-                onConfigChange={handleConfigUpdate}
-              />
-            )}
-          </>
+          <ChartDataSection
+            config={config}
+            formFields={formFields}
+            onConfigChange={handleConfigUpdate}
+          />
         )}
       </TabsContent>
 
