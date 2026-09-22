@@ -159,9 +159,24 @@ export function ChartPreview({
   };
 
   const getNormalizedDrilldownLevels = (): string[] => {
+    // Grouping mode owns the hierarchy — levels come from Data → Grouping fields
+    if (config.groupingMode && config.dimensions && config.dimensions.length > 0) {
+      return config.dimensions.filter(Boolean);
+    }
     return (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
       (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
       [];
+  };
+
+  const isHierarchyDrilldownEnabled = (): boolean => {
+    if (config.groupingMode && (config.dimensions?.length || 0) > 0) return true;
+    return !!config.drilldownConfig?.enabled;
+  };
+
+  /** Grouping always drills on click; otherwise honor the Drilldown Mode toggle. */
+  const isDrilldownClickActive = (): boolean => {
+    if (config.groupingMode) return true;
+    return isDrilldownModeActive;
   };
 
 
@@ -1120,9 +1135,8 @@ export function ChartPreview({
         // IMPORTANT: Skip this path if compare mode is enabled - compare mode needs raw submissions
         const isCrossRefMode = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
         const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
-        // Multi-level grouping uses client-side aggregation (same as compare for consistency)
-        const isGroupingMode = !!config.groupingMode;
-        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode && !isCompareMode && !isGroupingMode) {
+        // Grouping mode uses the same level-by-level drilldown path (auto-configured)
+        if (isHierarchyDrilldownEnabled() && drilldownLevels.length > 0 && !isCrossRefMode && !isCompareMode) {
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
           const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
@@ -1325,12 +1339,17 @@ export function ChartPreview({
     const effectiveGroupByField = config.dimensions?.[0] || config.groupByField;
 
     // Get dimension fields - support both drilldownLevels and levels for compatibility
-    const drilldownLevelsLocal = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
+    const drilldownLevelsLocal = getNormalizedDrilldownLevels();
     let dimensionFields: string[] = [];
-    if (config.drilldownConfig?.enabled && drilldownLevelsLocal.length > 0) {
+    if (isHierarchyDrilldownEnabled() && drilldownLevelsLocal.length > 0) {
       const currentDrilldownLevel = drilldownState?.values?.length || 0;
-      const currentDimension = drilldownLevelsLocal[currentDrilldownLevel] || drilldownLevelsLocal[0];
-      dimensionFields = [currentDimension];
+      // Past the last level: no further chart dimension — records dialog handles the leaf
+      if (currentDrilldownLevel >= drilldownLevelsLocal.length) {
+        dimensionFields = ['_default'];
+      } else {
+        const currentDimension = drilldownLevelsLocal[currentDrilldownLevel];
+        dimensionFields = currentDimension ? [currentDimension] : ['_default'];
+      }
     } else {
       dimensionFields = config.dimensions && config.dimensions.length > 0 ? config.dimensions : config.xAxis ? [config.xAxis] : [];
     }
@@ -1338,8 +1357,10 @@ export function ChartPreview({
       dimensionFields = ['_default'];
     }
 
-    // Get metric fields
-    const metricFields = config.metrics && config.metrics.length > 0
+    // Get metric fields — grouping mode always counts records
+    const metricFields = config.groupingMode
+      ? ['count']
+      : config.metrics && config.metrics.length > 0
       ? config.metrics
       : config.aggregation === 'count' || config.aggregationType === 'count'
         ? ['count']
@@ -1391,25 +1412,9 @@ export function ChartPreview({
       return processCompareData(submissions, dimensionFields, config.metrics);
     }
 
-    // Grouping mode: always count records across one or more hierarchy levels.
-    // 1 level  → single-series bars by that field
-    // 2+ levels → X-axis = all but last (composite), last level = series/stack
-    if (config.groupingMode) {
-      const groupingDims = (config.dimensions || []).filter(Boolean);
-      const countMetrics = ['count'];
-      if (groupingDims.length === 0) {
-        return processSingleDimensionalData(submissions, ['_default'], countMetrics);
-      }
-      if (groupingDims.length === 1) {
-        return processSingleDimensionalData(submissions, groupingDims, countMetrics);
-      }
-      const primaryDims = groupingDims.slice(0, -1);
-      const seriesField = groupingDims[groupingDims.length - 1];
-      return processGroupedData(submissions, primaryDims, countMetrics, seriesField);
-    }
-
     // If groupByField is specified, use grouped processing
-    if (config.groupByField) {
+    // (groupingMode uses the hierarchy drilldown path above instead of stacked series)
+    if (config.groupByField && !config.groupingMode) {
       return processGroupedData(submissions, dimensionFields, metricFields, config.groupByField);
     }
     
@@ -2092,7 +2097,7 @@ export function ChartPreview({
 
   const passesFilters = (submissionData: any): boolean => {
     const drilldownFilters: any[] = [];
-    if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
+    if (isHierarchyDrilldownEnabled() && drilldownState?.values?.length > 0) {
       const drilldownLevels = getNormalizedDrilldownLevels();
       drilldownState.values.forEach((value, index) => {
         const field = drilldownLevels[index];
@@ -2182,7 +2187,7 @@ export function ChartPreview({
 
   const getActiveDimensionField = (): string => {
     const drilldownLevels = getDrilldownLevels();
-    if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
+    if (isHierarchyDrilldownEnabled() && drilldownLevels.length > 0) {
       const currentLevel = drilldownState?.values?.length || 0;
       const activeIndex = Math.min(currentLevel, drilldownLevels.length - 1);
       return drilldownLevels[activeIndex] || drilldownLevels[0] || '';
@@ -2193,7 +2198,7 @@ export function ChartPreview({
 
   const getActiveDrilldownFieldForCurrentData = (): string => {
     const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0) {
+    if (!isHierarchyDrilldownEnabled() || drilldownLevels.length === 0) {
       return getActiveDimensionField();
     }
 
@@ -2216,7 +2221,7 @@ export function ChartPreview({
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
     const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0 || !chartData.length) {
+    if (!isHierarchyDrilldownEnabled() || drilldownLevels.length === 0 || !chartData.length) {
       return [];
     }
     const currentDimension = drilldownLevels[levelIndex];
@@ -2228,7 +2233,7 @@ export function ChartPreview({
   };
   const handleDrilldownSelect = (value: string) => {
     const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0 || !onDrilldown) {
+    if (!isHierarchyDrilldownEnabled() || drilldownLevels.length === 0 || !onDrilldown) {
       return;
     }
     const currentLevel = drilldownState?.values?.length || 0;
@@ -2247,7 +2252,7 @@ export function ChartPreview({
   // Get the current level info for the drilldown selector
   const getCurrentLevelInfo = () => {
     const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0) {
+    if (!isHierarchyDrilldownEnabled() || drilldownLevels.length === 0) {
       return null;
     }
     const currentLevel = drilldownState?.values?.length || 0;
@@ -2349,10 +2354,11 @@ export function ChartPreview({
       value: v,
     })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
 
-    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
+    if (isHierarchyDrilldownEnabled() && onDrilldown && drilldownLevels.length > 0 && isDrilldownClickActive()) {
       const currentLevel = drilldownState?.values?.length || 0;
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      // On the last hierarchy level, open the records table for the clicked value
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
@@ -2505,23 +2511,15 @@ export function ChartPreview({
       value: v,
     })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
 
-    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
+    if (isHierarchyDrilldownEnabled() && onDrilldown && drilldownLevels.length > 0 && isDrilldownClickActive()) {
       if (event) {
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      // The chart currently shows drilldownLevels[currentLevel] (or the last
-      // level when currentLevel exceeds the configured count). When the user
-      // clicks while the displayed level IS the last configured level, drilling
-      // further has nowhere to go — open the records dialog with every filter
-      // applied (including the clicked bar) instead of producing a broken
-      // "no further drill" state.
-      // Only treat as "terminal" AFTER the user has already drilled through
-      // every configured level. While still on the last level we should drill
-      // into it (consume its value) and THEN open the dialog on the next
-      // click. This makes a 3-level drill produce: L0 -> L1 -> L2 -> dialog.
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      // On the last hierarchy level, open the records table for the clicked value
+      // (plus every prior drill filter). Intermediate levels advance drilldown.
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
@@ -2606,11 +2604,9 @@ export function ChartPreview({
       const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
       aggregation = isCompareMode ? 'compare' : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
     }
-    const groupByName = config.groupByField
+    const groupByName = config.groupByField && !config.groupingMode
       ? getFormFieldName(config.groupByField)
-      : (config.groupingMode && config.dimensions && config.dimensions.length > 1
-          ? getFormFieldName(config.dimensions[config.dimensions.length - 1])
-          : null);
+      : null;
     const chartType = config.type || config.chartType || 'bar';
     
     let title = '';
@@ -2623,7 +2619,7 @@ export function ChartPreview({
         : `Compare ${compareField1} vs ${compareField2}`;
     } else if (config.groupingMode && config.dimensions && config.dimensions.length > 0) {
       const hierarchy = config.dimensions.map(id => getFormFieldName(id)).join(' → ');
-      title = `Count of Records by ${hierarchy}`;
+      title = `Count of Records · Drill ${hierarchy}`;
     } else if (aggregation === 'count') {
       title = dimensionName ? `Count of Records by ${dimensionName}` : 'Count of Records';
     } else {
@@ -2927,10 +2923,9 @@ export function ChartPreview({
     const isCrossRefChart = config.crossRefConfig?.enabled && sanitizedChartData.length > 0 && 
       sanitizedChartData[0].hasOwnProperty('x') && sanitizedChartData[0].hasOwnProperty('y');
     const isCompareMode = (config.compareMode && config.metrics && config.metrics.length === 2) || isCrossRefChart;
-    // For Calculate Values mode (single metric, no groupBy), treat as single-dimensional even if dimensionKeys > 1
-    // Grouping mode with 2+ levels must stay multi-dimensional so series/stack bars render.
-    const isGroupingMultiLevel = !!config.groupingMode && (config.dimensions?.length || 0) > 1;
-    const isCalculateMode = !config.compareMode && !isGroupingMultiLevel && config.metrics?.length === 1 && !config.groupByField;
+    // Grouping mode uses level-by-level drilldown (not stacked multi-series)
+    const isGroupingMultiLevel = false;
+    const isCalculateMode = !config.compareMode && !config.groupingMode && config.metrics?.length === 1 && !config.groupByField;
     // Cross-reference drilldown should always be treated as single-dimensional
     const isCrossRefDrilldown = config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled && drilldownState?.values?.length > 0;
     const isMultiDimensional = !isCalculateMode && !isCrossRefDrilldown && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1 || isGroupingMultiLevel);
@@ -4477,7 +4472,7 @@ export function ChartPreview({
                   percent
                 }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{
                   cursor: 'pointer'
-                }} onClick={(data, idx) => config.drilldownConfig?.enabled ? handlePieClick(data) : handleBarClick(data, idx)}>
+                }} onClick={(data, idx) => isHierarchyDrilldownEnabled() ? handlePieClick(data) : handleBarClick(data, idx)}>
                     {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{
                     cursor: 'pointer'
                   }} />)}
@@ -5668,42 +5663,38 @@ export function ChartPreview({
             Form: {config.formId ? getFormName(config.formId) : 'Form'}
           </span>
           
-          {/* Dimension Badge */}
+          {/* Dimension / Hierarchy Badge */}
           {(config.dimensions?.[0] || config.xAxis) && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-accent dark:text-purple-400 border border-purple-500/20">
-              {config.groupingMode && (config.dimensions?.length || 0) > 1
-                ? `Grouped by: ${config.dimensions!.map(id => getFormFieldName(id)).join(' → ')}`
+              {config.groupingMode && (config.dimensions?.length || 0) > 0
+                ? `Drill: ${config.dimensions!.map(id => getFormFieldName(id)).join(' → ')}`
                 : `Grouped by: ${getFormFieldName(config.dimensions?.[0] || config.xAxis || '')}`}
             </span>
           )}
           
-          {/* Segmented By Badge */}
-          {(config.groupByField || (config.groupingMode && (config.dimensions?.length || 0) > 1)) && (
+          {/* Segmented By Badge — not used for grouping (level-by-level drill) */}
+          {config.groupByField && !config.groupingMode && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-              Segmented by: {getFormFieldName(
-                config.groupByField ||
-                (config.dimensions && config.dimensions.length > 1
-                  ? config.dimensions[config.dimensions.length - 1]
-                  : '')
-              )}
+              Segmented by: {getFormFieldName(config.groupByField)}
             </span>
           )}
         </div>
         
-        {/* Drilldown Mode Toggle - shown when drilldown is enabled (not for Compare mode) */}
-        {(config.drilldownConfig?.enabled || (config.crossRefConfig?.drilldownEnabled && config.crossRefConfig?.mode !== 'compare')) && (
+        {/* Drilldown Mode Toggle - always on for Grouping; optional otherwise */}
+        {(isHierarchyDrilldownEnabled() || (config.crossRefConfig?.drilldownEnabled && config.crossRefConfig?.mode !== 'compare')) && (
           <div className="flex items-center gap-3 mt-3 p-2 bg-muted/50 rounded-lg border">
             <div className="flex items-center gap-2">
               <Switch
                 id="drilldown-mode-toggle"
-                checked={isDrilldownModeActive}
+                checked={config.groupingMode ? true : isDrilldownModeActive}
+                disabled={!!config.groupingMode}
                 onCheckedChange={setIsDrilldownModeActive}
               />
-              <Label htmlFor="drilldown-mode-toggle" className="text-sm font-medium cursor-pointer">
-                {isDrilldownModeActive ? (
+              <Label htmlFor="drilldown-mode-toggle" className={`text-sm font-medium ${config.groupingMode ? '' : 'cursor-pointer'}`}>
+                {(config.groupingMode || isDrilldownModeActive) ? (
                   <span className="flex items-center gap-1.5">
                     <Layers className="h-3.5 w-3.5 text-module-reports" />
-                    Drilldown Mode
+                    {config.groupingMode ? 'Grouping Drilldown' : 'Drilldown Mode'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5">
@@ -5714,7 +5705,9 @@ export function ChartPreview({
               </Label>
             </div>
             <span className="text-xs text-muted-foreground">
-              {isDrilldownModeActive 
+              {config.groupingMode
+                ? 'Click chart to drill the next grouping level; last level opens records'
+                : isDrilldownModeActive 
                 ? 'Click chart to filter data by hierarchy' 
                 : 'Click chart to view underlying records'}
             </span>
@@ -5760,7 +5753,7 @@ export function ChartPreview({
       {/* Chart Controls */}
       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mb-4">
         {/* Show drilldown button for both normal and cross-ref drilldown */}
-        {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
+        {(isHierarchyDrilldownEnabled() || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
             {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
           </Button>}
         
@@ -5775,7 +5768,7 @@ export function ChartPreview({
       </div>
           
       {/* Drilldown Panel - supports both normal and cross-reference drilldown */}
-      {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border flex-shrink-0">
+      {(isHierarchyDrilldownEnabled() || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border flex-shrink-0">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <Filter className="icon-md text-muted-foreground" />
@@ -5836,7 +5829,7 @@ export function ChartPreview({
             </div>}
           
       {/* Collapsed drilldown - Reset button only, right-aligned (path is shown in 'Filtered by' pill above) */}
-      {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && !showDrilldownPanel && drilldownState?.values?.length > 0 && (
+      {(isHierarchyDrilldownEnabled() || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && !showDrilldownPanel && drilldownState?.values?.length > 0 && (
         <div className="flex justify-end flex-shrink-0 mb-4">
           <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={resetDrilldown}>
             Reset
