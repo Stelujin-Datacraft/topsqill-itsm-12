@@ -42,6 +42,8 @@ export interface ChartConfig {
   aggregationType?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'median' | 'stddev';
   aggregationEnabled?: boolean;
   compareMode?: boolean; // When true, show raw values of two fields side-by-side without aggregation
+  /** Multi-level grouping mode: aggregate a metric across one or more hierarchy fields */
+  groupingMode?: boolean;
   encodedLegendMode?: boolean; // When true, encode second field values as numbers with legend
   groupByField?: string;
   colorTheme: 'default' | 'vibrant' | 'pastel' | 'monochrome' | 'custom';
