@@ -1391,20 +1391,21 @@ export function ChartPreview({
       return processCompareData(submissions, dimensionFields, config.metrics);
     }
 
-    // Grouping mode: aggregate a metric across one or more hierarchy levels.
+    // Grouping mode: always count records across one or more hierarchy levels.
     // 1 level  → single-series bars by that field
     // 2+ levels → X-axis = all but last (composite), last level = series/stack
     if (config.groupingMode) {
       const groupingDims = (config.dimensions || []).filter(Boolean);
+      const countMetrics = ['count'];
       if (groupingDims.length === 0) {
-        return processSingleDimensionalData(submissions, ['_default'], metricFields);
+        return processSingleDimensionalData(submissions, ['_default'], countMetrics);
       }
       if (groupingDims.length === 1) {
-        return processSingleDimensionalData(submissions, groupingDims, metricFields);
+        return processSingleDimensionalData(submissions, groupingDims, countMetrics);
       }
       const primaryDims = groupingDims.slice(0, -1);
       const seriesField = groupingDims[groupingDims.length - 1];
-      return processGroupedData(submissions, primaryDims, metricFields, seriesField);
+      return processGroupedData(submissions, primaryDims, countMetrics, seriesField);
     }
 
     // If groupByField is specified, use grouped processing
@@ -2621,9 +2622,8 @@ export function ChartPreview({
         ? `Compare ${compareField1} vs ${compareField2} by ${dimensionName}`
         : `Compare ${compareField1} vs ${compareField2}`;
     } else if (config.groupingMode && config.dimensions && config.dimensions.length > 0) {
-      const aggLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
       const hierarchy = config.dimensions.map(id => getFormFieldName(id)).join(' → ');
-      title = `${aggLabel} of ${metricName} by ${hierarchy}`;
+      title = `Count of Records by ${hierarchy}`;
     } else if (aggregation === 'count') {
       title = dimensionName ? `Count of Records by ${dimensionName}` : 'Count of Records';
     } else {
@@ -5656,7 +5656,7 @@ export function ChartPreview({
               chartInfo.aggregation === 'compare' ? (
                 <>Compare: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field 1'} - {config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Field 2'}</>
               ) : config.groupingMode ? (
-                <>Grouping: {chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)} {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Records'}</>
+                <>Grouping: Count of Records</>
               ) : chartInfo.aggregation === 'count' ? 'Count' : (
                 <>{chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Records'}</>
               )

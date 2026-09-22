@@ -127,21 +127,20 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         groupByField: undefined,
       });
     } else if (newMode === 'grouping') {
-      const metric = selectedMetrics[0];
-      const existingAgg = metric
-        ? (metricAggregations.find(a => a.field === metric) || { field: metric, aggregation: 'sum' as const })
-        : undefined;
+      const nextDimensions = selectedDimensions.length > 0
+        ? selectedDimensions
+        : (config.groupByField ? [config.groupByField] : []);
       onConfigChange({
         aggregationEnabled: true,
         compareMode: false,
         groupingMode: true,
-        metrics: metric ? [metric] : [],
-        metricAggregations: existingAgg ? [existingAgg] : [],
-        // Prefer existing dimensions; seed from groupByField if present
-        dimensions: selectedDimensions.length > 0
-          ? selectedDimensions
-          : (config.groupByField ? [config.groupByField] : []),
-        groupByField: undefined,
+        // Grouping is always count-of-records — no metric field to pick
+        metrics: [],
+        metricAggregations: [{ field: 'count', aggregation: 'count' }],
+        aggregation: 'count',
+        aggregationType: 'count',
+        dimensions: nextDimensions,
+        groupByField: nextDimensions.length >= 2 ? nextDimensions[nextDimensions.length - 1] : undefined,
       });
     }
   };
@@ -156,16 +155,12 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     const newMetrics = [...selectedMetrics, fieldId];
     const updates: Partial<ChartConfig> = { metrics: newMetrics };
     
-    if (mode === 'calculate' || mode === 'grouping') {
+    if (mode === 'calculate') {
       updates.metricAggregations = [
         ...metricAggregations,
         { field: fieldId, aggregation: 'sum' }
       ];
       updates.aggregationEnabled = true;
-      if (mode === 'grouping') {
-        updates.groupingMode = true;
-        updates.compareMode = false;
-      }
     }
     
     onConfigChange(updates);
@@ -271,6 +266,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
   const availableNumericFields = numericFields.filter(f => !selectedMetrics.includes(f.id));
   const availableCategoryFields = categoryFields.filter(f => !selectedDimensions.includes(f.id));
   const availableCompareFields = chartCompatibleFields.filter(f => !selectedMetrics.includes(f.id));
+  // Grouping mode: allow every chart-compatible field as a grouping level
+  const availableGroupingFields = chartCompatibleFields.filter(f => !selectedDimensions.includes(f.id));
 
   // Show empty state if no form selected
   if (formFields.length === 0) {
@@ -301,8 +298,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
       return selectedMetrics.length === 2;
     }
     if (mode === 'grouping') {
-      // Grouping requires a metric and at least one grouping level
-      return selectedMetrics.length > 0 && selectedDimensions.length >= 1;
+      // Grouping only needs at least one grouping level (always counts records)
+      return selectedDimensions.length >= 1;
     }
     return false;
   };
@@ -369,7 +366,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </TabsContent>
             <TabsContent value="grouping" className="mt-3">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Aggregate a value across multiple grouping levels (hierarchy).
+                Count records across multiple grouping levels (hierarchy). Uses all form fields.
                 <span className="text-muted-foreground/70 italic"> Example: Region → Country → City</span>
               </p>
             </TabsContent>
@@ -391,7 +388,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   : mode === 'calculate' 
                     ? 'Select the value to calculate'
                     : mode === 'grouping'
-                      ? 'Select the value to aggregate'
+                      ? 'How records are counted'
                     : 'Select two fields to compare'
                 }
               </CardTitle>
@@ -401,7 +398,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   : mode === 'calculate' 
                     ? 'Choose a numeric field and how to calculate it'
                     : mode === 'grouping'
-                      ? 'Choose a numeric field and how to aggregate it across grouping levels'
+                      ? 'Grouping always counts form submissions — no value field to select'
                     : 'Pick two fields to show side by side'
                 }
               </CardDescription>
@@ -464,8 +461,23 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </>
           )}
 
-          {/* CALCULATE MODE + GROUPING MODE metric picker */}
-          {(mode === 'calculate' || mode === 'grouping') && (
+          {/* GROUPING MODE — fixed count of records (no metric picker) */}
+          {mode === 'grouping' && (
+            <div className="p-4 bg-muted/50 rounded-lg border space-y-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="icon-md text-module-reports" />
+                <span className="font-medium">Count of records</span>
+                <Badge variant="secondary" className="text-xs">Default</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Each bar shows how many submissions match that grouping combination.
+                Add grouping levels in the next step — any form field can be used.
+              </p>
+            </div>
+          )}
+
+          {/* CALCULATE MODE metric picker */}
+          {mode === 'calculate' && (
             <>
               {selectedMetrics.length > 0 ? (
                 <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
@@ -489,7 +501,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   
                   <div className="flex items-center gap-3">
                     <Label className="text-sm whitespace-nowrap font-medium">
-                      {mode === 'grouping' ? 'Aggregate as:' : 'Calculate as:'}
+                      Calculate as:
                     </Label>
                     <Select
                       value={metricAggregations.find(a => a.field === selectedMetrics[0])?.aggregation || 'sum'}
@@ -682,7 +694,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {mode === 'count'
                   ? 'Add a secondary field to stack or color-code your bars'
                   : mode === 'grouping'
-                    ? 'Add one or more fields in order. Level 1 is the X-axis; the last level becomes the series/stack. Intermediate levels nest into the X-axis label.'
+                    ? 'Add one or more fields in order (any field). Level 1 is the X-axis; the last level becomes the series/stack. Intermediate levels nest into the X-axis label.'
                     : 'Choose how to categorize your data. Leave empty to show aggregated totals.'
                 }
               </CardDescription>
@@ -937,7 +949,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
               {selectedDimensions.length < MAX_GROUPING_LEVELS && (
                 <div>
-                  {availableCategoryFields.length > 0 ? (
+                  {availableGroupingFields.length > 0 ? (
                     <Select onValueChange={addDimension}>
                       <SelectTrigger className={`border-dashed border-2 ${selectedDimensions.length === 0 ? '' : 'border-muted'}`}>
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -950,7 +962,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                         </div>
                       </SelectTrigger>
                       <SelectContent>
-                        {availableCategoryFields.map((field) => (
+                        {availableGroupingFields.map((field) => (
                           <SelectItem key={field.id} value={field.id}>
                             <div className="flex items-center gap-2">
                               <span>{field.label}</span>
@@ -965,8 +977,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                       <Info className="icon-md" />
                       <AlertDescription>
                         {selectedDimensions.length === 0
-                          ? 'No category fields found. Add fields like select, radio, date, or text to group by.'
-                          : 'All available category fields are already used as grouping levels.'}
+                          ? 'No fields available to group by. Select a form with fields first.'
+                          : 'All available fields are already used as grouping levels.'}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -980,8 +992,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               )}
 
               <p className="text-xs text-muted-foreground">
-                Drag to reorder levels. With multiple levels, values are aggregated for each unique combination;
-                the last level splits series on the chart.
+                Drag to reorder levels. Counts records for each unique combination;
+                the last level splits series on the chart. Any field type can be a level.
               </p>
             </>
           )}
@@ -1023,11 +1035,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     : 'Select two fields to compare.'
                 )}
                 {mode === 'grouping' && (
-                  selectedMetrics.length > 0 && selectedDimensions.length >= 1
-                    ? `Your chart will show the ${metricAggregations[0]?.aggregation || 'sum'} of "${getFieldLabel(selectedMetrics[0])}" grouped by ${selectedDimensions.map(id => `"${getFieldLabel(id)}"`).join(' → ')}.`
-                    : selectedMetrics.length === 0
-                      ? 'Select a numeric field to aggregate.'
-                      : 'Add at least one grouping level.'
+                  selectedDimensions.length >= 1
+                    ? `Your chart will count records grouped by ${selectedDimensions.map(id => `"${getFieldLabel(id)}"`).join(' → ')}.`
+                    : 'Add at least one grouping level.'
                 )}
               </p>
             </div>
