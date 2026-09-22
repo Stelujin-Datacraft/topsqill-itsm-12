@@ -2845,8 +2845,8 @@ export function ChartPreview({
     // For cross-reference charts, prioritize 'value' or 'count' since processed data uses these standard keys
     const isCrossRefMetricMode = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
     
-    if (isCrossRefMetricMode) {
-      // Cross-ref data always has 'value' and usually 'count' - check which exists
+    if (isCrossRefMetricMode || config.groupingMode) {
+      // Grouping / cross-ref data uses standard 'value' or 'count' keys
       if (sanitizedChartData.length > 0) {
         if (sanitizedChartData[0].hasOwnProperty('value') && sanitizedChartData[0].value !== undefined) {
           primaryMetric = 'value';
@@ -2923,12 +2923,14 @@ export function ChartPreview({
     const isCrossRefChart = config.crossRefConfig?.enabled && sanitizedChartData.length > 0 && 
       sanitizedChartData[0].hasOwnProperty('x') && sanitizedChartData[0].hasOwnProperty('y');
     const isCompareMode = (config.compareMode && config.metrics && config.metrics.length === 2) || isCrossRefChart;
-    // Grouping mode uses level-by-level drilldown (not stacked multi-series)
-    const isGroupingMultiLevel = false;
-    const isCalculateMode = !config.compareMode && !config.groupingMode && config.metrics?.length === 1 && !config.groupByField;
+    // Grouping mode is always a single series (count) at the current drill level —
+    // config.dimensions.length > 1 must NOT flip into multi-series rendering or
+    // bars disappear (dimensionKeys is empty when data only has value/count).
+    const isGroupingDrillMode = !!config.groupingMode;
+    const isCalculateMode = !config.compareMode && !isGroupingDrillMode && config.metrics?.length === 1 && !config.groupByField;
     // Cross-reference drilldown should always be treated as single-dimensional
     const isCrossRefDrilldown = config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled && drilldownState?.values?.length > 0;
-    const isMultiDimensional = !isCalculateMode && !isCrossRefDrilldown && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1 || isGroupingMultiLevel);
+    const isMultiDimensional = !isCalculateMode && !isCrossRefDrilldown && !isGroupingDrillMode && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1);
 
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
     if (isMultiDimensional && dimensionKeys.length > 8) {
@@ -4278,7 +4280,10 @@ export function ChartPreview({
                     height={80}
                     interval={0}
                     label={{
-                      value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                      value: config.xAxisLabel
+                        || (config.groupingMode
+                          ? getFormFieldName(getActiveDrilldownFieldForCurrentData())
+                          : getFormFieldName(primaryMetric)),
                       position: 'insideBottom',
                       offset: -5
                     }} 
@@ -4290,7 +4295,7 @@ export function ChartPreview({
                     ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
                     allowDataOverflow={false}
                     label={{
-                      value: config.yAxisLabel || 'Value',
+                      value: config.yAxisLabel || (config.groupingMode ? 'Count' : 'Value'),
                       angle: 0,
                 position: 'insideTopLeft',
                 offset: 20,
