@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, X, TrendingUp, Tag, BarChart3, Calculator, Layers, Info, CheckCircle2, ArrowRight, ListOrdered, GripVertical } from 'lucide-react';
 import { 
   UNSUPPORTED_CHART_FIELDS, 
@@ -53,7 +53,7 @@ const getChartCompatibleFields = (fields: FormField[]) => {
   });
 };
 
-type ChartMode = 'count' | 'calculate' | 'compare';
+type ChartMode = 'count' | 'calculate' | 'compare' | 'grouping';
 
 export function ChartDataSection({ config, formFields, onConfigChange }: ChartDataSectionProps) {
   const selectedMetrics = config.metrics || [];
@@ -67,6 +67,10 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     if (config.compareMode) {
       return 'compare';
     }
+    // Dedicated multi-level grouping mode
+    if (config.groupingMode) {
+      return 'grouping';
+    }
     if (config.aggregationEnabled && selectedMetrics.length > 0) {
       return 'calculate';
     }
@@ -79,8 +83,16 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
   const [mode, setMode] = useState<ChartMode>(getInitialMode);
 
+  // Keep local tab in sync when config is loaded/changed externally
+  useEffect(() => {
+    setMode(getInitialMode());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.compareMode, config.groupingMode, config.aggregationEnabled, config.metrics?.length]);
+
   const numericFields = getNumericFields(formFields);
   const categoryFields = getCategoryFields(formFields);
+
+  const MAX_GROUPING_LEVELS = 5;
 
   // Handle mode change
   const handleModeChange = (newMode: ChartMode) => {
@@ -90,6 +102,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
       onConfigChange({
         aggregationEnabled: false,
         compareMode: false,
+        groupingMode: false,
         metrics: [],
         metricAggregations: []
       });
@@ -97,15 +110,38 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
       onConfigChange({
         aggregationEnabled: true,
         compareMode: false,
+        groupingMode: false,
         metrics: selectedMetrics.slice(0, 1),
-        metricAggregations: metricAggregations.slice(0, 1)
+        metricAggregations: metricAggregations.slice(0, 1),
+        // Calculate keeps at most 2 optional group fields
+        dimensions: selectedDimensions.slice(0, 2),
+        groupByField: undefined,
       });
     } else if (newMode === 'compare') {
       onConfigChange({
         aggregationEnabled: false,
         compareMode: true,
+        groupingMode: false,
         metrics: selectedMetrics.slice(0, 2),
-        metricAggregations: []
+        metricAggregations: [],
+        groupByField: undefined,
+      });
+    } else if (newMode === 'grouping') {
+      const metric = selectedMetrics[0];
+      const existingAgg = metric
+        ? (metricAggregations.find(a => a.field === metric) || { field: metric, aggregation: 'sum' as const })
+        : undefined;
+      onConfigChange({
+        aggregationEnabled: true,
+        compareMode: false,
+        groupingMode: true,
+        metrics: metric ? [metric] : [],
+        metricAggregations: existingAgg ? [existingAgg] : [],
+        // Prefer existing dimensions; seed from groupByField if present
+        dimensions: selectedDimensions.length > 0
+          ? selectedDimensions
+          : (config.groupByField ? [config.groupByField] : []),
+        groupByField: undefined,
       });
     }
   };
@@ -120,12 +156,16 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     const newMetrics = [...selectedMetrics, fieldId];
     const updates: Partial<ChartConfig> = { metrics: newMetrics };
     
-    if (mode === 'calculate') {
+    if (mode === 'calculate' || mode === 'grouping') {
       updates.metricAggregations = [
         ...metricAggregations,
         { field: fieldId, aggregation: 'sum' }
       ];
       updates.aggregationEnabled = true;
+      if (mode === 'grouping') {
+        updates.groupingMode = true;
+        updates.compareMode = false;
+      }
     }
     
     onConfigChange(updates);
@@ -162,16 +202,26 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
   // Add a dimension (group by) field
   const addDimension = (fieldId: string) => {
     if (selectedDimensions.includes(fieldId)) return;
-    if (selectedDimensions.length >= 2) return;
+    const maxDims = mode === 'grouping' ? MAX_GROUPING_LEVELS : 2;
+    if (selectedDimensions.length >= maxDims) return;
     
     const newDimensions = [...selectedDimensions, fieldId];
-    onConfigChange({ dimensions: newDimensions });
+    const updates: Partial<ChartConfig> = { dimensions: newDimensions };
+    if (mode === 'grouping') {
+      // Last level drives series/stack rendering in ChartPreview
+      updates.groupByField = newDimensions.length >= 2 ? newDimensions[newDimensions.length - 1] : undefined;
+    }
+    onConfigChange(updates);
   };
 
   // Remove a dimension field
   const removeDimension = (fieldId: string) => {
     const newDimensions = selectedDimensions.filter(id => id !== fieldId);
-    onConfigChange({ dimensions: newDimensions });
+    const updates: Partial<ChartConfig> = { dimensions: newDimensions };
+    if (mode === 'grouping') {
+      updates.groupByField = newDimensions.length >= 2 ? newDimensions[newDimensions.length - 1] : undefined;
+    }
+    onConfigChange(updates);
   };
 
   // Reorder dimensions via drag and drop
@@ -180,7 +230,11 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     const items = Array.from(selectedDimensions);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    onConfigChange({ dimensions: items });
+    const updates: Partial<ChartConfig> = { dimensions: items };
+    if (mode === 'grouping') {
+      updates.groupByField = items.length >= 2 ? items[items.length - 1] : undefined;
+    }
+    onConfigChange(updates);
   };
 
   // Reorder metrics via drag and drop
@@ -246,6 +300,10 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
       // Compare mode requires exactly two fields selected
       return selectedMetrics.length === 2;
     }
+    if (mode === 'grouping') {
+      // Grouping requires a metric and at least one grouping level
+      return selectedMetrics.length > 0 && selectedDimensions.length >= 1;
+    }
     return false;
   };
 
@@ -259,7 +317,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         </AlertDescription>
       </Alert>
 
-      {/* STEP 1: Choose Chart Purpose */}
+      {/* STEP 1: Choose Chart Purpose — Calculate | Compare | Grouping */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
@@ -269,63 +327,53 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             <div>
               <CardTitle className="text-base">What do you want to show?</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Choose the type of data visualization
+                Choose Calculate, Compare, or multi-level Grouping
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <RadioGroup 
-            value={mode} 
-            onValueChange={(v) => handleModeChange(v as ChartMode)} 
-            className="grid gap-3"
-          >
-            {/* Calculate Values Option */}
-            <div 
-              onClick={() => handleModeChange('calculate')}
-              className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                mode === 'calculate' 
-                  ? 'border-primary bg-primary/5 shadow-sm' 
-                  : 'border-border hover:border-muted-foreground/50 hover:bg-muted/30'
-              }`}
-            >
-              <RadioGroupItem value="calculate" id="mode-calculate" className="mt-0.5" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Calculator className="icon-md text-primary" />
-                  <span className="font-semibold">Calculate Values</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Sum, average, or analyze a numeric field.
-                  <br />
-                  <span className="text-muted-foreground/70 italic">Example: "Total sales by region" or "Average rating by product"</span>
-                </p>
-              </div>
-            </div>
-            
-            {/* Compare Two Fields Option */}
-            <div 
-              onClick={() => handleModeChange('compare')}
-              className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                mode === 'compare' 
-                  ? 'border-primary bg-primary/5 shadow-sm' 
-                  : 'border-border hover:border-muted-foreground/50 hover:bg-muted/30'
-              }`}
-            >
-              <RadioGroupItem value="compare" id="mode-compare" className="mt-0.5" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <Layers className="icon-md text-module-reports" />
-                  <span className="font-semibold">Compare Two Fields</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Show two values side by side for comparison.
-                  <br />
-                  <span className="text-muted-foreground/70 italic">Example: "Budget vs Actual" or "Revenue vs Expenses"</span>
-                </p>
-              </div>
-            </div>
-          </RadioGroup>
+          <Tabs value={mode === 'count' ? 'calculate' : mode} onValueChange={(v) => handleModeChange(v as ChartMode)}>
+            <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+              <TabsTrigger value="calculate" className="flex flex-col gap-1 py-2.5 data-[state=active]:shadow-sm">
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Calculator className="h-3.5 w-3.5" />
+                  Calculate
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="compare" className="flex flex-col gap-1 py-2.5 data-[state=active]:shadow-sm">
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Layers className="h-3.5 w-3.5" />
+                  Compare
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="grouping" className="flex flex-col gap-1 py-2.5 data-[state=active]:shadow-sm">
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <ListOrdered className="h-3.5 w-3.5" />
+                  Grouping
+                </span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="calculate" className="mt-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Sum, average, or analyze a numeric field.
+                <span className="text-muted-foreground/70 italic"> Example: "Total sales by region"</span>
+              </p>
+            </TabsContent>
+            <TabsContent value="compare" className="mt-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Show two values side by side for comparison.
+                <span className="text-muted-foreground/70 italic"> Example: "Budget vs Actual"</span>
+              </p>
+            </TabsContent>
+            <TabsContent value="grouping" className="mt-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Aggregate a value across multiple grouping levels (hierarchy).
+                <span className="text-muted-foreground/70 italic"> Example: Region → Country → City</span>
+              </p>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -341,7 +389,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {mode === 'count' 
                   ? 'Select X-axis categories' 
                   : mode === 'calculate' 
-                    ? 'Select the value to calculate' 
+                    ? 'Select the value to calculate'
+                    : mode === 'grouping'
+                      ? 'Select the value to aggregate'
                     : 'Select two fields to compare'
                 }
               </CardTitle>
@@ -349,7 +399,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {mode === 'count'
                   ? 'Choose which field to count records by (shown on X-axis)'
                   : mode === 'calculate' 
-                    ? 'Choose a numeric field and how to calculate it' 
+                    ? 'Choose a numeric field and how to calculate it'
+                    : mode === 'grouping'
+                      ? 'Choose a numeric field and how to aggregate it across grouping levels'
                     : 'Pick two fields to show side by side'
                 }
               </CardDescription>
@@ -412,8 +464,8 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </>
           )}
 
-          {/* CALCULATE MODE */}
-          {mode === 'calculate' && (
+          {/* CALCULATE MODE + GROUPING MODE metric picker */}
+          {(mode === 'calculate' || mode === 'grouping') && (
             <>
               {selectedMetrics.length > 0 ? (
                 <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
@@ -436,7 +488,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <Label className="text-sm whitespace-nowrap font-medium">Calculate as:</Label>
+                    <Label className="text-sm whitespace-nowrap font-medium">
+                      {mode === 'grouping' ? 'Aggregate as:' : 'Calculate as:'}
+                    </Label>
                     <Select
                       value={metricAggregations.find(a => a.field === selectedMetrics[0])?.aggregation || 'sum'}
                       onValueChange={(v) => updateAggregation(selectedMetrics[0], v)}
@@ -479,7 +533,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     <Alert>
                       <Info className="icon-md" />
                       <AlertDescription>
-                        No numeric fields found in this form. Use <strong>Count Records</strong> mode instead.
+                        No numeric fields found in this form. Add a number or currency field to aggregate.
                       </AlertDescription>
                     </Alert>
                   )}
@@ -608,7 +662,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         </CardContent>
       </Card>
 
-      {/* STEP 3: Group By / Stack By - Not shown for Compare mode */}
+      {/* STEP 3: Group By / Stack By / Multi-level Grouping - Not shown for Compare mode */}
       {mode !== 'compare' && (
       <Card>
         <CardHeader className="pb-3">
@@ -618,12 +672,18 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </div>
             <div>
               <CardTitle className="text-base">
-                {mode === 'count' ? 'Stack/Color by (Optional)' : 'Group data by (Optional)'}
+                {mode === 'count'
+                  ? 'Stack/Color by (Optional)'
+                  : mode === 'grouping'
+                    ? 'Grouping levels'
+                    : 'Group data by (Optional)'}
               </CardTitle>
               <CardDescription className="text-xs mt-0.5">
                 {mode === 'count'
                   ? 'Add a secondary field to stack or color-code your bars'
-                  : 'Choose how to categorize your data. Leave empty to show aggregated totals.'
+                  : mode === 'grouping'
+                    ? 'Add one or more fields in order. Level 1 is the X-axis; the last level becomes the series/stack. Intermediate levels nest into the X-axis label.'
+                    : 'Choose how to categorize your data. Leave empty to show aggregated totals.'
                 }
               </CardDescription>
             </div>
@@ -709,7 +769,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </>
           )}
 
-          {/* For Calculate mode only - show dimension selector (Compare mode already has X/Y in Step 2) */}
+          {/* For Calculate mode - optional up to 2 dimensions */}
           {mode === 'calculate' && (
             <>
               {/* Selected Dimensions - Draggable */}
@@ -808,6 +868,123 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               </p>
             </>
           )}
+
+          {/* For Grouping mode - required multi-level hierarchy (up to MAX_GROUPING_LEVELS) */}
+          {mode === 'grouping' && (
+            <>
+              {selectedDimensions.length > 0 && (
+                <DragDropContext onDragEnd={handleDimensionDragEnd}>
+                  <Droppable droppableId="grouping-levels-list">
+                    {(provided, snapshot) => (
+                      <div
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                        className={`space-y-2 p-2 rounded-lg border-2 border-dashed transition-colors ${
+                          snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-transparent'
+                        }`}
+                      >
+                        {selectedDimensions.map((dimId, index) => {
+                          const isLast = index === selectedDimensions.length - 1;
+                          const levelLabel =
+                            selectedDimensions.length === 1
+                              ? 'Level 1 · X-axis'
+                              : index === 0
+                                ? `Level ${index + 1} · X-axis`
+                                : isLast
+                                  ? `Level ${index + 1} · Series / Stack`
+                                  : `Level ${index + 1} · Nested`;
+                          return (
+                            <Draggable key={dimId} draggableId={dimId} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  className={`flex items-center justify-between p-3 bg-muted/50 rounded-lg border transition-shadow ${
+                                    snapshot.isDragging ? 'shadow-lg ring-2 ring-primary' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div
+                                      {...provided.dragHandleProps}
+                                      className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0"
+                                    >
+                                      <GripVertical className="icon-md" />
+                                    </div>
+                                    <Tag className="icon-md text-module-reports shrink-0" />
+                                    <span className="font-medium truncate">{getFieldLabel(dimId)}</span>
+                                    <Badge variant="secondary" className="text-xs shrink-0">{getFieldTypeLabel(dimId)}</Badge>
+                                    <Badge variant="outline" className="text-xs shrink-0">{levelLabel}</Badge>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeDimension(dimId)}
+                                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                                  >
+                                    <X className="icon-md" />
+                                  </Button>
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              )}
+
+              {selectedDimensions.length < MAX_GROUPING_LEVELS && (
+                <div>
+                  {availableCategoryFields.length > 0 ? (
+                    <Select onValueChange={addDimension}>
+                      <SelectTrigger className={`border-dashed border-2 ${selectedDimensions.length === 0 ? '' : 'border-muted'}`}>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Plus className="icon-md" />
+                          <span>
+                            {selectedDimensions.length === 0
+                              ? 'Add first grouping level...'
+                              : `Add level ${selectedDimensions.length + 1} (optional)...`}
+                          </span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCategoryFields.map((field) => (
+                          <SelectItem key={field.id} value={field.id}>
+                            <div className="flex items-center gap-2">
+                              <span>{field.label}</span>
+                              <Badge variant="outline" className="text-xs">{getFieldType(field)}</Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Alert>
+                      <Info className="icon-md" />
+                      <AlertDescription>
+                        {selectedDimensions.length === 0
+                          ? 'No category fields found. Add fields like select, radio, date, or text to group by.'
+                          : 'All available category fields are already used as grouping levels.'}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+
+              {selectedDimensions.length >= MAX_GROUPING_LEVELS && (
+                <p className="text-xs text-muted-foreground">
+                  Maximum of {MAX_GROUPING_LEVELS} grouping levels reached.
+                </p>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Drag to reorder levels. With multiple levels, values are aggregated for each unique combination;
+                the last level splits series on the chart.
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
       )}
@@ -844,6 +1021,13 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   selectedMetrics.length === 2 
                     ? `Your chart will compare "${getFieldLabel(selectedMetrics[0])}" (X-axis) vs "${getFieldLabel(selectedMetrics[1])}" (Y-axis).`
                     : 'Select two fields to compare.'
+                )}
+                {mode === 'grouping' && (
+                  selectedMetrics.length > 0 && selectedDimensions.length >= 1
+                    ? `Your chart will show the ${metricAggregations[0]?.aggregation || 'sum'} of "${getFieldLabel(selectedMetrics[0])}" grouped by ${selectedDimensions.map(id => `"${getFieldLabel(id)}"`).join(' → ')}.`
+                    : selectedMetrics.length === 0
+                      ? 'Select a numeric field to aggregate.'
+                      : 'Add at least one grouping level.'
                 )}
               </p>
             </div>

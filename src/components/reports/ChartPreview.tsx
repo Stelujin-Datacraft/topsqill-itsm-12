@@ -1029,6 +1029,9 @@ export function ChartPreview({
       aggregation: config.aggregation,
       aggregationType: config.aggregationType,
       groupByField: config.groupByField,
+      compareMode: config.compareMode,
+      groupingMode: config.groupingMode,
+      aggregationEnabled: config.aggregationEnabled,
       drilldownEnabled: config.drilldownConfig?.enabled,
       drilldownLevels: config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels,
       drilldownValuesKey, // Use stable string key instead of array reference
@@ -1052,6 +1055,9 @@ export function ChartPreview({
     config.aggregation,
     config.aggregationType,
     config.groupByField,
+    config.compareMode,
+    config.groupingMode,
+    config.aggregationEnabled,
     config.drilldownConfig?.enabled,
     config.drilldownConfig?.drilldownLevels,
     config.drilldownConfig?.levels,
@@ -1114,7 +1120,9 @@ export function ChartPreview({
         // IMPORTANT: Skip this path if compare mode is enabled - compare mode needs raw submissions
         const isCrossRefMode = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
         const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
-        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode && !isCompareMode) {
+        // Multi-level grouping uses client-side aggregation (same as compare for consistency)
+        const isGroupingMode = !!config.groupingMode;
+        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode && !isCompareMode && !isGroupingMode) {
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
           const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
@@ -1381,6 +1389,22 @@ export function ChartPreview({
       }
       
       return processCompareData(submissions, dimensionFields, config.metrics);
+    }
+
+    // Grouping mode: aggregate a metric across one or more hierarchy levels.
+    // 1 level  → single-series bars by that field
+    // 2+ levels → X-axis = all but last (composite), last level = series/stack
+    if (config.groupingMode) {
+      const groupingDims = (config.dimensions || []).filter(Boolean);
+      if (groupingDims.length === 0) {
+        return processSingleDimensionalData(submissions, ['_default'], metricFields);
+      }
+      if (groupingDims.length === 1) {
+        return processSingleDimensionalData(submissions, groupingDims, metricFields);
+      }
+      const primaryDims = groupingDims.slice(0, -1);
+      const seriesField = groupingDims[groupingDims.length - 1];
+      return processGroupedData(submissions, primaryDims, metricFields, seriesField);
     }
 
     // If groupByField is specified, use grouped processing
@@ -2581,7 +2605,11 @@ export function ChartPreview({
       const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
       aggregation = isCompareMode ? 'compare' : (config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count');
     }
-    const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
+    const groupByName = config.groupByField
+      ? getFormFieldName(config.groupByField)
+      : (config.groupingMode && config.dimensions && config.dimensions.length > 1
+          ? getFormFieldName(config.dimensions[config.dimensions.length - 1])
+          : null);
     const chartType = config.type || config.chartType || 'bar';
     
     let title = '';
@@ -2592,6 +2620,10 @@ export function ChartPreview({
       title = dimensionName
         ? `Compare ${compareField1} vs ${compareField2} by ${dimensionName}`
         : `Compare ${compareField1} vs ${compareField2}`;
+    } else if (config.groupingMode && config.dimensions && config.dimensions.length > 0) {
+      const aggLabel = aggregation.charAt(0).toUpperCase() + aggregation.slice(1);
+      const hierarchy = config.dimensions.map(id => getFormFieldName(id)).join(' → ');
+      title = `${aggLabel} of ${metricName} by ${hierarchy}`;
     } else if (aggregation === 'count') {
       title = dimensionName ? `Count of Records by ${dimensionName}` : 'Count of Records';
     } else {
@@ -2896,10 +2928,12 @@ export function ChartPreview({
       sanitizedChartData[0].hasOwnProperty('x') && sanitizedChartData[0].hasOwnProperty('y');
     const isCompareMode = (config.compareMode && config.metrics && config.metrics.length === 2) || isCrossRefChart;
     // For Calculate Values mode (single metric, no groupBy), treat as single-dimensional even if dimensionKeys > 1
-    const isCalculateMode = !config.compareMode && config.metrics?.length === 1 && !config.groupByField;
+    // Grouping mode with 2+ levels must stay multi-dimensional so series/stack bars render.
+    const isGroupingMultiLevel = !!config.groupingMode && (config.dimensions?.length || 0) > 1;
+    const isCalculateMode = !config.compareMode && !isGroupingMultiLevel && config.metrics?.length === 1 && !config.groupByField;
     // Cross-reference drilldown should always be treated as single-dimensional
     const isCrossRefDrilldown = config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled && drilldownState?.values?.length > 0;
-    const isMultiDimensional = !isCalculateMode && !isCrossRefDrilldown && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1);
+    const isMultiDimensional = !isCalculateMode && !isCrossRefDrilldown && ((config.dimensions && config.dimensions.length > 1) || (config.groupByField && dimensionKeys.length > 1) || dimensionKeys.length > 1 || isGroupingMultiLevel);
 
     // For multi-dimensional charts, limit the number of series to avoid cluttered display
     if (isMultiDimensional && dimensionKeys.length > 8) {
@@ -5621,6 +5655,8 @@ export function ChartPreview({
               // Regular mode badges
               chartInfo.aggregation === 'compare' ? (
                 <>Compare: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Field 1'} - {config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Field 2'}</>
+              ) : config.groupingMode ? (
+                <>Grouping: {chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)} {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Records'}</>
               ) : chartInfo.aggregation === 'count' ? 'Count' : (
                 <>{chartInfo.aggregation.charAt(0).toUpperCase() + chartInfo.aggregation.slice(1)}: {config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'Records'}</>
               )
@@ -5635,14 +5671,21 @@ export function ChartPreview({
           {/* Dimension Badge */}
           {(config.dimensions?.[0] || config.xAxis) && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-accent dark:text-purple-400 border border-purple-500/20">
-              Grouped by: {getFormFieldName(config.dimensions?.[0] || config.xAxis || '')}
+              {config.groupingMode && (config.dimensions?.length || 0) > 1
+                ? `Grouped by: ${config.dimensions!.map(id => getFormFieldName(id)).join(' → ')}`
+                : `Grouped by: ${getFormFieldName(config.dimensions?.[0] || config.xAxis || '')}`}
             </span>
           )}
           
           {/* Segmented By Badge */}
-          {config.groupByField && (
+          {(config.groupByField || (config.groupingMode && (config.dimensions?.length || 0) > 1)) && (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-              Segmented by: {getFormFieldName(config.groupByField)}
+              Segmented by: {getFormFieldName(
+                config.groupByField ||
+                (config.dimensions && config.dimensions.length > 1
+                  ? config.dimensions[config.dimensions.length - 1]
+                  : '')
+              )}
             </span>
           )}
         </div>
