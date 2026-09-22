@@ -381,7 +381,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
             </TabsContent>
             <TabsContent value="grouping" className="mt-3">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Count records level-by-level: click a bar to drill into the next grouping field.
+                Count records level-by-level: click the chart to drill into the next grouping field.
                 The last level opens the matching records table. Drilldown is configured automatically.
                 <span className="text-muted-foreground/70 italic"> Example: Region → Country → City</span>
               </p>
@@ -472,7 +472,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 )
               )}
               <p className="text-xs text-muted-foreground">
-                This field determines the bars/categories on your chart. Each unique value will be shown as a separate bar.
+                This field determines the categories on your chart. Each unique value will be shown as a separate segment.
               </p>
             </>
           )}
@@ -486,7 +486,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 <Badge variant="secondary" className="text-xs">Default</Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Each bar shows how many submissions match that grouping combination.
+                Each category shows how many submissions match that grouping combination.
                 Add grouping levels in the next step — any form field can be used.
               </p>
             </div>
@@ -708,7 +708,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               </CardTitle>
               <CardDescription className="text-xs mt-0.5">
                 {mode === 'count'
-                  ? 'Add a secondary field to stack or color-code your bars'
+                  ? 'Add a secondary field to stack or color-code your chart'
                   : mode === 'grouping'
                     ? 'Add fields in drill order. Click the chart to go level-by-level; the last level opens the records table. The Drilldown tab is managed automatically.'
                     : 'Choose how to categorize your data. Leave empty to show aggregated totals.'
@@ -1009,7 +1009,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
 
               <p className="text-xs text-muted-foreground">
                 Drag to reorder drill levels. The chart shows one level at a time (count of records).
-                Click a bar to drill into the next field; on the last level, the records table opens.
+                Click the chart to drill into the next field; on the last level, the records table opens.
               </p>
             </>
           )}

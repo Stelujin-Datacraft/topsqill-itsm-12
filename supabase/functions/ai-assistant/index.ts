@@ -1643,15 +1643,15 @@ There are THREE distinct chart modes:
    - ALWAYS count of records only — metrics must be [], metricAggregations: [{"field":"count","aggregation":"count"}], aggregationType: "count"
    - dimensions MUST list every grouping level in order (level 1 → level 2 → …), up to 5 fields
    - drilldownConfig MUST be enabled with the same field IDs as dimensions (auto hierarchical drill: click bar → next level; last level → records table)
-   - Prefer bar charts. Keywords: grouping, group by … then …, multi-level, hierarchy, drilldown by multiple fields
+   - Prefer the chart type the user asks for (bar, pie, line, area, donut, scatter, etc.). Default to bar when unspecified.
+   - Keywords: grouping, group by … then …, multi-level, hierarchy, drilldown by multiple fields
 
 Rules:
 - Use the exact field IDs provided for all field references
-- If user asks for grouping / multi-level / hierarchical drilldown across multiple fields → groupingMode: true
+- If user asks for grouping / multi-level / hierarchical drilldown across multiple fields → groupingMode: true (works with any chart type)
 - DEFAULT to compareMode when user provides both X and Y axis fields WITHOUT mentioning aggregation or grouping
 - Only set aggregationEnabled: true when user explicitly asks for count, sum, avg, min, max, or similar aggregation (or grouping mode)
-- For pie/donut, always use aggregation mode (calculate), not grouping
-- For scatter, default to compare mode
+- For scatter without grouping keywords, default to compare mode
 - Drilldown levels should be an array of field IDs for hierarchical drill-down
 - Only include filters if the user explicitly mentions filtering criteria
 - Only include drilldown if the user mentions drill-down or hierarchy (except Grouping mode, where drilldown is always required)`;

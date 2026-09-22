@@ -4384,14 +4384,17 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  value: config.xAxisLabel
+                    || (config.groupingMode
+                      ? getFormFieldName(getActiveDrilldownFieldForCurrentData())
+                      : getFormFieldName(primaryMetric)),
                   position: 'insideBottom',
                   offset: -5
                 }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || 'Value',
+                  value: config.yAxisLabel || (config.groupingMode ? 'Count' : 'Value'),
                   angle: 0,
                 position: 'insideTopLeft',
                 offset: 20,
@@ -4504,7 +4507,7 @@ export function ChartPreview({
                             </div>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
-                            Click slice to view records
+                            {isHierarchyDrilldownEnabled() ? 'Click slice to drill down' : 'Click slice to view records'}
                           </div>
                         </div>
                       );
@@ -4524,7 +4527,7 @@ export function ChartPreview({
                   name,
                   value,
                   percent
-                }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{ cursor: 'pointer' }} onClick={(data, idx) => handleBarClick(data, idx)}>
+                }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`} style={{ cursor: 'pointer' }} onClick={(data, idx) => isHierarchyDrilldownEnabled() ? handlePieClick(data) : handleBarClick(data, idx)}>
                     {sanitizedChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={colors[index % colors.length]} style={{ cursor: 'pointer' }} />)}
                   </Pie>
                    <Tooltip 
@@ -4549,7 +4552,7 @@ export function ChartPreview({
                             </div>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-2 pt-1 border-t border-border">
-                            Click slice to view records
+                            {isHierarchyDrilldownEnabled() ? 'Click slice to drill down' : 'Click slice to view records'}
                           </div>
                         </div>
                       );
@@ -4573,14 +4576,17 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  value: config.xAxisLabel
+                    || (config.groupingMode
+                      ? getFormFieldName(getActiveDrilldownFieldForCurrentData())
+                      : getFormFieldName(primaryMetric)),
                   position: 'insideBottom',
                   offset: -5
                 }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || 'Value',
+                  value: config.yAxisLabel || (config.groupingMode ? 'Count' : 'Value'),
                   angle: 0,
                 position: 'insideTopLeft',
                 offset: 20,
@@ -4695,14 +4701,17 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  value: config.xAxisLabel
+                    || (config.groupingMode
+                      ? getFormFieldName(getActiveDrilldownFieldForCurrentData())
+                      : getFormFieldName(primaryMetric)),
                   position: 'insideBottom',
                   offset: -5
                 }} />
                   <YAxis tick={{
                   fontSize: 11
                 }} label={{
-                  value: config.yAxisLabel || 'Value',
+                  value: config.yAxisLabel || (config.groupingMode ? 'Count' : 'Value'),
                   angle: 0,
                 position: 'insideTopLeft',
                 offset: 20,
@@ -4801,22 +4810,31 @@ export function ChartPreview({
         const hasYMapping = scatterYMapping.length > 0;
         
         // Transform data - encode text values to numbers if mappings exist
+        // Grouping / single-series data often has { name, value } without x/y — map those in.
         const scatterTransformedData = sanitizedChartData.map((item, idx) => {
-          const xRaw = item.xRaw || item.x || item.name;
-          const yRaw = item.yRaw || item.y || item.value;
+          const xRaw = item.xRaw !== undefined ? item.xRaw : (item.x !== undefined ? item.x : item.name);
+          const yRaw = item.yRaw !== undefined ? item.yRaw : (
+            item.y !== undefined ? item.y : (item[primaryMetric] !== undefined ? item[primaryMetric] : item.value)
+          );
           
           // Encode x value if we have a mapping
-          let xEncoded = item.x;
+          let xEncoded = typeof item.x === 'number' ? item.x : undefined;
           if (hasXMapping) {
             const xMapping = scatterXMapping.find((m: any) => m.label === String(xRaw));
             xEncoded = xMapping ? xMapping.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          } else if (xEncoded === undefined) {
+            const n = Number(xRaw);
+            xEncoded = isFinite(n) ? n : idx + 1;
           }
           
           // Encode y value if we have a mapping
-          let yEncoded = item.y;
+          let yEncoded = typeof item.y === 'number' ? item.y : undefined;
           if (hasYMapping) {
             const yMapping = scatterYMapping.find((m: any) => m.label === String(yRaw));
             yEncoded = yMapping ? yMapping.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          } else if (yEncoded === undefined) {
+            const n = Number(yRaw);
+            yEncoded = isFinite(n) ? n : 0;
           }
           
           return {
@@ -4828,6 +4846,12 @@ export function ChartPreview({
           };
         });
         
+        const scatterAxisXLabel = config.groupingMode
+          ? (config.xAxisLabel || getFormFieldName(getActiveDrilldownFieldForCurrentData()) || 'Category')
+          : scatterXLabel;
+        const scatterAxisYLabel = config.groupingMode
+          ? (config.yAxisLabel || 'Count')
+          : scatterYLabel;
         return <div className="relative w-full h-full min-h-[300px]">
             <div className="absolute inset-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -4841,7 +4865,7 @@ export function ChartPreview({
                     type="number"
                     dataKey="x"
                     tick={{ fontSize: 11 }} 
-                    name={scatterXLabel}
+                    name={scatterAxisXLabel}
                     angle={(scatterHasTextX || hasXMapping) ? -45 : 0}
                     textAnchor={(scatterHasTextX || hasXMapping) ? "end" : "middle"}
                     height={(scatterHasTextX || hasXMapping) ? 80 : 60}
@@ -4852,7 +4876,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     label={{
-                      value: scatterXLabel,
+                      value: scatterAxisXLabel,
                       position: 'insideBottom',
                       offset: (scatterHasTextX || hasXMapping) ? -20 : -5
                     }} 
@@ -4862,7 +4886,7 @@ export function ChartPreview({
                     type="number"
                     dataKey="y" 
                     tick={{ fontSize: 11 }} 
-                    name={scatterYLabel}
+                    name={scatterAxisYLabel}
                     width={(scatterHasTextY || hasYMapping) ? 100 : 60}
                     ticks={hasYMapping ? scatterYMapping.map((m: any) => m.number) : undefined}
                     tickFormatter={hasYMapping ? (value) => {
@@ -4870,7 +4894,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     label={{
-                      value: scatterYLabel,
+                      value: scatterAxisYLabel,
                       angle: 0,
                 position: 'insideTopLeft',
                 offset: 20,
@@ -4891,11 +4915,11 @@ export function ChartPreview({
                           <div className="font-medium mb-2">{data.name || data.xOriginal || data.xRaw || 'Data Point'}</div>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{scatterXLabel}:</span>
+                              <span className="text-muted-foreground">{scatterAxisXLabel}:</span>
                               <span className="font-semibold">{data.xOriginal || data.xRaw || data.x}</span>
                             </div>
                             <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">{scatterYLabel}:</span>
+                              <span className="text-muted-foreground">{scatterAxisYLabel}:</span>
                               <span className="font-semibold">{data.yOriginal || data.yRaw || data.y}</span>
                             </div>
                           </div>
@@ -4910,7 +4934,7 @@ export function ChartPreview({
                     data={scatterTransformedData} 
                     fill={colors[0]} 
                     style={{ cursor: 'pointer' }} 
-                    onClick={(data: any) => handleBarClick(data, 0)}
+                    onClick={(data: any) => handleBarClick(data?.payload || data, 0)}
                   />
                 </RechartsScatterChart>
               </ResponsiveContainer>
@@ -4918,10 +4942,17 @@ export function ChartPreview({
           </div>;
       case 'bubble':
         // Bubble chart - handle both numeric and text field values
+        // Grouping mode: treat like scatter with name→x and count→y (size from count)
         const bubbleSizeField = config.sizeField;
-        const bubbleXLabel = config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis');
-        const bubbleYLabel = config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis');
-        const bubbleSizeLabel = bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size';
+        const bubbleXLabel = config.groupingMode
+          ? (config.xAxisLabel || getFormFieldName(getActiveDrilldownFieldForCurrentData()) || 'Category')
+          : (config.xAxisLabel || (config.metrics?.[0] ? getFormFieldName(config.metrics[0]) : 'X-Axis'));
+        const bubbleYLabel = config.groupingMode
+          ? (config.yAxisLabel || 'Count')
+          : (config.yAxisLabel || (config.metrics?.[1] ? getFormFieldName(config.metrics[1]) : 'Y-Axis'));
+        const bubbleSizeLabel = config.groupingMode
+          ? 'Count'
+          : (bubbleSizeField ? getFormFieldName(bubbleSizeField) : 'Size');
         
         // Get legend mappings from the first data point OR create them if text values detected
         let bubbleXMapping = sanitizedChartData[0]?._xLegendMapping || [];
@@ -4932,12 +4963,16 @@ export function ChartPreview({
         const hasBubbleExplicitTextYFlag = sanitizedChartData.some(d => d._hasTextY === true);
         
         // Detect text values - check if x/y are text that need encoding
-        const bubbleXValues = sanitizedChartData.map(d => d.xRaw !== undefined ? d.xRaw : (d.x || d.name));
-        const bubbleYValues = sanitizedChartData.map(d => d.yRaw !== undefined ? d.yRaw : (d.y || d.value));
+        const bubbleXValues = sanitizedChartData.map(d => d.xRaw !== undefined ? d.xRaw : (d.x !== undefined ? d.x : d.name));
+        const bubbleYValues = sanitizedChartData.map(d => d.yRaw !== undefined ? d.yRaw : (
+          d.y !== undefined ? d.y : (d[primaryMetric] !== undefined ? d[primaryMetric] : d.value)
+        ));
         
         // Use explicit flags if available, otherwise detect from values
         const bubbleHasTextX = hasBubbleExplicitTextXFlag || (bubbleXMapping.length === 0 && bubbleXValues.some(v => typeof v === 'string' && isNaN(Number(v))));
-        const bubbleHasTextY = hasBubbleExplicitTextYFlag || (bubbleYMapping.length === 0 && bubbleYValues.some(v => typeof v === 'string' && isNaN(Number(v))));
+        const bubbleHasTextY = config.groupingMode
+          ? false
+          : (hasBubbleExplicitTextYFlag || (bubbleYMapping.length === 0 && bubbleYValues.some(v => typeof v === 'string' && isNaN(Number(v)))));
         
         // Create mappings inline if text is detected but no mapping exists
         if (bubbleHasTextX && bubbleXMapping.length === 0) {
@@ -4954,22 +4989,33 @@ export function ChartPreview({
         
         // Transform data - encode text values to numbers if mappings exist
         const bubbleData = sanitizedChartData.map((item, idx) => {
-          const xRaw = item.xRaw || item.x || item.name;
-          const yRaw = item.yRaw || item.y || item.value;
-          const sizeValue = bubbleSizeField ? (item[bubbleSizeField] || 10) : 10;
+          const xRaw = item.xRaw !== undefined ? item.xRaw : (item.x !== undefined ? item.x : item.name);
+          const yRaw = item.yRaw !== undefined ? item.yRaw : (
+            item.y !== undefined ? item.y : (item[primaryMetric] !== undefined ? item[primaryMetric] : item.value)
+          );
+          const countVal = Number(item[primaryMetric] ?? item.value ?? item.count ?? 0) || 0;
+          const sizeValue = config.groupingMode
+            ? Math.max(countVal, 1)
+            : (bubbleSizeField ? (item[bubbleSizeField] || 10) : 10);
           
           // Encode x value if we have a mapping
-          let xEncoded = item.x;
+          let xEncoded = typeof item.x === 'number' ? item.x : undefined;
           if (hasBubbleXMapping) {
             const xMapping = bubbleXMapping.find((m: any) => m.label === String(xRaw));
             xEncoded = xMapping ? xMapping.number : (typeof item.x === 'number' ? item.x : idx + 1);
+          } else if (xEncoded === undefined) {
+            const n = Number(xRaw);
+            xEncoded = isFinite(n) ? n : idx + 1;
           }
           
           // Encode y value if we have a mapping
-          let yEncoded = item.y;
+          let yEncoded = typeof item.y === 'number' ? item.y : undefined;
           if (hasBubbleYMapping) {
             const yMapping = bubbleYMapping.find((m: any) => m.label === String(yRaw));
             yEncoded = yMapping ? yMapping.number : (typeof item.y === 'number' ? item.y : idx + 1);
+          } else if (yEncoded === undefined) {
+            const n = Number(yRaw);
+            yEncoded = isFinite(n) ? n : 0;
           }
           
           return {
