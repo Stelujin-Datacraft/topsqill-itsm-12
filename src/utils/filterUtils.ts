@@ -344,9 +344,48 @@ export const valueEquals = (value: any, filterValue: string, fieldType?: string,
            (!value && (boolFilter === 'false' || boolFilter === 'no' || boolFilter === 'off' || boolFilter === 'unchecked'));
   }
 
+  // Date / datetime fields: compare by calendar day so drilldown filters like
+  // "2026-09-01" still match stored ISO timestamps and locale-formatted values.
+  const dateFieldTypes = ['date', 'datetime', 'date-time', 'datetime-local'];
+  if (dateFieldTypes.includes(fieldType || '')) {
+    const dateValue = parseDateValue(value);
+    const filterDate = parseDateValue(filterValue);
+    if (dateValue && filterDate) {
+      return (
+        dateValue.getFullYear() === filterDate.getFullYear() &&
+        dateValue.getMonth() === filterDate.getMonth() &&
+        dateValue.getDate() === filterDate.getDate()
+      );
+    }
+  }
+
   // For non-array values, also check if filterValue is comma-separated and match any
   const filterValues = filterValue.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
   const comparableValue = extractComparableValue(value, fieldType, fieldConfig).toLowerCase();
+
+  // Raw string match before locale-formatted date comparable values, so
+  // chart drilldown labels ("2026-09-01") match stored date strings even when
+  // fieldType was omitted or misclassified.
+  const rawValue = String(value).trim().toLowerCase();
+  if (filterValues.length === 1 && rawValue === filterValues[0]) {
+    return true;
+  }
+  if (filterValues.length > 1 && filterValues.includes(rawValue)) {
+    return true;
+  }
+
+  // Same-day date fallback when fieldType wasn't provided but both sides parse as dates
+  if (!fieldType || !dateFieldTypes.includes(fieldType)) {
+    const dateValue = parseDateValue(value);
+    const filterDate = parseDateValue(filterValue);
+    if (dateValue && filterDate) {
+      const sameDay =
+        dateValue.getFullYear() === filterDate.getFullYear() &&
+        dateValue.getMonth() === filterDate.getMonth() &&
+        dateValue.getDate() === filterDate.getDate();
+      if (sameDay) return true;
+    }
+  }
   
   // If single filter value, do exact match; if multiple, check if value matches any
   if (filterValues.length === 1) {

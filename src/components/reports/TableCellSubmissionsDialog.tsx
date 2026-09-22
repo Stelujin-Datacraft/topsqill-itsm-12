@@ -178,10 +178,32 @@ export function TableCellSubmissionsDialog({
     const normalizedExpected = String(expected).trim();
     const normalizedExpectedLc = normalizedExpected.toLowerCase();
     const reps = getAllPossibleValueRepresentations(submissionData, dim);
-    return reps.some((r) => {
+    if (reps.some((r) => {
       const s = String(r).trim();
       return s === normalizedExpected || s.toLowerCase() === normalizedExpectedLc;
-    });
+    })) {
+      return true;
+    }
+
+    // Date-aware match: chart bars often show YYYY-MM-DD while the stored
+    // value may be a full ISO timestamp (or vice versa).
+    const dateOnly = /^\d{4}-\d{2}-\d{2}/;
+    if (dateOnly.test(normalizedExpected) || reps.some((r) => dateOnly.test(String(r)))) {
+      const expectedDate = new Date(normalizedExpected);
+      if (!isNaN(expectedDate.getTime())) {
+        return reps.some((r) => {
+          const candidate = new Date(String(r));
+          if (isNaN(candidate.getTime())) return false;
+          return (
+            candidate.getFullYear() === expectedDate.getFullYear() &&
+            candidate.getMonth() === expectedDate.getMonth() &&
+            candidate.getDate() === expectedDate.getDate()
+          );
+        });
+      }
+    }
+
+    return false;
   };
 
   // Fallback: scan EVERY field on the submission for a match. This rescues
