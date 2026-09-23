@@ -2,22 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import PublicPageLayout from '@/components/layout/PublicPageLayout';
-import { Button } from '@/components/ui/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import BlogContactPanel from '@/components/blog/BlogContactPanel';
 import { mergeBlogPosts } from '@/content/blog/posts';
 import { usePublishedBlogPosts } from '@/hooks/useBlogPosts';
 import { loadDeletedSlugs } from '@/lib/blogCms';
 import { stripMarketPrefix } from '@/lib/seo';
 import { OptimizedImage } from '@/components/OptimizedImage';
-import { ArrowRight, MessageSquare } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Blog() {
@@ -74,7 +64,7 @@ export default function Blog() {
       eyebrow="Blog"
       title="Insights on forms, workflows & operations"
       description="Practical articles from the TopSqill team — unique metadata, authors, and publish dates on every post."
-      contentClassName="max-w-7xl mx-auto"
+      contentClassName="max-w-6xl mx-auto"
     >
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/55">
         <span>
@@ -89,50 +79,31 @@ export default function Blog() {
         </button>
       </div>
 
-      {/* Mobile: index + contact trigger */}
-      <div className="mb-6 flex flex-wrap items-center gap-2 lg:hidden">
-        {postIds.length > 0 && (
-          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
-            {postIds.map((item, index) => (
-              <button
-                key={item.slug}
-                type="button"
-                onClick={() => scrollToPost(item.slug)}
-                className={cn(
-                  'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                  activeSlug === item.slug
-                    ? 'border-primary/40 bg-primary/10 text-foreground'
-                    : 'border-border/70 bg-background text-foreground/70 hover:border-border hover:text-foreground',
-                )}
-              >
-                {String(index + 1).padStart(2, '0')}
-              </button>
-            ))}
-          </div>
-        )}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="shrink-0 gap-1.5">
-              <MessageSquare className="h-4 w-4" />
-              Contact
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[min(100%,22rem)] overflow-y-auto p-0">
-            <SheetHeader className="border-b px-5 py-4 text-left">
-              <SheetTitle>Contact</SheetTitle>
-              <SheetDescription>Send a short note about your use case.</SheetDescription>
-            </SheetHeader>
-            <div className="p-4">
-              <BlogContactPanel compact idPrefix="list-contact-sheet" className="border-0 bg-transparent p-0 shadow-none" />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
+      {/* Mobile article index */}
+      {postIds.length > 0 && (
+        <div className="mb-6 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          {postIds.map((item, index) => (
+            <button
+              key={item.slug}
+              type="button"
+              onClick={() => scrollToPost(item.slug)}
+              className={cn(
+                'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                activeSlug === item.slug
+                  ? 'border-primary/40 bg-primary/10 text-foreground'
+                  : 'border-border/70 bg-background text-foreground/70 hover:border-border hover:text-foreground',
+              )}
+            >
+              {String(index + 1).padStart(2, '0')}
+            </button>
+          ))}
+        </div>
+      )}
 
       {isLoading && posts.length === 0 ? (
         <p className="text-sm text-foreground/70">Loading posts…</p>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[13.5rem_minmax(0,1fr)_17.5rem] xl:grid-cols-[15rem_minmax(0,1fr)_18.5rem] xl:gap-10">
+        <div className="grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-10">
           {/* Left: article index */}
           <aside className="hidden lg:block">
             <nav
@@ -178,92 +149,79 @@ export default function Blog() {
             </nav>
           </aside>
 
-          {/* Middle: posts */}
-          <div>
-            <ul className="space-y-5">
-              {posts.map((post, index) => (
-                <li
-                  key={`${post.source}-${post.slug}`}
-                  id={`post-${post.slug}`}
-                  className="scroll-mt-28 rounded-xl border border-border/70 bg-card/40 p-5 sm:p-6 shadow-sm transition-colors hover:border-primary/25 hover:bg-card/70"
+          {/* Horizontal article cards */}
+          <ul className="space-y-4">
+            {posts.map((post, index) => (
+              <li
+                key={`${post.source}-${post.slug}`}
+                id={`post-${post.slug}`}
+                className="scroll-mt-28 group overflow-hidden rounded-xl border border-border/70 bg-card/40 shadow-sm transition-colors hover:border-primary/25 hover:bg-card/70"
+              >
+                <Link
+                  to={`${base}/blog/${post.slug}`}
+                  onClick={() => setActiveSlug(post.slug)}
+                  className="flex flex-col sm:flex-row sm:items-stretch"
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md bg-muted text-xs font-semibold tabular-nums text-foreground/70">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <time
-                      dateTime={post.publishedAt}
-                      className="text-xs font-medium uppercase tracking-[0.12em] text-foreground/50"
-                    >
-                      {post.publishedAt}
-                    </time>
-                  </div>
-
-                  {post.coverImageUrl && (
-                    <Link
-                      to={`${base}/blog/${post.slug}`}
-                      className="mb-4 block overflow-hidden rounded-lg border border-border/60"
-                      onClick={() => setActiveSlug(post.slug)}
-                    >
+                  {/* Cover / placeholder */}
+                  <div className="relative sm:w-[11.5rem] md:w-[13.5rem] lg:w-[14.5rem] shrink-0 overflow-hidden border-b border-border/60 sm:border-b-0 sm:border-r bg-muted/40">
+                    {post.coverImageUrl ? (
                       <OptimizedImage
                         src={post.coverImageUrl}
                         alt=""
-                        width={1200}
-                        height={630}
-                        className="w-full max-h-52 object-cover"
+                        width={480}
+                        height={320}
+                        className="h-40 w-full object-cover sm:h-full sm:min-h-[9.5rem] transition-transform duration-300 group-hover:scale-[1.02]"
                       />
-                    </Link>
-                  )}
-
-                  <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
-                    <Link
-                      to={`${base}/blog/${post.slug}`}
-                      className="hover:text-primary transition-colors"
-                      onClick={() => setActiveSlug(post.slug)}
-                    >
-                      {post.title}
-                    </Link>
-                  </h2>
-
-                  <p className="mt-2 text-[15px] leading-relaxed text-foreground/75">
-                    {post.description}
-                  </p>
-
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm text-foreground/60">
-                      <span className="font-medium text-foreground">{post.authorName}</span>
-                      {post.modifiedAt !== post.publishedAt && (
-                        <>
-                          {' · Updated '}
-                          <time dateTime={post.modifiedAt}>{post.modifiedAt}</time>
-                        </>
-                      )}
-                    </p>
-                    <Link
-                      to={`${base}/blog/${post.slug}`}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4"
-                      onClick={() => setActiveSlug(post.slug)}
-                    >
-                      Read article
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
+                    ) : (
+                      <div className="flex h-40 w-full items-center justify-center sm:h-full sm:min-h-[9.5rem]">
+                        <span className="text-3xl font-semibold tabular-nums text-foreground/20">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </li>
-              ))}
-            </ul>
 
-            {/* Mobile contact panel after list */}
-            <div className="mt-8 lg:hidden">
-              <BlogContactPanel idPrefix="list-contact" />
-            </div>
-          </div>
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-2.5 p-4 sm:p-5 md:p-6">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-muted px-1.5 text-[11px] font-semibold tabular-nums text-foreground/70">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <time
+                        dateTime={post.publishedAt}
+                        className="text-xs font-medium uppercase tracking-[0.12em] text-foreground/50"
+                      >
+                        {post.publishedAt}
+                      </time>
+                    </div>
 
-          {/* Right: contact */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-24">
-              <BlogContactPanel idPrefix="list-contact" />
-            </div>
-          </aside>
+                    <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                      {post.title}
+                    </h2>
+
+                    <p className="text-sm sm:text-[15px] leading-relaxed text-foreground/70 line-clamp-2">
+                      {post.description}
+                    </p>
+
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <p className="text-sm text-foreground/60">
+                        <span className="font-medium text-foreground">{post.authorName}</span>
+                        {post.modifiedAt !== post.publishedAt && (
+                          <>
+                            {' · Updated '}
+                            <time dateTime={post.modifiedAt}>{post.modifiedAt}</time>
+                          </>
+                        )}
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary">
+                        Read article
+                        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </PublicPageLayout>
