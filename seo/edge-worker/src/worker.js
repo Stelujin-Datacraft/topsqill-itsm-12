@@ -262,7 +262,7 @@ async function fetchBlogPostMeta(slug) {
       `${SUPABASE_URL}/rest/v1/blog_posts`
       + `?slug=eq.${encodeURIComponent(slug)}`
       + '&published=eq.true'
-      + '&select=slug,title,description,cover_image_url'
+      + '&select=slug,title,description,cover_image_url,faqs'
       + '&limit=1';
     const res = await fetch(restUrl, {
       headers: {
@@ -292,6 +292,7 @@ async function fetchBlogPostMeta(slug) {
           title: post.title,
           description: post.description || '',
           cover_image_url: post.cover_image_url || null,
+          faqs: Array.isArray(post.faqs) ? post.faqs : [],
         };
       }
     } catch {
@@ -390,6 +391,47 @@ function applyShareMeta(html, { title, description, canonical, ogImage }) {
   return out;
 }
 
+function normalizeFaqs(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      question: String(item?.question || '').trim(),
+      answer: String(item?.answer || '').trim(),
+    }))
+    .filter((f) => f.question && f.answer);
+}
+
+function faqPageJsonLd(faqs) {
+  const items = normalizeFaqs(faqs);
+  if (items.length === 0) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((f) => ({
+      '@type': 'Question',
+      name: f.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: f.answer,
+      },
+    })),
+  };
+}
+
+function injectFaqJsonLd(html, faqs) {
+  const schema = faqPageJsonLd(faqs);
+  if (!schema) return html;
+  const script = `    <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+  // Replace an existing FAQPage block if present, otherwise append before </head>
+  if (/@type"\s*:\s*"FAQPage"/i.test(html) || /"@type":"FAQPage"/i.test(html)) {
+    return html.replace(
+      /<script\s+type="application\/ld\+json">\s*\{[\s\S]*?"@type"\s*:\s*"FAQPage"[\s\S]*?\}\s*<\/script>/i,
+      script,
+    );
+  }
+  return html.replace('</head>', `${script}\n  </head>`);
+}
+
 async function serveBlogShareHtml(request, env, pathname, slug) {
   const post = await fetchBlogPostMeta(slug);
   const key = pathToPrerenderKey(pathname);
@@ -407,7 +449,8 @@ async function serveBlogShareHtml(request, env, pathname, slug) {
   const description = post.description || '';
   const canonical = `https://${APEX_DOMAIN}${pathname}`;
   const ogImage = absoluteAssetUrl(post.cover_image_url);
-  const enriched = applyShareMeta(html, { title, description, canonical, ogImage });
+  let enriched = applyShareMeta(html, { title, description, canonical, ogImage });
+  enriched = injectFaqJsonLd(enriched, post.faqs);
 
   const headers = new Headers(base.headers);
   headers.set('content-type', 'text/html; charset=utf-8');

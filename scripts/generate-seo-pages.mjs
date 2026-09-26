@@ -39,6 +39,42 @@ function absoluteAssetUrl(origin, pathOrUrl, fallback) {
   return absoluteUrl(origin, pathOrUrl);
 }
 
+function normalizeFaqs(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      question: String(item?.question || '').trim(),
+      answer: String(item?.answer || '').trim(),
+    }))
+    .filter((f) => f.question && f.answer);
+}
+
+function faqPageJsonLd(faqs) {
+  const items = normalizeFaqs(faqs);
+  if (items.length === 0) return null;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((f) => ({
+      '@type': 'Question',
+      name: f.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: f.answer,
+      },
+    })),
+  };
+}
+
+function injectJsonLd(html, objects) {
+  const scripts = (objects || [])
+    .filter(Boolean)
+    .map((obj) => `    <script type="application/ld+json">${JSON.stringify(obj)}</script>`)
+    .join('\n');
+  if (!scripts) return html;
+  return html.replace('</head>', `${scripts}\n  </head>`);
+}
+
 function buildBody(route) {
   const sections = (route.sections || [])
     .map(
@@ -49,6 +85,25 @@ function buildBody(route) {
     </section>`,
     )
     .join('\n');
+
+  const faqItems = normalizeFaqs(route.faqs);
+  const faqHtml = faqItems.length
+    ? `
+    <section id="faq">
+      <h2>Frequently asked questions</h2>
+      <dl>
+        ${faqItems
+          .map(
+            (f) => `
+        <div>
+          <dt>${escapeHtml(f.question)}</dt>
+          <dd>${escapeHtml(f.answer)}</dd>
+        </div>`,
+          )
+          .join('\n')}
+      </dl>
+    </section>`
+    : '';
 
   // #app-boot is a brief branded placeholder for humans (no raw SEO copy flash).
   // #seo-prerender stays in the DOM for crawlers but is visually hidden via #seo-boot-style.
@@ -69,6 +124,7 @@ function buildBody(route) {
       <p>${escapeHtml(route.lede)}</p>
     </header>
     ${sections}
+    ${faqHtml}
     <nav aria-label="Site">
       <ul>
         <li><a href="/">Home</a></li>
@@ -221,6 +277,7 @@ function expandRoutes(cfg) {
       h1: post.title,
       lede: post.description,
       ogImage: post.coverImageUrl || undefined,
+      faqs: normalizeFaqs(post.faqs),
       sections: post.body.map((p, i) => ({
         heading: i === 0 ? `By ${post.authorName}` : `Section ${i + 1}`,
         body: p,
@@ -262,6 +319,7 @@ function expandRoutes(cfg) {
         h1: post.title,
         lede: post.description,
         ogImage: post.coverImageUrl || undefined,
+        faqs: normalizeFaqs(post.faqs),
         sections: post.body.map((p, i) => ({
           heading: i === 0 ? `By ${post.authorName}` : `Section ${i + 1}`,
           body: p,
@@ -390,6 +448,7 @@ function main() {
       ogImage,
     });
     html = injectRootContent(html, buildBody(route));
+    html = injectJsonLd(html, [faqPageJsonLd(route.faqs)]);
 
     const workerKey = route.path === '/' ? 'index.html' : `${route.path.replace(/^\//, '')}.html`;
     writeFile(path.join(workerPrerenderDir, workerKey), html);

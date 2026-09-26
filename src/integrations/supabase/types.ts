@@ -25,6 +25,7 @@ export type Database = {
           author_name: string
           author_title: string | null
           tags: string[]
+          faqs: Json
           published: boolean
           published_at: string | null
           created_by: string | null
@@ -41,6 +42,7 @@ export type Database = {
           author_name?: string
           author_title?: string | null
           tags?: string[]
+          faqs?: Json
           published?: boolean
           published_at?: string | null
           created_by?: string | null
@@ -57,6 +59,7 @@ export type Database = {
           author_name?: string
           author_title?: string | null
           tags?: string[]
+          faqs?: Json
           published?: boolean
           published_at?: string | null
           created_by?: string | null

@@ -1,6 +1,7 @@
 import postsJson from './posts.json';
 import type { DisplayBlogPost } from '@/types/blog';
-import { recordToDisplay, type BlogPostRecord } from '@/types/blog';
+import { normalizeFaqItems, recordToDisplay, type BlogPostRecord } from '@/types/blog';
+import type { BlogFaqItem } from '@/types/blog';
 
 export type BlogPost = {
   slug: string;
@@ -14,6 +15,8 @@ export type BlogPost = {
   body: string[];
   /** Optional absolute or site-relative cover used for cards + Open Graph. */
   coverImageUrl?: string;
+  /** Optional FAQ Q&A pairs for FAQPage JSON-LD. */
+  faqs?: BlogFaqItem[];
 };
 
 export const BLOG_POSTS = postsJson as BlogPost[];
@@ -43,6 +46,7 @@ export function staticToRecord(post: BlogPost): BlogPostRecord {
     author_name: post.authorName || 'TopSqill Team',
     author_title: post.authorTitle || null,
     tags: post.tags || [],
+    faqs: normalizeFaqItems(post.faqs),
     published: true,
     published_at: publishedAt,
     created_by: null,
@@ -98,6 +102,7 @@ export function staticToDisplay(post: BlogPost): DisplayBlogPost {
     tags: post.tags,
     body: post.body,
     coverImageUrl: post.coverImageUrl,
+    faqs: normalizeFaqItems(post.faqs),
     source: 'static',
   };
 }

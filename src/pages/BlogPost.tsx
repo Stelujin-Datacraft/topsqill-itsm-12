@@ -19,7 +19,7 @@ import { usePublishedBlogPost } from '@/hooks/useBlogPosts';
 import { loadDeletedSlugs } from '@/lib/blogCms';
 import { stripMarketPrefix } from '@/lib/seo';
 import { Seo } from '@/components/Seo';
-import { articleJsonLd, breadcrumbJsonLd, organizationJsonLd } from '@/lib/structuredData';
+import { articleJsonLd, breadcrumbJsonLd, faqPageJsonLd, organizationJsonLd } from '@/lib/structuredData';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -96,6 +96,9 @@ export default function BlogPost() {
     coverImageUrl: post.coverImageUrl,
   };
 
+  const faqs = post.faqs || [];
+  const faqLd = faqPageJsonLd(faqs);
+
   const scrollToSection = (id: string) => {
     setActiveSection(id);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -166,6 +169,7 @@ export default function BlogPost() {
         jsonLd={[
           organizationJsonLd(),
           articleJsonLd(articleForSchema),
+          ...(faqLd ? [faqLd] : []),
           breadcrumbJsonLd([
             { name: 'Home', path: base || '/' },
             { name: 'Blog', path: `${base}/blog` },
@@ -274,6 +278,32 @@ export default function BlogPost() {
               ))
             )}
           </article>
+
+          {faqs.length > 0 && (
+            <section
+              id="faq"
+              aria-labelledby="blog-faq-heading"
+              className="mt-10 scroll-mt-28 border-t border-border/60 pt-8"
+            >
+              <h2
+                id="blog-faq-heading"
+                className="text-lg font-semibold tracking-tight text-foreground"
+              >
+                Frequently asked questions
+              </h2>
+              <dl className="mt-5 space-y-4">
+                {faqs.map((faq) => (
+                  <div
+                    key={faq.question}
+                    className="rounded-xl border border-border/70 bg-background/60 px-4 py-3.5"
+                  >
+                    <dt className="text-sm font-semibold text-foreground">{faq.question}</dt>
+                    <dd className="mt-2 text-sm leading-relaxed text-foreground/75">{faq.answer}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
 
           {post.tags.length > 0 && (
             <div className="mt-10 pt-8 border-t border-border/60">

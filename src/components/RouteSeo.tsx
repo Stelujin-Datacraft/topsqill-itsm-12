@@ -43,7 +43,9 @@ export function RouteSeo() {
     const crumbs = [{ name: 'Home', path: homePath }];
 
     if (basePath === '/' && !resolved.market) {
-      jsonLd.push(softwareApplicationJsonLd(), faqPageJsonLd());
+      jsonLd.push(softwareApplicationJsonLd());
+      const landingFaq = faqPageJsonLd();
+      if (landingFaq) jsonLd.push(landingFaq);
     } else if (basePath === '/' && resolved.market) {
       const market = getMarket(resolved.market);
       jsonLd.push(softwareApplicationJsonLd());
@@ -64,6 +66,8 @@ export function RouteSeo() {
       const post = getPost(slug);
       if (post) {
         jsonLd.push(articleJsonLd(post));
+        const faqLd = faqPageJsonLd(post.faqs || []);
+        if (faqLd) jsonLd.push(faqLd);
         crumbs.push({ name: 'Blog', path: `${homePath === '/' ? '' : homePath}/blog` });
         crumbs.push({ name: post.title, path: pathname });
       }
