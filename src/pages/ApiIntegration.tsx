@@ -8,17 +8,28 @@ const ApiIntegration: React.FC = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   return (
-    <DashboardLayout 
-      title="API Integration" 
+    <DashboardLayout
+      title="API Integration"
       description="Manage API keys and external integrations"
       actions={
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="icon-md mr-2" />
-          Create API Key
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              // Handled inside ApiKeyManagement via showAiSuggest signal
+              window.dispatchEvent(new CustomEvent('topsqill:open-api-key-ai-suggest'));
+            }}
+            className="hidden"
+            aria-hidden
+          />
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="icon-md mr-2" />
+            Create API Key
+          </Button>
+        </div>
       }
     >
-      <ApiKeyManagement 
+      <ApiKeyManagement
         showCreateDialog={showCreateDialog}
         onCreateDialogChange={setShowCreateDialog}
       />
