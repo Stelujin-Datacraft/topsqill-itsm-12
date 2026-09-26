@@ -64,13 +64,14 @@ export default function SiteHeader({ compact = false }: SiteHeaderProps) {
   const linkClass = (active: boolean) =>
     cn(
       'transition-colors text-left whitespace-nowrap',
-      active ? 'text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground',
+      active
+        ? 'text-brand-deep-foreground font-semibold'
+        : 'text-brand-deep-foreground/75 hover:text-brand-deep-foreground',
     );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-primary/15 bg-background/80 backdrop-blur-xl shadow-sm">
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'var(--gradient-header)' }} />
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
+    <header className="sticky top-0 z-50 border-b border-brand-deep-foreground/15 bg-primary text-brand-deep-foreground shadow-sm">
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-brand-deep-foreground/40 to-transparent" />
       <div
         className={cn(
           'container relative mx-auto px-4 flex items-center justify-between gap-3',
@@ -87,7 +88,7 @@ export default function SiteHeader({ compact = false }: SiteHeaderProps) {
             priority
             className="w-9 h-9 object-contain shrink-0"
           />
-          <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">
+          <span className="text-xl sm:text-2xl font-semibold tracking-tight text-brand-deep-foreground truncate">
             {t('common.appName')}
           </span>
         </Link>
@@ -104,7 +105,11 @@ export default function SiteHeader({ compact = false }: SiteHeaderProps) {
           {!isLoading && user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="max-w-[160px] sm:max-w-[220px] gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="max-w-[160px] sm:max-w-[220px] gap-1.5 border-brand-deep-foreground/30 bg-transparent text-brand-deep-foreground hover:bg-brand-deep-foreground/10 hover:text-brand-deep-foreground"
+                >
                   <span className="truncate">{displayName}</span>
                   <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
                 </Button>
@@ -126,10 +131,21 @@ export default function SiteHeader({ compact = false }: SiteHeaderProps) {
           ) : (
             <>
               <Link to="/auth" className="hidden sm:block">
-                <Button variant="outline" size="sm">{t('nav.signIn')}</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-brand-deep-foreground/30 bg-transparent text-brand-deep-foreground hover:bg-brand-deep-foreground/10 hover:text-brand-deep-foreground"
+                >
+                  {t('nav.signIn')}
+                </Button>
               </Link>
               <Link to="/auth?mode=signup" className="hidden sm:block">
-                <Button size="sm">{t('nav.signUp')}</Button>
+                <Button
+                  size="sm"
+                  className="bg-brand-deep-foreground text-primary hover:bg-brand-deep-foreground/90"
+                >
+                  {t('nav.signUp')}
+                </Button>
               </Link>
             </>
           )}
@@ -139,7 +155,7 @@ export default function SiteHeader({ compact = false }: SiteHeaderProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="lg:hidden px-2.5"
+                className="lg:hidden px-2.5 border-brand-deep-foreground/30 bg-transparent text-brand-deep-foreground hover:bg-brand-deep-foreground/10 hover:text-brand-deep-foreground"
                 aria-label="Open menu"
               >
                 <Menu className="h-5 w-5" />
