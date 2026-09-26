@@ -1,5 +1,6 @@
 import { rawSupabase, SUPABASE_URL } from '@/integrations/supabase/rawClient';
 import type { BlogPostInput, BlogPostRecord } from '@/types/blog';
+import { normalizeFaqItems } from '@/types/blog';
 
 /**
  * Prefer buckets that already exist in production.
@@ -572,6 +573,7 @@ export async function createStorageBlogPost(
     author_name: input.author_name || 'TopSqill Team',
     author_title: input.author_title ?? null,
     tags: input.tags || [],
+    faqs: normalizeFaqItems(input.faqs),
     published: Boolean(input.published),
     published_at: input.published ? (input.published_at || now) : null,
     created_by: createdBy || null,
@@ -617,6 +619,7 @@ export async function updateStorageBlogPost(
     author_name: input.author_name || prev.author_name || 'TopSqill Team',
     author_title: input.author_title ?? null,
     tags: input.tags || [],
+    faqs: input.faqs !== undefined ? normalizeFaqItems(input.faqs) : normalizeFaqItems(prev.faqs),
     published,
     published_at: published
       ? (input.published_at || prev.published_at || now)

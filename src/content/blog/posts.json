@@ -13,6 +13,20 @@
       "A governed form platform captures structured data once, routes it through explicit workflow steps, and keeps every change attributable. Managers get dashboards; auditors get history.",
       "TopSqill combines form building, visual workflows, and SQL on submission data so teams do not need a separate BI project just to answer basic operational questions.",
       "If your process still lives in email attachments and shared drives, start by modeling the intake fields and the approval path — then automate the notifications and record updates."
+    ],
+    "faqs": [
+      {
+        "question": "Why are spreadsheets a poor system of record for approvals?",
+        "answer": "They lack reliable version control, role-based access, and audit trails. Parallel edits and emailed copies create conflicting sources of truth for intake and approvals."
+      },
+      {
+        "question": "What should replace spreadsheet-based intake?",
+        "answer": "A governed form platform that captures structured data once, routes approvals through explicit workflow steps, and keeps every change attributable for managers and auditors."
+      },
+      {
+        "question": "Can teams still get operational reporting without a separate BI project?",
+        "answer": "Yes. TopSqill combines forms, visual workflows, and SQL on submission data so common operational questions can be answered where the data already lives."
+      }
     ]
   },
   {
@@ -29,6 +43,20 @@
       "When forms, assets, and workflows share a data model, a single status change can provision access, assign hardware, and trigger acknowledgements in the knowledge base.",
       "TopSqill solution scenarios for ITSM and HR show how cross-references and automations keep those handoffs inside one governed platform.",
       "Start with the moments that create tickets today — access requests, device returns, policy acknowledgements — and encode them as reusable workflows."
+    ],
+    "faqs": [
+      {
+        "question": "Why do ITSM and HR onboarding often break down?",
+        "answer": "Each team often runs a private checklist in a separate tool, so a hire can be complete in HR while still invisible to IT or facilities."
+      },
+      {
+        "question": "How does a shared data model help onboarding?",
+        "answer": "When forms, assets, and workflows share identity and status, one status change can provision access, assign hardware, and trigger policy acknowledgements together."
+      },
+      {
+        "question": "Where should teams start connecting ITSM and HR workflows?",
+        "answer": "Start with high-volume ticket moments such as access requests, device returns, and policy acknowledgements, then encode them as reusable governed workflows."
+      }
     ]
   },
   {
@@ -45,6 +73,20 @@
       "TopSqill includes a SQL editor over form submissions so operations and analytics stakeholders can explore live data with familiar syntax.",
       "Combine that with role-based access and you get governed self-serve reporting — without copying sensitive records into another store by default.",
       "Use SQL for exception lists, SLA breach hunts, and cross-form reconciliations; use dashboards for the KPIs leadership checks weekly."
+    ],
+    "faqs": [
+      {
+        "question": "Do I need a data warehouse to query form submissions?",
+        "answer": "Not for many operational questions. TopSqill includes a SQL editor over form submissions so teams can join, filter, and explore live data where it already lives."
+      },
+      {
+        "question": "What problems do CSV exports create?",
+        "answer": "Exports create shadow databases, stale snapshots, and inconsistent decisions because reporting drifts away from the live system of record."
+      },
+      {
+        "question": "When should teams use SQL versus dashboards?",
+        "answer": "Use SQL for exception lists, SLA breach hunts, and cross-form reconciliations; use dashboards for the recurring KPIs leadership reviews weekly."
+      }
     ]
   }
 ]

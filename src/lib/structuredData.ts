@@ -98,10 +98,12 @@ export function breadcrumbJsonLd(items: Array<{ name: string; path: string }>) {
 }
 
 export function faqPageJsonLd(faqs = LANDING_FAQS) {
+  const items = faqs.filter((f) => f?.question && f?.answer);
+  if (items.length === 0) return null;
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: faqs.map((f) => ({
+    mainEntity: items.map((f) => ({
       '@type': 'Question',
       name: f.question,
       acceptedAnswer: {

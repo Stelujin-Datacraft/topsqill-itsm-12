@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useBlogAdmin } from '@/hooks/useBlogPosts';
 import type { BlogPostRecord } from '@/types/blog';
-import { isDemoBlogId, slugifyTitle } from '@/types/blog';
+import { isDemoBlogId, normalizeFaqItems, slugifyTitle } from '@/types/blog';
 import { ExternalLink, FileUp, Loader2, Pencil, Plus, Trash2, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATIC_BLOG_POSTS_PATH } from '@/content/blog/posts';
@@ -44,9 +44,13 @@ type Draft = {
   author_name: string;
   author_title: string;
   tags: string;
+  /** JSON text for FAQPage schema — array of {question, answer} */
+  faqs_json: string;
   published: boolean;
   origin?: 'cms' | 'demo';
 };
+
+const emptyFaqsJson = '[]';
 
 const emptyDraft = (): Draft => ({
   title: '',
@@ -57,8 +61,14 @@ const emptyDraft = (): Draft => ({
   author_name: 'TopSqill Team',
   author_title: 'Product',
   tags: '',
+  faqs_json: emptyFaqsJson,
   published: false,
 });
+
+function formatFaqsJson(faqs: unknown): string {
+  const items = normalizeFaqItems(faqs);
+  return JSON.stringify(items, null, 2);
+}
 
 function recordToDraft(row: BlogPostRecord): Draft {
   return {
@@ -71,6 +81,7 @@ function recordToDraft(row: BlogPostRecord): Draft {
     author_name: row.author_name || 'TopSqill Team',
     author_title: row.author_title || '',
     tags: (row.tags || []).join(', '),
+    faqs_json: formatFaqsJson(row.faqs),
     published: row.published,
     origin: row.origin || (isDemoBlogId(row.id) ? 'demo' : 'cms'),
   };
@@ -152,6 +163,18 @@ export default function BlogAdmin() {
       toast.error('Title and slug are required');
       return;
     }
+    let faqs;
+    try {
+      const parsed = draft.faqs_json.trim() ? JSON.parse(draft.faqs_json) : [];
+      faqs = normalizeFaqItems(parsed);
+      if (draft.faqs_json.trim() && !Array.isArray(parsed)) {
+        toast.error('FAQs must be a JSON array of {question, answer} objects');
+        return;
+      }
+    } catch {
+      toast.error('FAQs JSON is invalid — use an array like [{"question":"…","answer":"…"}]');
+      return;
+    }
     const payload = {
       title: draft.title.trim(),
       slug: slugifyTitle(draft.slug),
@@ -164,6 +187,7 @@ export default function BlogAdmin() {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
+      faqs,
       published: draft.published,
     };
     if (draft.id) {
@@ -217,6 +241,7 @@ export default function BlogAdmin() {
           author_name: item.author_name || item.authorName || 'TopSqill Team',
           author_title: item.author_title || item.authorTitle || null,
           tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+          faqs: normalizeFaqItems(item.faqs),
           published: Boolean(item.published ?? false),
         });
         count += 1;
@@ -478,6 +503,21 @@ export default function BlogAdmin() {
                   />
                 </div>
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="blog-faqs">FAQ schema (JSON)</Label>
+                <Textarea
+                  id="blog-faqs"
+                  rows={8}
+                  className="font-mono text-xs"
+                  value={draft.faqs_json}
+                  onChange={(e) => setDraft((d) => ({ ...d, faqs_json: e.target.value }))}
+                  placeholder='[{"question":"…","answer":"…"}]'
+                />
+                <p className="text-xs text-muted-foreground">
+                  JSON array of <code className="text-[11px]">question</code> / <code className="text-[11px]">answer</code> objects.
+                  Shown on the post and emitted as FAQPage JSON-LD for search engines.
+                </p>
+              </div>
               <div className="flex items-center justify-between rounded-md border px-3 py-2">
                 <div>
                   <p className="text-sm font-medium">Publish on /blog</p>
@@ -512,7 +552,7 @@ export default function BlogAdmin() {
               <DialogTitle>Import posts (JSON)</DialogTitle>
               <DialogDescription>
                 Paste a JSON object or array with fields: title, slug, description, content_html (or body[]),
-                author_name, tags, published, cover_image_url.
+                author_name, tags, published, cover_image_url, and optional faqs (JSON array of question/answer objects).
               </DialogDescription>
             </DialogHeader>
             <Textarea
