@@ -448,23 +448,37 @@ export function DynamicTable({
     // Apply AI query sorting if set
     if (aiQuerySort.field) {
       filtered = [...filtered].sort((a, b) => {
-        const aValue = a.submission_data?.[aiQuerySort.field!] || '';
-        const bValue = b.submission_data?.[aiQuerySort.field!] || '';
-        const comparison = aValue.toString().localeCompare(bValue.toString());
-        return aiQuerySort.order === 'asc' ? comparison : -comparison;
+        try {
+          const aRaw = a.submission_data?.[aiQuerySort.field!];
+          const bRaw = b.submission_data?.[aiQuerySort.field!];
+          const aValue = aRaw === null || aRaw === undefined ? '' : (typeof aRaw === 'object' ? JSON.stringify(aRaw) : String(aRaw));
+          const bValue = bRaw === null || bRaw === undefined ? '' : (typeof bRaw === 'object' ? JSON.stringify(bRaw) : String(bRaw));
+          const comparison = aValue.localeCompare(bValue);
+          return aiQuerySort.order === 'asc' ? comparison : -comparison;
+        } catch {
+          return 0;
+        }
       });
     }
 
     // Apply multi-level sorting
     if (sortConfigs.length > 0 && config.enableSorting) {
       filtered = [...filtered].sort((a, b) => {
-        for (const sortConfig of sortConfigs) {
-          const aValue = a.submission_data?.[sortConfig.field] || '';
-          const bValue = b.submission_data?.[sortConfig.field] || '';
-          const comparison = sortConfig.direction === 'asc' ? aValue.toString().localeCompare(bValue.toString()) : bValue.toString().localeCompare(aValue.toString());
-          if (comparison !== 0) return comparison;
+        try {
+          for (const sortConfig of sortConfigs) {
+            const aRaw = a.submission_data?.[sortConfig.field];
+            const bRaw = b.submission_data?.[sortConfig.field];
+            const aValue = aRaw === null || aRaw === undefined ? '' : (typeof aRaw === 'object' ? JSON.stringify(aRaw) : String(aRaw));
+            const bValue = bRaw === null || bRaw === undefined ? '' : (typeof bRaw === 'object' ? JSON.stringify(bRaw) : String(bRaw));
+            const comparison = sortConfig.direction === 'asc'
+              ? aValue.localeCompare(bValue)
+              : bValue.localeCompare(aValue);
+            if (comparison !== 0) return comparison;
+          }
+          return 0;
+        } catch {
+          return 0;
         }
-        return 0;
       });
     }
 

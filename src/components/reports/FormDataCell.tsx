@@ -647,10 +647,19 @@ if (['select', 'radio'].includes(fieldType)) {
     );
   }
 
-  // Fallback if no match
+  // Fallback if no match — never render raw objects (crashes React)
+  const display =
+    value === null || value === undefined || value === ''
+      ? 'N/A'
+      : typeof value === 'object'
+        ? (Array.isArray(value)
+          ? value.map((v) => (typeof v === 'object' && v !== null ? (v as any).label || (v as any).value || JSON.stringify(v) : String(v))).join(', ')
+          : ((value as any).label || (value as any).value || (value as any).name || JSON.stringify(value)))
+        : String(value);
+
   return (
     <Badge variant="secondary" className="text-xs bg-secondary/80 text-secondary-foreground font-medium">
-      {value || 'N/A'}
+      {display || 'N/A'}
     </Badge>
   );
 }
