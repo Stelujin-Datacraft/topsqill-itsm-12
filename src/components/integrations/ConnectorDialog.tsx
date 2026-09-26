@@ -66,12 +66,15 @@ export function ConnectorDialog({
         project_id: connector.project_id,
         is_active: connector.is_active,
       });
-    } else {
-      const blank = emptyConnectorForm();
-      blank.project_id = currentProject?.id || null;
-      setForm(blank);
+      return;
     }
-  }, [open, connector, currentProject?.id]);
+    const blank = emptyConnectorForm();
+    blank.project_id = currentProject?.id || null;
+    setForm(blank);
+    // Only re-seed when dialog opens or the edited connector changes — not when
+    // currentProject identity flickers (that was wiping in-progress input).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [open, connector]);
 
   const setCred = (patch: Partial<OutboundConnectorFormData['credentials']>) => {
     setForm((prev) => ({
