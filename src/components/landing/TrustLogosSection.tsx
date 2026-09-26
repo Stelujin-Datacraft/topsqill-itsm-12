@@ -30,9 +30,41 @@ const partners = [
   { name: "Celsior", logo: celsiorLogo, webp: celsiorWebp, subtitle: "Technology consulting" },
 ];
 
+function PartnerCard({
+  partner,
+  duplicate = false,
+}: {
+  partner: (typeof partners)[number];
+  duplicate?: boolean;
+}) {
+  return (
+    <div
+      className="group flex w-[11.5rem] sm:w-[13.5rem] shrink-0 flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/80 px-4 py-6 sm:px-6 sm:py-8 text-center shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-md"
+      aria-hidden={duplicate || undefined}
+    >
+      <div className="mb-3 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center overflow-hidden rounded-xl bg-background shadow-sm transition-transform duration-300 group-hover:scale-105">
+        <OptimizedImage
+          src={partner.logo}
+          webpSrc={partner.webp}
+          alt={duplicate ? "" : `${partner.name} logo`}
+          width={40}
+          height={40}
+          className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
+        />
+      </div>
+      <span className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
+        {partner.name}
+      </span>
+      <span className="mt-1 text-xs text-muted-foreground hidden sm:block">
+        {partner.subtitle}
+      </span>
+    </div>
+  );
+}
+
 export default function TrustLogosSection() {
   return (
-    <section className="py-14 sm:py-16 border-y border-border/50 bg-muted/10">
+    <section className="py-14 sm:py-16 border-y border-border/50 bg-muted/10 overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-center gap-3 mb-10">
           <div className="h-px w-10 sm:w-16 bg-border" />
@@ -41,31 +73,21 @@ export default function TrustLogosSection() {
           </p>
           <div className="h-px w-10 sm:w-16 bg-border" />
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
-          {partners.map((partner) => (
-            <div
-              key={partner.name}
-              className="group flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/80 px-4 py-6 sm:px-6 sm:py-8 text-center shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-md"
-            >
-              <div className="mb-3 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center overflow-hidden rounded-xl bg-background shadow-sm transition-transform duration-300 group-hover:scale-105">
-                <OptimizedImage
-                  src={partner.logo}
-                  webpSrc={partner.webp}
-                  alt={`${partner.name} logo`}
-                  width={40}
-                  height={40}
-                  className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
-                />
-              </div>
-              <span className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
-                {partner.name}
-              </span>
-              <span className="mt-1 text-xs text-muted-foreground hidden sm:block">
-                {partner.subtitle}
-              </span>
-            </div>
-          ))}
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 sm:w-20 bg-gradient-to-r from-muted/10 to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 sm:w-20 bg-gradient-to-l from-muted/10 to-transparent" />
+
+        <div className="group/marquee flex overflow-hidden">
+          <div className="flex w-max gap-4 sm:gap-6 animate-marquee-rtl motion-reduce:animate-none group-hover/marquee:[animation-play-state:paused] py-1">
+            {partners.map((partner) => (
+              <PartnerCard key={partner.name} partner={partner} />
+            ))}
+            {partners.map((partner) => (
+              <PartnerCard key={`dup-${partner.name}`} partner={partner} duplicate />
+            ))}
+          </div>
         </div>
       </div>
     </section>
