@@ -7,7 +7,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -45,16 +44,30 @@ interface AIApiKeySuggesterProps {
   buttonLabel?: string;
   variant?: 'default' | 'outline' | 'secondary' | 'ghost';
   size?: 'default' | 'sm' | 'lg' | 'icon';
+  className?: string;
+  /** When false, only the dialog is rendered (open via controlled props). */
+  showTrigger?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function AIApiKeySuggester({
   existingKeyNames = [],
   onApply,
   buttonLabel = 'AI Suggest',
-  variant = 'outline',
+  variant = 'secondary',
   size = 'default',
+  className,
+  showTrigger = true,
+  open: controlledOpen,
+  onOpenChange,
 }: AIApiKeySuggesterProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   const [prompt, setPrompt] = useState('');
   const [draft, setDraft] = useState<ApiKeySuggestionDraft | null>(null);
   const [usedAi, setUsedAi] = useState(false);
@@ -120,19 +133,27 @@ export function AIApiKeySuggester({
       ));
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) reset();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button variant={variant} size={size} className="gap-2">
-          <Sparkles className="h-4 w-4" />
+    <>
+      {showTrigger && (
+        <Button
+          type="button"
+          variant={variant}
+          size={size}
+          className={`gap-2 ${className || ''}`.trim()}
+          onClick={() => setOpen(true)}
+          data-testid="ai-suggest-api-key-button"
+        >
+          <Sparkles className="h-4 w-4 text-primary" />
           {buttonLabel}
         </Button>
-      </DialogTrigger>
+      )}
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) reset();
+        }}
+      >
       <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -266,5 +287,6 @@ export function AIApiKeySuggester({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

@@ -21,6 +21,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { ApiAnalyticsDashboard } from './ApiAnalyticsDashboard';
 import { ApiRequestLogs } from './ApiRequestLogs';
 import { getPublicApiUrl } from '@/services/api/apiClient';
+import { AIApiKeySuggester, type ApiKeyCreatePrefill } from '@/components/ai/AIApiKeySuggester';
 
 const PERMISSION_OPTIONS = {
   forms: ['read', 'create', 'update', 'delete'],
@@ -49,6 +50,8 @@ interface ApiKeyManagementProps {
     expiresInDays: string;
   } | null;
   onCreatePrefillConsumed?: () => void;
+  /** When set, shows AI Suggest in the keys card and empty state. */
+  onAiSuggestApply?: (draft: ApiKeyCreatePrefill) => void;
 }
 
 export function ApiKeyManagement({
@@ -56,6 +59,7 @@ export function ApiKeyManagement({
   onCreateDialogChange,
   createPrefill = null,
   onCreatePrefillConsumed,
+  onAiSuggestApply,
 }: ApiKeyManagementProps = {}) {
   const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
@@ -530,11 +534,27 @@ export function ApiKeyManagement({
 
       {/* API Keys Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>API Keys</CardTitle>
-          <CardDescription>
-            {apiKeys.length} API key{apiKeys.length !== 1 ? 's' : ''} configured
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle>API Keys</CardTitle>
+            <CardDescription>
+              {apiKeys.length} API key{apiKeys.length !== 1 ? 's' : ''} configured
+            </CardDescription>
+          </div>
+          {onAiSuggestApply && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <AIApiKeySuggester
+                onApply={onAiSuggestApply}
+                existingKeyNames={apiKeys.map((k) => k.name)}
+                variant="secondary"
+                buttonLabel="AI Suggest"
+              />
+              <Button type="button" size="default" onClick={() => setShowCreateDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create API Key
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -542,10 +562,26 @@ export function ApiKeyManagement({
               <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : apiKeys.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Key className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No API keys created yet</p>
-              <p className="text-sm">Create your first API key to enable external integrations</p>
+            <div className="text-center py-8 text-muted-foreground space-y-4">
+              <Key className="h-12 w-12 mx-auto opacity-50" />
+              <div>
+                <p>No API keys created yet</p>
+                <p className="text-sm">Create your first API key to enable external integrations</p>
+              </div>
+              {onAiSuggestApply && (
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                  <AIApiKeySuggester
+                    onApply={onAiSuggestApply}
+                    existingKeyNames={[]}
+                    variant="secondary"
+                    buttonLabel="AI Suggest"
+                  />
+                  <Button type="button" onClick={() => setShowCreateDialog(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create API Key
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <Table>
