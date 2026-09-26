@@ -268,15 +268,30 @@ function expandRoutes(cfg) {
   return expanded;
 }
 
-function buildSitemapXml(routes, siteOrigin) {
+function escapeXml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function buildSitemapXml(routes, siteOrigin, lastmodIso) {
+  const lastmod = lastmodIso || new Date().toISOString().slice(0, 10);
   const urls = routes
     .filter((r) => r.sitemap !== false)
+    .sort((a, b) => {
+      if (a.path === '/') return -1;
+      if (b.path === '/') return 1;
+      return a.path.localeCompare(b.path);
+    })
     .map((r) => {
       const loc = absoluteUrl(siteOrigin, r.path);
       return `  <url>
-    <loc>${loc}</loc>
-    <changefreq>${r.changefreq || 'monthly'}</changefreq>
-    <priority>${r.priority || '0.5'}</priority>
+    <loc>${escapeXml(loc)}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${escapeXml(r.changefreq || 'monthly')}</changefreq>
+    <priority>${escapeXml(r.priority || '0.5')}</priority>
   </url>`;
     })
     .join('\n');
@@ -285,6 +300,35 @@ function buildSitemapXml(routes, siteOrigin) {
 ${urls}
 </urlset>
 `;
+}
+
+/** Plain URL list (one per line) for Google Search Console / QA. */
+function buildSitemapUrlList(routes, siteOrigin) {
+  return routes
+    .filter((r) => r.sitemap !== false)
+    .sort((a, b) => {
+      if (a.path === '/') return -1;
+      if (b.path === '/') return 1;
+      return a.path.localeCompare(b.path);
+    })
+    .map((r) => absoluteUrl(siteOrigin, r.path))
+    .join('\n') + '\n';
+}
+
+function writeSitemapArtifacts(routes, cfg) {
+  const sitemap = buildSitemapXml(routes, cfg.siteOrigin);
+  const urlList = buildSitemapUrlList(routes, cfg.siteOrigin);
+  fs.mkdirSync(workerPrerenderDir, { recursive: true });
+  writeFile(path.join(workerPrerenderDir, 'sitemap.xml'), sitemap);
+  writeFile(path.join(root, 'public/sitemap.xml'), sitemap);
+  writeFile(path.join(root, 'public/sitemap-urls.txt'), urlList);
+  if (fs.existsSync(distDir)) {
+    writeFile(path.join(distDir, 'sitemap.xml'), sitemap);
+    writeFile(path.join(distDir, 'sitemap-urls.txt'), urlList);
+  }
+  const count = routes.filter((r) => r.sitemap !== false).length;
+  console.log(`[seo] sitemap.xml + sitemap-urls.txt (${count} URLs) → public/ & edge-worker`);
+  return count;
 }
 
 function build404Html(template, cfg) {
@@ -308,6 +352,13 @@ function build404Html(template, cfg) {
 function main() {
   const cfg = loadRoutes();
   const routes = expandRoutes(cfg);
+  const sitemapOnly = process.argv.includes('--sitemap-only');
+
+  if (sitemapOnly) {
+    writeSitemapArtifacts(routes, cfg);
+    return;
+  }
+
   const hasDist = fs.existsSync(distDir);
   const templatePath = hasDist
     ? path.join(distDir, 'index.html')
@@ -345,17 +396,14 @@ function main() {
     console.log(`[seo] prerender ${route.path}`);
   }
 
-  const sitemap = buildSitemapXml(routes, cfg.siteOrigin);
+  const count = writeSitemapArtifacts(routes, cfg);
   const notFound = build404Html(template, cfg);
   writeFile(path.join(workerPrerenderDir, '404.html'), notFound);
-  writeFile(path.join(workerPrerenderDir, 'sitemap.xml'), sitemap);
-  writeFile(path.join(root, 'public/sitemap.xml'), sitemap);
   if (hasDist) {
     writeFile(path.join(distDir, '404.html'), notFound);
-    writeFile(path.join(distDir, 'sitemap.xml'), sitemap);
   }
 
-  console.log(`[seo] Wrote ${routes.length} prerender pages, 404.html, sitemap.xml.`);
+  console.log(`[seo] Wrote ${routes.length} prerender pages, 404.html, sitemap (${count} URLs).`);
 }
 
 main();

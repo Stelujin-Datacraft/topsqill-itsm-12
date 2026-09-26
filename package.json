@@ -9,6 +9,7 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\"",
     "build": "vite build && node scripts/generate-seo-pages.mjs",
     "seo:prerender": "node scripts/generate-seo-pages.mjs",
+    "seo:sitemap": "node scripts/generate-seo-pages.mjs --sitemap-only",
     "build:backend": "cd backend && npm run build",
     "build:all": "npm run build:backend && npm run build",
     "build:dev": "vite build --mode development",
