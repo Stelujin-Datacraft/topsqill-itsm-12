@@ -50,7 +50,8 @@
     "signIn": "Se connecter",
     "startTrial": "Essai gratuit",
     "signUp": "S'inscrire",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "integrations": "Intégrations"
   },
   "landing": {
     "title": "TopSqill BPM — Plateforme de formulaires d'entreprise",

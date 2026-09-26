@@ -1403,7 +1403,7 @@ const ApiDocs: React.FC = () => {
     <DashboardLayout
       title="API Documentation"
       actions={
-        <Button variant="outline" onClick={() => navigate('/api-integration')}>
+        <Button variant="outline" onClick={() => navigate('/integrations?tab=api-keys')}>
           <ArrowLeft className="icon-md mr-2" />
           Back to API Keys
         </Button>

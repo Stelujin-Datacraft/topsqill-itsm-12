@@ -110,6 +110,7 @@ const RelationshipMap = lazyWithRetry(() => import("./pages/RelationshipMap"));
 // Admin & Settings
 const Users = lazyWithRetry(() => import("./pages/Users"));
 const ApiIntegration = lazyWithRetry(() => import("./pages/ApiIntegration"));
+const Integrations = lazyWithRetry(() => import("./pages/Integrations"));
 const ApiDocs = lazyWithRetry(() => import("./pages/ApiDocs"));
 const RolesAndAccess = lazyWithRetry(() => import("./pages/RolesAndAccess"));
 const Projects = lazyWithRetry(() => import("./pages/Projects"));
@@ -392,6 +393,7 @@ const App = () => (
                         <Route path="/sla-management" element={<SLAManagementPage />} />
                         <Route path="/record-delegations" element={<RecordDelegations />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
+                        <Route path="/integrations" element={<Integrations />} />
                         <Route path="/blog-admin" element={
                           <Suspense fallback={<RouteLoader />}>
                             <BlogAdmin />

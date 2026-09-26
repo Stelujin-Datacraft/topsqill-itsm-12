@@ -146,8 +146,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       ...(effectiveRole === 'admin' ? [
         {
-          title: t('nav.apiIntegration'),
-          url: "/api-integration",
+          title: t('nav.integrations'),
+          url: "/integrations",
           icon: Key,
           iconColor: "text-module-api",
         },

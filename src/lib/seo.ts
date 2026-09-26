@@ -138,6 +138,7 @@ const APP_PREFIXES = [
   '/sla-management',
   '/record-delegations',
   '/api-integration',
+  '/integrations',
   '/api-docs',
   '/it-assets',
   '/project-performance',

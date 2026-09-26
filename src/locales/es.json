@@ -50,7 +50,8 @@
     "signIn": "Iniciar sesión",
     "startTrial": "Prueba gratuita",
     "signUp": "Registrarse",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "integrations": "Integraciones"
   },
   "landing": {
     "title": "TopSqill BPM — Plataforma empresarial de formularios",
