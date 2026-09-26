@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ApiKeyManagement } from '@/components/api/ApiKeyManagement';
+import { AIApiKeySuggester, type ApiKeyCreatePrefill } from '@/components/ai/AIApiKeySuggester';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 const ApiIntegration: React.FC = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createPrefill, setCreatePrefill] = useState<ApiKeyCreatePrefill | null>(null);
+
+  const handleAiApply = useCallback((draft: ApiKeyCreatePrefill) => {
+    setCreatePrefill(draft);
+    setShowCreateDialog(true);
+  }, []);
 
   return (
     <DashboardLayout
@@ -13,15 +20,7 @@ const ApiIntegration: React.FC = () => {
       description="Manage API keys and external integrations"
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              // Handled inside ApiKeyManagement via showAiSuggest signal
-              window.dispatchEvent(new CustomEvent('topsqill:open-api-key-ai-suggest'));
-            }}
-            className="hidden"
-            aria-hidden
-          />
+          <AIApiKeySuggester onApply={handleAiApply} />
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="icon-md mr-2" />
             Create API Key
@@ -32,6 +31,8 @@ const ApiIntegration: React.FC = () => {
       <ApiKeyManagement
         showCreateDialog={showCreateDialog}
         onCreateDialogChange={setShowCreateDialog}
+        createPrefill={createPrefill}
+        onCreatePrefillConsumed={() => setCreatePrefill(null)}
       />
     </DashboardLayout>
   );
