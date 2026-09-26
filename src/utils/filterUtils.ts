@@ -122,9 +122,14 @@ export const extractComparableValue = (value: any, fieldType?: string, fieldConf
     return value;
   }
 
-  // Handle select/dropdown/radio fields - include both value and label
-  if (['select', 'dropdown', 'radio'].includes(fieldType || '') && typeof value === 'string' && fieldConfig?.options) {
-    const label = getOptionLabel(value, fieldConfig.options);
+  // Handle select/dropdown/radio/status fields - include both value and label
+  if (['select', 'dropdown', 'radio', 'status'].includes(fieldType || '') && typeof value === 'string' && fieldConfig?.options) {
+    const options = Array.isArray(fieldConfig.options)
+      ? fieldConfig.options
+      : (typeof fieldConfig.options === 'string'
+        ? (() => { try { const p = JSON.parse(fieldConfig.options); return Array.isArray(p) ? p : []; } catch { return []; } })()
+        : []);
+    const label = getOptionLabel(value, options);
     // Return both value and label so search finds either
     return label !== value ? `${value} ${label}` : value;
   }
