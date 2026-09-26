@@ -20,8 +20,12 @@ const ApiIntegration: React.FC = () => {
       description="Manage API keys and external integrations"
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <AIApiKeySuggester onApply={handleAiApply} />
-          <Button onClick={() => setShowCreateDialog(true)}>
+          <AIApiKeySuggester
+            onApply={handleAiApply}
+            variant="secondary"
+            buttonLabel="AI Suggest"
+          />
+          <Button type="button" onClick={() => setShowCreateDialog(true)}>
             <Plus className="icon-md mr-2" />
             Create API Key
           </Button>
@@ -33,6 +37,7 @@ const ApiIntegration: React.FC = () => {
         onCreateDialogChange={setShowCreateDialog}
         createPrefill={createPrefill}
         onCreatePrefillConsumed={() => setCreatePrefill(null)}
+        onAiSuggestApply={handleAiApply}
       />
     </DashboardLayout>
   );
