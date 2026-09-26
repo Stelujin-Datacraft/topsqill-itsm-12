@@ -464,7 +464,7 @@ export default function BlogAdmin() {
                   <img
                     src={draft.cover_image_url}
                     alt=""
-                    className="mt-2 max-h-40 rounded-md border object-cover"
+                    className="mt-2 max-h-40 w-full rounded-md border object-contain bg-muted/30"
                   />
                 )}
               </div>

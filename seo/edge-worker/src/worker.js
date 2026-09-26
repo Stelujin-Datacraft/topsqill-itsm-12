@@ -227,6 +227,195 @@ function notFoundHtml() {
 </html>`;
 }
 
+const DEFAULT_OG_IMAGE =
+  `https://${APEX_DOMAIN}/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png`;
+
+/** Public anon key — same as the SPA; used only to read published blog meta for share previews. */
+const SUPABASE_URL = 'https://fnmkczsvwpzpxyklztkt.supabase.co';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubWtjenN2d3B6cHh5a2x6dGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNzU1OTUsImV4cCI6MjA2NDg1MTU5NX0.bSLI8JUAIry3mC6cxBt5sF7r-gyelR63Emdoe7siNjQ';
+const BLOG_BUCKETS = ['report-media', 'form-attachments', 'organization-logos', 'blog-media'];
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function absoluteAssetUrl(pathOrUrl) {
+  if (!pathOrUrl) return DEFAULT_OG_IMAGE;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  if (String(pathOrUrl).startsWith('/')) return `https://${APEX_DOMAIN}${pathOrUrl}`;
+  return pathOrUrl;
+}
+
+function blogSlugFromPath(pathname) {
+  const m = pathname.match(/^(?:\/(?:in|ae|sa|sg|ar))?\/blog\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function fetchBlogPostMeta(slug) {
+  try {
+    const restUrl =
+      `${SUPABASE_URL}/rest/v1/blog_posts`
+      + `?slug=eq.${encodeURIComponent(slug)}`
+      + '&published=eq.true'
+      + '&select=slug,title,description,cover_image_url'
+      + '&limit=1';
+    const res = await fetch(restUrl, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows[0]) return rows[0];
+    }
+  } catch {
+    /* fall through to storage */
+  }
+
+  for (const bucket of BLOG_BUCKETS) {
+    try {
+      const url = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/blog/cms-posts.json`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const posts = await res.json();
+      if (!Array.isArray(posts)) continue;
+      const post = posts.find((p) => p && p.slug === slug && p.published);
+      if (post) {
+        return {
+          slug: post.slug,
+          title: post.title,
+          description: post.description || '',
+          cover_image_url: post.cover_image_url || null,
+        };
+      }
+    } catch {
+      /* try next bucket */
+    }
+  }
+  return null;
+}
+
+function applyShareMeta(html, { title, description, canonical, ogImage }) {
+  let out = html;
+  const safeTitle = escapeHtml(title);
+  const safeDesc = escapeHtml(description || '');
+  const safeCanon = escapeHtml(canonical);
+  const safeImage = escapeHtml(ogImage);
+
+  if (/<title>[^<]*<\/title>/i.test(out)) {
+    out = out.replace(/<title>[^<]*<\/title>/i, `<title>${safeTitle}</title>`);
+  }
+  if (/name="description"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
+      `<meta name="description" content="${safeDesc}" />`,
+    );
+  }
+  if (/rel="canonical"/i.test(out)) {
+    out = out.replace(
+      /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i,
+      `<link rel="canonical" href="${safeCanon}" />`,
+    );
+  }
+  if (/property="og:title"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/i,
+      `<meta property="og:title" content="${safeTitle}" />`,
+    );
+  }
+  if (/property="og:description"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i,
+      `<meta property="og:description" content="${safeDesc}" />`,
+    );
+  }
+  if (/property="og:url"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/i,
+      `<meta property="og:url" content="${safeCanon}" />`,
+    );
+  }
+  if (/property="og:type"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+property="og:type"\s+content="[^"]*"\s*\/?>/i,
+      `<meta property="og:type" content="article" />`,
+    );
+  }
+  if (/property="og:image"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/i,
+      `<meta property="og:image" content="${safeImage}" />`,
+    );
+  } else {
+    out = out.replace(
+      '</head>',
+      `    <meta property="og:image" content="${safeImage}" />\n  </head>`,
+    );
+  }
+  if (/name="twitter:title"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:title" content="${safeTitle}" />`,
+    );
+  }
+  if (/name="twitter:description"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:description" content="${safeDesc}" />`,
+    );
+  }
+  if (/name="twitter:image"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:image" content="${safeImage}" />`,
+    );
+  } else {
+    out = out.replace(
+      '</head>',
+      `    <meta name="twitter:image" content="${safeImage}" />\n  </head>`,
+    );
+  }
+  if (/name="twitter:card"/i.test(out)) {
+    out = out.replace(
+      /<meta\s+name="twitter:card"\s+content="[^"]*"\s*\/?>/i,
+      `<meta name="twitter:card" content="summary_large_image" />`,
+    );
+  }
+  return out;
+}
+
+async function serveBlogShareHtml(request, env, pathname, slug) {
+  const post = await fetchBlogPostMeta(slug);
+  const key = pathToPrerenderKey(pathname);
+  let base = await serveAsset(env, key, 'text/html; charset=utf-8');
+  if (!base) {
+    // Fall back to SPA shell (has default OG tags we can rewrite)
+    base = await fetchFromOrigin(request);
+  }
+  if (!base || !base.ok) return base;
+
+  if (!post) return base;
+
+  const html = await base.text();
+  const title = `${post.title || 'Blog'} | TopSqill Blog`;
+  const description = post.description || '';
+  const canonical = `https://${APEX_DOMAIN}${pathname}`;
+  const ogImage = absoluteAssetUrl(post.cover_image_url);
+  const enriched = applyShareMeta(html, { title, description, canonical, ogImage });
+
+  const headers = new Headers(base.headers);
+  headers.set('content-type', 'text/html; charset=utf-8');
+  headers.set('cache-control', 'public, max-age=300');
+  headers.set('x-topsqill-edge', 'blog-og');
+  return new Response(enriched, { status: base.status, headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -286,6 +475,11 @@ export default {
     // Bots on public / market / blog pages → prerendered HTML
     const ua = request.headers.get('user-agent') || '';
     if (isBot(ua) && isPublicOrMarketPath(pathname)) {
+      const blogSlug = blogSlugFromPath(pathname);
+      if (blogSlug) {
+        const enriched = await serveBlogShareHtml(request, env, pathname, blogSlug);
+        if (enriched) return enriched;
+      }
       const key = pathToPrerenderKey(pathname);
       const prerendered = await serveAsset(env, key, 'text/html; charset=utf-8');
       if (prerendered) return prerendered;

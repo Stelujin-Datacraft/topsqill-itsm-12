@@ -33,6 +33,12 @@ function absoluteUrl(origin, routePath) {
   return `${origin}${routePath.startsWith('/') ? routePath : `/${routePath}`}`;
 }
 
+function absoluteAssetUrl(origin, pathOrUrl, fallback) {
+  if (!pathOrUrl) return fallback;
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  return absoluteUrl(origin, pathOrUrl);
+}
+
 function buildBody(route) {
   const sections = (route.sections || [])
     .map(
@@ -214,6 +220,7 @@ function expandRoutes(cfg) {
       description: post.description,
       h1: post.title,
       lede: post.description,
+      ogImage: post.coverImageUrl || undefined,
       sections: post.body.map((p, i) => ({
         heading: i === 0 ? `By ${post.authorName}` : `Section ${i + 1}`,
         body: p,
@@ -254,6 +261,7 @@ function expandRoutes(cfg) {
         description: post.description,
         h1: post.title,
         lede: post.description,
+        ogImage: post.coverImageUrl || undefined,
         sections: post.body.map((p, i) => ({
           heading: i === 0 ? `By ${post.authorName}` : `Section ${i + 1}`,
           body: p,
@@ -374,11 +382,12 @@ function main() {
 
   for (const route of routes) {
     const canonical = absoluteUrl(cfg.siteOrigin, route.path);
+    const ogImage = absoluteAssetUrl(cfg.siteOrigin, route.ogImage, cfg.defaultOgImage);
     let html = applyMeta(template, {
       title: route.title,
       description: route.description,
       canonical,
-      ogImage: cfg.defaultOgImage,
+      ogImage,
     });
     html = injectRootContent(html, buildBody(route));
 

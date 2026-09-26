@@ -12,6 +12,8 @@ export type BlogPost = {
   modifiedAt: string;
   tags: string[];
   body: string[];
+  /** Optional absolute or site-relative cover used for cards + Open Graph. */
+  coverImageUrl?: string;
 };
 
 export const BLOG_POSTS = postsJson as BlogPost[];
@@ -37,7 +39,7 @@ export function staticToRecord(post: BlogPost): BlogPostRecord {
     title: post.title,
     description: post.description,
     content_html: (post.body || []).map((p) => `<p>${escapeHtml(p)}</p>`).join('\n'),
-    cover_image_url: null,
+    cover_image_url: post.coverImageUrl || null,
     author_name: post.authorName || 'TopSqill Team',
     author_title: post.authorTitle || null,
     tags: post.tags || [],
@@ -95,6 +97,7 @@ export function staticToDisplay(post: BlogPost): DisplayBlogPost {
     modifiedAt: post.modifiedAt,
     tags: post.tags,
     body: post.body,
+    coverImageUrl: post.coverImageUrl,
     source: 'static',
   };
 }
