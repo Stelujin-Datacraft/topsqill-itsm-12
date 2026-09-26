@@ -1,8 +1,10 @@
-import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_ORIGIN } from '@/lib/seo';
+import { absoluteAssetUrl, absoluteUrl, DEFAULT_OG_IMAGE, SITE_ORIGIN } from '@/lib/seo';
 import { LANDING_FAQS } from '@/content/faq';
 import { PRICING_PLANS } from '@/content/pricing';
 import type { BlogPost } from '@/content/blog/posts';
 import { MARKETS } from '@/content/markets';
+
+type ArticlePost = BlogPost & { coverImageUrl?: string };
 
 export function organizationJsonLd() {
   return {
@@ -110,7 +112,8 @@ export function faqPageJsonLd(faqs = LANDING_FAQS) {
   };
 }
 
-export function articleJsonLd(post: BlogPost) {
+export function articleJsonLd(post: ArticlePost) {
+  const cover = absoluteAssetUrl(post.coverImageUrl);
   return {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -132,7 +135,7 @@ export function articleJsonLd(post: BlogPost) {
       },
     },
     mainEntityOfPage: absoluteUrl(`/blog/${post.slug}`),
-    image: DEFAULT_OG_IMAGE,
+    image: cover,
   };
 }
 

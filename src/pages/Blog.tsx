@@ -52,17 +52,17 @@ export default function Blog() {
                 to={`${base}/blog/${post.slug}`}
                 className="group flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card/40 shadow-sm transition-colors hover:border-primary/25 hover:bg-card/70"
               >
-                <div className="relative aspect-[16/10] overflow-hidden border-b border-border/60 bg-muted/40">
+                <div className="relative w-full overflow-hidden border-b border-border/60 bg-muted/40">
                   {post.coverImageUrl ? (
                     <OptimizedImage
                       src={post.coverImageUrl}
                       alt=""
                       width={640}
                       height={400}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      className="h-auto w-full object-contain"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center">
+                    <div className="flex aspect-[16/10] w-full items-center justify-center">
                       <span className="text-3xl font-semibold tabular-nums text-foreground/20">
                         {String(index + 1).padStart(2, '0')}
                       </span>

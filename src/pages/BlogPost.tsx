@@ -93,6 +93,7 @@ export default function BlogPost() {
     modifiedAt: post.modifiedAt,
     tags: post.tags,
     body: post.body || [],
+    coverImageUrl: post.coverImageUrl,
   };
 
   const scrollToSection = (id: string) => {
@@ -238,7 +239,7 @@ export default function BlogPost() {
               width={1200}
               height={630}
               priority
-              className="mb-8 w-full max-h-80 rounded-lg border object-cover"
+              className="mb-8 w-full rounded-lg border bg-muted/30 object-contain"
             />
           )}
 

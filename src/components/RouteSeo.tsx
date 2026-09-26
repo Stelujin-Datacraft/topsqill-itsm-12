@@ -82,6 +82,7 @@ export function RouteSeo() {
         title={title}
         description={description}
         path={pathname}
+        image={post?.coverImageUrl}
         jsonLd={jsonLd}
         hreflang
         hreflangPath={basePath}
