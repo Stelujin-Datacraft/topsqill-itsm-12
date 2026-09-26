@@ -18,7 +18,7 @@ interface FormField {
 }
 
 interface AIRequest {
-   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-report-component' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template';
+   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-report-component' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template' | 'suggest-api-key';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -1915,6 +1915,50 @@ IMPORTANT:
 - recipients.to should include any static emails mentioned in the prompt
 - If no specific emails mentioned, leave recipients.to as empty array
 - Make the HTML visually professional with proper formatting, colors, and spacing`;
+        break;
+
+      case 'suggest-api-key':
+        temperature = 0.2;
+        maxTokens = 1200;
+        systemPrompt = `You design TopSqill Public API keys from a natural-language goal.
+
+Allowed permission resources/actions (ONLY these):
+- forms: read, create, update, delete
+- submissions: read, create, update, delete
+- workflows: read, create, update, delete, trigger
+- reports: read, create, update, delete
+- users: read
+
+Rules:
+- Prefer least privilege. Default to read unless the user clearly needs write/trigger.
+- rateLimit is requests per minute (1-1000). Typical: 60 write, 120 read-only.
+- allowedIps: comma-separated IPv4 list if mentioned, else "".
+- expiresInDays: number of days as a string if mentioned, else "".
+- name should be short and specific. description summarizes the intended use.
+- Never invent resources or actions outside the allow-list.`;
+
+        userPrompt = `User goal: "${context.userInput || ''}"
+
+${context.existingKeyNames?.length ? `Existing API key names (avoid duplicates):
+${JSON.stringify(context.existingKeyNames)}` : ''}
+
+Return JSON only:
+{
+  "name": "Short API key name",
+  "description": "What this key is for",
+  "permissions": {
+    "forms": ["read"],
+    "submissions": ["read"],
+    "workflows": [],
+    "reports": ["read"],
+    "users": []
+  },
+  "rateLimit": 60,
+  "allowedIps": "",
+  "expiresInDays": "",
+  "explanation": "Why these permissions fit the goal",
+  "summary": "One-line review prompt for the admin"
+}`;
         break;
 
       default:

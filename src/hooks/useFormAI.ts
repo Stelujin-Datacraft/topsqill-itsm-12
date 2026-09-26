@@ -526,6 +526,16 @@ export function useFormAI() {
     });
   }, [callAI]);
 
+  const suggestApiKey = useCallback(async (
+    userInput: string,
+    options?: { existingKeyNames?: string[] },
+  ) => {
+    return callAI('suggest-api-key', {
+      userInput,
+      existingKeyNames: options?.existingKeyNames,
+    });
+  }, [callAI]);
+
   return {
     isLoading,
     error,
@@ -545,6 +555,7 @@ export function useFormAI() {
     suggestFieldMappings,
     suggestCharts,
     suggestFieldRules,
-    suggestFormRules
+    suggestFormRules,
+    suggestApiKey,
   };
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,9 +33,30 @@ const PERMISSION_OPTIONS = {
 interface ApiKeyManagementProps {
   showCreateDialog?: boolean;
   onCreateDialogChange?: (open: boolean) => void;
+  /** Prefill the create-key form (e.g. from AI Suggest). */
+  createPrefill?: {
+    name: string;
+    description: string;
+    permissions: {
+      forms: string[];
+      submissions: string[];
+      workflows: string[];
+      reports: string[];
+      users: string[];
+    };
+    rateLimit: number;
+    allowedIps: string;
+    expiresInDays: string;
+  } | null;
+  onCreatePrefillConsumed?: () => void;
 }
 
-export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreateDialogChange }: ApiKeyManagementProps = {}) {
+export function ApiKeyManagement({
+  showCreateDialog: externalShowCreate,
+  onCreateDialogChange,
+  createPrefill = null,
+  onCreatePrefillConsumed,
+}: ApiKeyManagementProps = {}) {
   const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
   const [activeTab, setActiveTab] = useState('keys');
@@ -80,6 +101,25 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
     rateLimit: 60,
     allowedIps: ''
   });
+
+  useEffect(() => {
+    if (!createPrefill) return;
+    setCreateForm({
+      name: createPrefill.name || '',
+      description: createPrefill.description || '',
+      permissions: {
+        forms: [...(createPrefill.permissions?.forms || [])],
+        submissions: [...(createPrefill.permissions?.submissions || [])],
+        workflows: [...(createPrefill.permissions?.workflows || [])],
+        reports: [...(createPrefill.permissions?.reports || [])],
+        users: [...(createPrefill.permissions?.users || [])],
+      },
+      rateLimit: createPrefill.rateLimit || 60,
+      allowedIps: createPrefill.allowedIps || '',
+      expiresInDays: createPrefill.expiresInDays || '',
+    });
+    onCreatePrefillConsumed?.();
+  }, [createPrefill, onCreatePrefillConsumed]);
 
   const handleCreateKey = async () => {
     if (!createForm.name.trim()) {
