@@ -7,13 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, ArrowUp, ArrowDown, Eye, Database, X, Filter, Plus, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Eye, Database, X, Filter, Plus, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { backend as supabase } from '@/services/api';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
 import { FormDataCell } from './FormDataCell';
 import { evaluateFilterCondition, rowPassesSearch, extractComparableValue, valueContainsSearchWithConfig, extractNumericValue } from '@/utils/filterUtils';
+import { sortTableRows } from './utils/tableSort';
 
 interface EnhancedTableConfig {
   title: string;
@@ -281,6 +282,17 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
     setAppliedFilters([...activeFilters]);
   };
 
+  /** Toggle column sort — clicking the same column flips direction */
+  const handleSortToggle = (fieldId: string) => {
+    if (!config.enableSorting) return;
+    setSortConfig((prev) => {
+      if (prev?.field === fieldId) {
+        return { field: fieldId, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      return { field: fieldId, direction: 'asc' };
+    });
+  };
+
   // Handle drilldown click on a cell - hierarchical drilldown
   const handleCellDrilldown = (fieldId: string, value: string, label: string) => {
     const drilldownLevels = getDrilldownLevels();
@@ -397,78 +409,13 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
       });
     }
 
-    // Apply sorting
+    // Apply sorting (safe comparator — never throw during render)
     if (sortConfig) {
-      // Get field type for proper sorting
-      const sortField = formFields.find(f => f.id === sortConfig.field);
-      const sortFieldType = (sortField as any)?.field_type || sortField?.type || '';
-      const sortFieldOptions = sortField?.options || [];
-      
-      filtered.sort((a, b) => {
-        let aValue: any, bValue: any;
-        
-        if (sortConfig.field === 'submitted_at') {
-          aValue = new Date(a.submitted_at).getTime();
-          bValue = new Date(b.submitted_at).getTime();
-        } else if (sortConfig.field === 'approval_status') {
-          aValue = a.approval_status || 'pending';
-          bValue = b.approval_status || 'pending';
-        } else {
-          const aRaw = getFieldValue(a, sortConfig.field);
-          const bRaw = getFieldValue(b, sortConfig.field);
-          
-          // Handle numeric fields (number, currency, slider, rating)
-          if (['number', 'currency', 'slider', 'rating', 'star-rating'].includes(sortFieldType)) {
-            aValue = extractNumericValue(aRaw);
-            bValue = extractNumericValue(bRaw);
-            // Handle nulls - push them to the end
-            if (aValue === null && bValue === null) return 0;
-            if (aValue === null) return sortConfig.direction === 'asc' ? 1 : -1;
-            if (bValue === null) return sortConfig.direction === 'asc' ? -1 : 1;
-          }
-          // Handle date/datetime/time fields
-          else if (['date', 'datetime', 'time'].includes(sortFieldType)) {
-            const parseDate = (val: any): number => {
-              if (!val || val === 'N/A') return 0;
-              const date = new Date(val);
-              return isNaN(date.getTime()) ? 0 : date.getTime();
-            };
-            aValue = parseDate(aRaw);
-            bValue = parseDate(bRaw);
-            // Handle empty dates - push them to the end
-            if (aValue === 0 && bValue === 0) return 0;
-            if (aValue === 0) return sortConfig.direction === 'asc' ? 1 : -1;
-            if (bValue === 0) return sortConfig.direction === 'asc' ? -1 : 1;
-          }
-          // Handle toggle/boolean fields
-          else if (['toggle', 'toggle-switch', 'checkbox', 'yes-no'].includes(sortFieldType)) {
-            aValue = aRaw === true || aRaw === 'true' || aRaw === 1 || aRaw === 'yes' ? 1 : 0;
-            bValue = bRaw === true || bRaw === 'true' || bRaw === 1 || bRaw === 'yes' ? 1 : 0;
-          }
-          // Handle radio/dropdown/select fields - sort by display label
-          else if (['radio', 'dropdown', 'select', 'multi-select', 'dynamic-dropdown'].includes(sortFieldType)) {
-            // Get display label from options
-            const getOptionLabel = (val: any): string => {
-              if (val === null || val === undefined || val === 'N/A') return '';
-              const valStr = String(val);
-              const option = sortFieldOptions.find((opt: any) => 
-                opt.value === valStr || opt.id === valStr || opt.label === valStr
-              );
-              return option?.label || valStr;
-            };
-            aValue = getOptionLabel(aRaw).toLowerCase();
-            bValue = getOptionLabel(bRaw).toLowerCase();
-          }
-          // Default string comparison
-          else {
-            aValue = aRaw === null || aRaw === undefined || aRaw === 'N/A' ? '' : String(aRaw).toLowerCase();
-            bValue = bRaw === null || bRaw === undefined || bRaw === 'N/A' ? '' : String(bRaw).toLowerCase();
-          }
-        }
-        
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
+      filtered = sortTableRows(filtered, {
+        field: sortConfig.field,
+        direction: sortConfig.direction,
+        formFields,
+        getFieldValue,
       });
     }
 
@@ -747,37 +694,37 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                 {displayFields.map(field => {
                   const canDrilldown = isDrilldownEnabled(field.id);
                   const isDrilldownField = canDrilldown && aggregatedData;
+                  const isSorted = sortConfig?.field === field.id;
                   
                   return (
                     <TableHead 
                       key={field.id} 
-                      className={`whitespace-nowrap ${isDrilldownField ? 'bg-primary/10 border-b-2 border-primary' : ''}`}
+                      className={`whitespace-nowrap ${isDrilldownField ? 'bg-primary/10 border-b-2 border-primary' : ''} ${config.enableSorting && !aggregatedData ? 'cursor-pointer select-none hover:bg-muted/60' : ''}`}
+                      onClick={() => {
+                        if (config.enableSorting && !aggregatedData) {
+                          handleSortToggle(field.id);
+                        }
+                      }}
+                      title={config.enableSorting && !aggregatedData ? 'Click to sort' : undefined}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <span className={canDrilldown ? 'text-primary font-semibold' : ''}>
                           {field.label}
                         </span>
                         
-                        {/* Sorting controls - only show when not in aggregated mode */}
+                        {/* Sorting indicator */}
                         {config.enableSorting && !aggregatedData && (
-                          <div className="flex flex-col ml-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={`h-4 w-4 p-0 ${sortConfig?.field === field.id && sortConfig?.direction === 'asc' ? 'text-primary' : ''}`}
-                              onClick={() => setSortConfig({ field: field.id, direction: 'asc' })}
-                            >
-                              <ArrowUp className="icon-xs" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={`h-4 w-4 p-0 ${sortConfig?.field === field.id && sortConfig?.direction === 'desc' ? 'text-primary' : ''}`}
-                              onClick={() => setSortConfig({ field: field.id, direction: 'desc' })}
-                            >
-                              <ArrowDown className="icon-xs" />
-                            </Button>
-                          </div>
+                          <span className="inline-flex text-muted-foreground">
+                            {isSorted ? (
+                              sortConfig?.direction === 'asc' ? (
+                                <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                              ) : (
+                                <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                            )}
+                          </span>
                         )}
                         
                         {canDrilldown && aggregatedData && (
@@ -796,28 +743,25 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                 {/* Metadata columns only in non-aggregated view */}
                 {!aggregatedData && config.showMetadata && (
                   <>
-                    <TableHead>
-                      <div className="flex items-center gap-1">
+                    <TableHead
+                      className={config.enableSorting ? 'cursor-pointer select-none hover:bg-muted/60' : ''}
+                      onClick={() => config.enableSorting && handleSortToggle('submitted_at')}
+                      title={config.enableSorting ? 'Click to sort' : undefined}
+                    >
+                      <div className="flex items-center gap-1.5">
                         <span>Submitted</span>
                         {config.enableSorting && (
-                          <div className="flex flex-col ml-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={`h-4 w-4 p-0 ${sortConfig?.field === 'submitted_at' && sortConfig?.direction === 'asc' ? 'text-primary' : ''}`}
-                              onClick={() => setSortConfig({ field: 'submitted_at', direction: 'asc' })}
-                            >
-                              <ArrowUp className="icon-xs" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={`h-4 w-4 p-0 ${sortConfig?.field === 'submitted_at' && sortConfig?.direction === 'desc' ? 'text-primary' : ''}`}
-                              onClick={() => setSortConfig({ field: 'submitted_at', direction: 'desc' })}
-                            >
-                              <ArrowDown className="icon-xs" />
-                            </Button>
-                          </div>
+                          <span className="inline-flex text-muted-foreground">
+                            {sortConfig?.field === 'submitted_at' ? (
+                              sortConfig.direction === 'asc' ? (
+                                <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                              ) : (
+                                <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                            )}
+                          </span>
                         )}
                       </div>
                     </TableHead>
