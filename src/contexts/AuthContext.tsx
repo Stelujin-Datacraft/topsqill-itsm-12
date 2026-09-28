@@ -556,10 +556,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: { email: normalized },
       });
 
-      if (error) {
-        return { error: new Error(error.message || 'Failed to send sign-in code') };
-      }
-
       const payload = (data || {}) as {
         success?: boolean;
         error?: string;
@@ -567,8 +563,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         expiryMinutes?: number;
       };
 
+      if (error) {
+        return {
+          error: new Error(payload.error || payload.message || error.message || 'Failed to send sign-in code'),
+        };
+      }
+
       if (!payload.success) {
-        return { error: new Error(payload.error || 'Failed to send sign-in code') };
+        return { error: new Error(payload.error || payload.message || 'Failed to send sign-in code') };
       }
 
       return {
@@ -600,18 +602,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: { email: normalized, otp: code },
       });
 
-      if (error) {
-        await recordFailedLogin(normalized);
-        return { error: new Error(error.message || 'Failed to verify sign-in code') };
-      }
-
       const payload = (data || {}) as {
         success?: boolean;
         error?: string;
+        message?: string;
         email?: string;
         userId?: string;
         verification?: { hashedToken?: string; actionLink?: string };
       };
+
+      if (error) {
+        await recordFailedLogin(normalized);
+        return {
+          error: new Error(payload.error || payload.message || error.message || 'Failed to verify sign-in code'),
+        };
+      }
 
       if (!payload.success) {
         await recordFailedLogin(normalized);
@@ -848,19 +853,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
-      if (error) {
-        return { error: new Error(error.message || 'Failed to start signup verification') };
-      }
-
       const payload = (data || {}) as {
         success?: boolean;
         error?: string;
-        needsEmailVerification?: boolean;
         message?: string;
+        needsEmailVerification?: boolean;
       };
 
+      // Edge/Nest may return a transport error while still including the business error body.
+      if (error) {
+        const detail =
+          payload.error ||
+          payload.message ||
+          error.message ||
+          'Failed to start signup verification';
+        return { error: new Error(detail) };
+      }
+
       if (!payload.success) {
-        return { error: new Error(payload.error || 'Failed to start signup verification') };
+        return { error: new Error(payload.error || payload.message || 'Failed to start signup verification') };
       }
 
       // Ensure no leftover session from other flows

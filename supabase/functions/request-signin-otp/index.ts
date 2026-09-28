@@ -62,26 +62,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Generic success response to avoid email enumeration
-    const okResponse = () =>
-      new Response(
-        JSON.stringify({
-          success: true,
-          email,
-          expiryMinutes: EXPIRY_MINUTES,
-          message: `If an account exists for ${email}, we sent a sign-in code.`,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-
     const { data: profile } = await supabase
       .from('user_profiles')
-      .select('id, email, organization_id, first_name')
+      .select('id, email, organization_id, first_name, status')
       .ilike('email', email)
       .maybeSingle();
 
     if (!profile?.id) {
-      return okResponse();
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `No account found for ${email}. Please sign up first.`,
+          code: 'ACCOUNT_NOT_FOUND',
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (profile.status && profile.status !== 'active') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'This account is not active. Contact your administrator.',
+          code: 'ACCOUNT_INACTIVE',
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
 
     const smtpConfig = await loadSmtp(supabase, profile.organization_id);

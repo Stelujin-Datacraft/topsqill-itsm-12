@@ -219,6 +219,7 @@ const Auth = () => {
   const [otpCode, setOtpCode] = useState('');
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpResending, setOtpResending] = useState(false);
+  const [signupSubmitting, setSignupSubmitting] = useState(false);
 
   // Keep tab in sync when landing links use ?mode=signup
   useEffect(() => {
@@ -436,36 +437,41 @@ const Auth = () => {
       return;
     }
 
-    const { error, needsEmailVerification } = await registerOrganization({
-      name: signUpData.organization_name.trim(),
-      admin_email: signUpData.email.trim(),
-      admin_password: signUpData.password,
-      admin_first_name: first_name,
-      admin_last_name: last_name,
-    });
-
-    if (error) {
-      toast({
-        title: 'Sign up failed',
-        description: error.message || 'Failed to create your account. Please try again.',
-        variant: 'destructive',
+    setSignupSubmitting(true);
+    try {
+      const { error, needsEmailVerification } = await registerOrganization({
+        name: signUpData.organization_name.trim(),
+        admin_email: signUpData.email.trim(),
+        admin_password: signUpData.password,
+        admin_first_name: first_name,
+        admin_last_name: last_name,
       });
-      return;
+
+      if (error) {
+        toast({
+          title: 'Could not send verification code',
+          description: error.message || 'Failed to send verification code. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const signedUpEmail = signUpData.email.trim().toLowerCase();
+
+      // Hold account creation until OTP is verified — show code entry step.
+      skipAuthRedirectRef.current = true;
+      setPendingVerifyEmail(signedUpEmail);
+      setOtpCode('');
+      setSignupStep('otp');
+      toast({
+        title: 'Check your email',
+        description: needsEmailVerification
+          ? `We sent a 6-digit code to ${signedUpEmail}. Enter it below to create your account.`
+          : `Enter the 6-digit code sent to ${signedUpEmail} to create your account.`,
+      });
+    } finally {
+      setSignupSubmitting(false);
     }
-
-    const signedUpEmail = signUpData.email.trim().toLowerCase();
-
-    // Hold account creation until OTP is verified — show code entry step.
-    skipAuthRedirectRef.current = true;
-    setPendingVerifyEmail(signedUpEmail);
-    setOtpCode('');
-    setSignupStep('otp');
-    toast({
-      title: 'Check your email',
-      description: needsEmailVerification
-        ? `We sent a 6-digit code to ${signedUpEmail}. Enter it below to create your account.`
-        : `Enter the 6-digit code sent to ${signedUpEmail} to create your account.`,
-    });
   };
 
   const handleVerifySignupOtp = async (e?: React.FormEvent) => {
@@ -486,21 +492,21 @@ const Auth = () => {
         body: { email: pendingVerifyEmail, otp: code },
       });
 
-      if (error) {
-        toast({
-          title: 'Verification failed',
-          description: error.message || 'Could not verify the code. Please try again.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
       const payload = (data || {}) as {
         success?: boolean;
         error?: string;
         message?: string;
         email?: string;
       };
+
+      if (error) {
+        toast({
+          title: 'Verification failed',
+          description: payload.error || payload.message || error.message || 'Could not verify the code. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       if (!payload.success) {
         toast({
@@ -1022,8 +1028,8 @@ const Auth = () => {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? 'Sending code…' : 'Continue'}
+                    <Button type="submit" className="w-full" disabled={signupSubmitting}>
+                      {signupSubmitting ? 'Sending code…' : 'Continue'}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                       We’ll email a one-time code. Your account is created only after you verify it.

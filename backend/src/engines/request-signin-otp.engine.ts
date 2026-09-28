@@ -48,21 +48,26 @@ export async function requestSigninOtp(
       return { success: false, error: 'A valid email is required.' };
     }
 
-    const okPayload = {
-      success: true,
-      email,
-      expiryMinutes: EXPIRY_MINUTES,
-      message: `If an account exists for ${email}, we sent a sign-in code.`,
-    };
-
     const { data: profile } = await supabase
       .from('user_profiles')
-      .select('id, email, organization_id, first_name')
+      .select('id, email, organization_id, first_name, status')
       .ilike('email', email)
       .maybeSingle();
 
     if (!profile?.id) {
-      return okPayload;
+      return {
+        success: false,
+        error: `No account found for ${email}. Please sign up first.`,
+        code: 'ACCOUNT_NOT_FOUND',
+      };
+    }
+
+    if (profile.status && profile.status !== 'active') {
+      return {
+        success: false,
+        error: 'This account is not active. Contact your administrator.',
+        code: 'ACCOUNT_INACTIVE',
+      };
     }
 
     const smtpConfig = await loadSmtp(supabase, profile.organization_id);
