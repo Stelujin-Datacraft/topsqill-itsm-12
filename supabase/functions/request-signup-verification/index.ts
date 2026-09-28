@@ -116,7 +116,9 @@ Deno.serve(async (req) => {
     const organizationDomain = buildOrgDomain(organizationName, email);
     const passwordEncrypted = await encryptPassword(password, serviceKey);
     const verificationToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    // OTP expires in 30 minutes (pending row kept up to 24h for cleanup)
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
     // Replace any prior pending signup for this email
     await supabase.from('pending_signups').delete().ilike('email', email).is('verified_at', null);
@@ -129,6 +131,8 @@ Deno.serve(async (req) => {
       organization_name: organizationName,
       organization_domain: organizationDomain,
       verification_token: verificationToken,
+      otp_code: otpCode,
+      otp_attempts: 0,
       expires_at: expiresAt,
     });
 
@@ -139,8 +143,6 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
-
-    const verifyUrl = `${origin.replace(/\/$/, '')}/verify-signup?token=${verificationToken}`;
 
     const client = new SMTPClient({
       connection: {
@@ -156,24 +158,21 @@ Deno.serve(async (req) => {
 
     const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Verify your email</title></head>
+<head><meta charset="utf-8"><title>Your verification code</title></head>
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f4f4f4;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;">
     <tr><td style="padding:32px;background:#1a1a2e;text-align:center;">
-      <h1 style="color:#fff;margin:0;font-size:22px;">Verify your TopSqill email</h1>
+      <h1 style="color:#fff;margin:0;font-size:22px;">Your TopSqill verification code</h1>
     </td></tr>
     <tr><td style="padding:32px;">
       <p style="color:#333;font-size:16px;">Hi ${firstName},</p>
       <p style="color:#555;font-size:15px;line-height:1.5;">
-        Thanks for signing up for <strong>${organizationName}</strong>. Your account is on hold until you verify this email.
+        Thanks for signing up for <strong>${organizationName}</strong>. Enter this one-time code in the app to verify your email and create your account:
       </p>
       <p style="text-align:center;margin:28px 0;">
-        <a href="${verifyUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;">
-          Verify email &amp; activate account
-        </a>
+        <span style="display:inline-block;letter-spacing:6px;font-size:32px;font-weight:700;color:#1a1a2e;background:#f4f4f4;padding:16px 24px;border-radius:8px;">${otpCode}</span>
       </p>
-      <p style="color:#777;font-size:13px;">Or copy this link:<br><span style="word-break:break-all;">${verifyUrl}</span></p>
-      <p style="color:#999;font-size:12px;">This link expires in 24 hours. If you did not sign up, ignore this email.</p>
+      <p style="color:#999;font-size:12px;">This code expires in 30 minutes. If you did not sign up, ignore this email.</p>
     </td></tr>
   </table>
 </body>
@@ -185,8 +184,8 @@ Deno.serve(async (req) => {
           ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
           : smtpConfig.from_email,
         to: email,
-        subject: 'Verify your email — TopSqill',
-        content: `Hi ${firstName},\n\nVerify your email to activate your TopSqill account for ${organizationName}:\n\n${verifyUrl}\n\nThis link expires in 24 hours.\n`,
+        subject: `${otpCode} is your TopSqill verification code`,
+        content: `Hi ${firstName},\n\nYour TopSqill verification code for ${organizationName} is: ${otpCode}\n\nEnter this code in the app to create your account. It expires in 30 minutes.\n`,
         html,
       });
       await client.close();
@@ -206,7 +205,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         needsEmailVerification: true,
-        message: `We sent a verification link to ${email}. Verify your email, then sign in.`,
+        email,
+        message: `We sent a 6-digit verification code to ${email}. Enter it to create your account.`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

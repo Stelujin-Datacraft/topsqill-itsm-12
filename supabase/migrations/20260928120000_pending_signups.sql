@@ -1,4 +1,4 @@
--- Pending organization signups — account is created only after email verification.
+-- Pending organization signups — account is created only after OTP email verification.
 
 CREATE TABLE IF NOT EXISTS public.pending_signups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS public.pending_signups (
   organization_name TEXT NOT NULL,
   organization_domain TEXT,
   verification_token UUID NOT NULL DEFAULT gen_random_uuid(),
+  otp_code TEXT NOT NULL,
+  otp_attempts INTEGER NOT NULL DEFAULT 0,
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + interval '24 hours'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   verified_at TIMESTAMPTZ

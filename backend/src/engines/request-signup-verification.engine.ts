@@ -94,7 +94,8 @@ export async function requestSignupVerification(
     const organizationDomain = buildOrgDomain(organizationName, email);
     const passwordEncrypted = encryptPassword(password, serviceKey);
     const verificationToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
     await supabase.from('pending_signups').delete().ilike('email', email).is('verified_at', null);
 
@@ -106,6 +107,8 @@ export async function requestSignupVerification(
       organization_name: organizationName,
       organization_domain: organizationDomain,
       verification_token: verificationToken,
+      otp_code: otpCode,
+      otp_attempts: 0,
       expires_at: expiresAt,
     });
 
@@ -114,7 +117,6 @@ export async function requestSignupVerification(
       return { success: false, error: 'Could not start signup. Please try again.' };
     }
 
-    const verifyUrl = `${origin.replace(/\/$/, '')}/verify-signup?token=${verificationToken}`;
     const client = new SMTPClient({
       connection: {
         hostname: smtpConfig.host,
@@ -130,9 +132,9 @@ export async function requestSignupVerification(
           ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
           : smtpConfig.from_email,
         to: email,
-        subject: 'Verify your email — TopSqill',
-        content: `Hi ${firstName},\n\nVerify your email to activate your TopSqill account for ${organizationName}:\n\n${verifyUrl}\n\nThis link expires in 24 hours.\n`,
-        html: `<p>Hi ${firstName},</p><p>Verify your email to activate your account for <strong>${organizationName}</strong>.</p><p><a href="${verifyUrl}">Verify email &amp; activate account</a></p><p>This link expires in 24 hours.</p>`,
+        subject: `${otpCode} is your TopSqill verification code`,
+        content: `Hi ${firstName},\n\nYour TopSqill verification code for ${organizationName} is: ${otpCode}\n\nEnter this code in the app to create your account. It expires in 30 minutes.\n`,
+        html: `<p>Hi ${firstName},</p><p>Your verification code for <strong>${organizationName}</strong> is:</p><p style="font-size:28px;letter-spacing:6px;font-weight:700;">${otpCode}</p><p>This code expires in 30 minutes.</p>`,
       });
       await client.close();
     } catch (smtpError) {
@@ -147,7 +149,8 @@ export async function requestSignupVerification(
     return {
       success: true,
       needsEmailVerification: true,
-      message: `We sent a verification link to ${email}. Verify your email, then sign in.`,
+      email,
+      message: `We sent a 6-digit verification code to ${email}. Enter it to create your account.`,
     };
   } catch (error) {
     console.error('requestSignupVerification error:', error);

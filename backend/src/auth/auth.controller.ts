@@ -24,8 +24,8 @@ export class AuthController {
 
   @Public()
   @Post('verify-signup')
-  verifySignup(@Body() body: { token: string }) {
-    return this.authService.verifySignup(body.token);
+  verifySignup(@Body() body: { token?: string; email?: string; otp?: string }) {
+    return this.authService.verifySignup(body);
   }
 
   @UseGuards(SupabaseAuthGuard)

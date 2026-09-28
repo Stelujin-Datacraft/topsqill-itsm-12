@@ -116,47 +116,119 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const url = new URL(req.url);
     const token = String(body.token || url.searchParams.get('token') || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    const otp = String(body.otp || body.code || '').trim();
 
-    if (!token) {
+    let pending: Record<string, unknown> | null = null;
+
+    if (email && otp) {
+      if (!/^\d{6}$/.test(otp)) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Enter the 6-digit code from your email.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const { data, error: pendingError } = await supabase
+        .from('pending_signups')
+        .select('*')
+        .ilike('email', email)
+        .is('verified_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingError || !data) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'No pending signup found for this email. Please sign up again.',
+            code: 'NOT_FOUND',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'This verification code has expired. Please sign up again.',
+            code: 'EXPIRED',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const attempts = Number(data.otp_attempts || 0);
+      if (attempts >= 5) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Too many incorrect attempts. Please sign up again to get a new code.',
+            code: 'TOO_MANY_ATTEMPTS',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      if (String(data.otp_code) !== otp) {
+        await supabase
+          .from('pending_signups')
+          .update({ otp_attempts: attempts + 1 })
+          .eq('id', data.id);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Incorrect verification code. Please try again.',
+            code: 'INVALID_OTP',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      pending = data;
+    } else if (token) {
+      const { data, error: pendingError } = await supabase
+        .from('pending_signups')
+        .select('*')
+        .eq('verification_token', token)
+        .is('verified_at', null)
+        .maybeSingle();
+
+      if (pendingError || !data) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'This verification link is invalid or has already been used.',
+            code: 'INVALID_TOKEN',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      pending = data;
+    } else {
       return new Response(
-        JSON.stringify({ success: false, error: 'Verification token is required.' }),
+        JSON.stringify({ success: false, error: 'Email and OTP code are required.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    const { data: pending, error: pendingError } = await supabase
-      .from('pending_signups')
-      .select('*')
-      .eq('verification_token', token)
-      .is('verified_at', null)
-      .maybeSingle();
-
-    if (pendingError || !pending) {
+    if (pending.expires_at && new Date(String(pending.expires_at)) < new Date()) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'This verification link is invalid or has already been used.',
-          code: 'INVALID_TOKEN',
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    if (pending.expires_at && new Date(pending.expires_at) < new Date()) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'This verification link has expired. Please sign up again.',
+          error: 'This verification code has expired. Please sign up again.',
           code: 'EXPIRED',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    const password = await decryptPassword(pending.password_encrypted, serviceKey);
+    const password = await decryptPassword(String(pending.password_encrypted), serviceKey);
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: pending.email,
+      email: String(pending.email),
       password,
       email_confirm: true,
       user_metadata: {
@@ -194,11 +266,11 @@ Deno.serve(async (req) => {
     try {
       await bootstrapOrg(supabase, {
         userId: authData.user.id,
-        email: pending.email,
-        name: pending.organization_name,
-        firstName: pending.first_name,
-        lastName: pending.last_name,
-        preferredDomain: pending.organization_domain,
+        email: String(pending.email),
+        name: String(pending.organization_name),
+        firstName: String(pending.first_name),
+        lastName: String(pending.last_name),
+        preferredDomain: pending.organization_domain as string | null,
       });
     } catch (bootstrapError) {
       console.error('Org bootstrap failed after verify:', bootstrapError);

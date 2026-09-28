@@ -94,29 +94,87 @@ export async function verifySignup(
   try {
     const serviceKey = ctx.getEnv('SUPABASE_SERVICE_ROLE_KEY')!;
     const token = String(body.token || '').trim();
-    if (!token) {
-      return { success: false, error: 'Verification token is required.' };
-    }
+    const email = String(body.email || '').trim().toLowerCase();
+    const otp = String(body.otp || body.code || '').trim();
 
-    const { data: pending, error: pendingError } = await supabase
-      .from('pending_signups')
-      .select('*')
-      .eq('verification_token', token)
-      .is('verified_at', null)
-      .maybeSingle();
+    let pending: any = null;
 
-    if (pendingError || !pending) {
-      return {
-        success: false,
-        error: 'This verification link is invalid or has already been used.',
-        code: 'INVALID_TOKEN',
-      };
+    if (email && otp) {
+      if (!/^\d{6}$/.test(otp)) {
+        return { success: false, error: 'Enter the 6-digit code from your email.' };
+      }
+
+      const { data, error: pendingError } = await supabase
+        .from('pending_signups')
+        .select('*')
+        .ilike('email', email)
+        .is('verified_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingError || !data) {
+        return {
+          success: false,
+          error: 'No pending signup found for this email. Please sign up again.',
+          code: 'NOT_FOUND',
+        };
+      }
+
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        return {
+          success: false,
+          error: 'This verification code has expired. Please sign up again.',
+          code: 'EXPIRED',
+        };
+      }
+
+      const attempts = Number(data.otp_attempts || 0);
+      if (attempts >= 5) {
+        return {
+          success: false,
+          error: 'Too many incorrect attempts. Please sign up again to get a new code.',
+          code: 'TOO_MANY_ATTEMPTS',
+        };
+      }
+
+      if (String(data.otp_code) !== otp) {
+        await supabase
+          .from('pending_signups')
+          .update({ otp_attempts: attempts + 1 })
+          .eq('id', data.id);
+        return {
+          success: false,
+          error: 'Incorrect verification code. Please try again.',
+          code: 'INVALID_OTP',
+        };
+      }
+
+      pending = data;
+    } else if (token) {
+      const { data, error: pendingError } = await supabase
+        .from('pending_signups')
+        .select('*')
+        .eq('verification_token', token)
+        .is('verified_at', null)
+        .maybeSingle();
+
+      if (pendingError || !data) {
+        return {
+          success: false,
+          error: 'This verification link is invalid or has already been used.',
+          code: 'INVALID_TOKEN',
+        };
+      }
+      pending = data;
+    } else {
+      return { success: false, error: 'Email and OTP code are required.' };
     }
 
     if (pending.expires_at && new Date(pending.expires_at) < new Date()) {
       return {
         success: false,
-        error: 'This verification link has expired. Please sign up again.',
+        error: 'This verification code has expired. Please sign up again.',
         code: 'EXPIRED',
       };
     }

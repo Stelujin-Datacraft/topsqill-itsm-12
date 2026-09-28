@@ -10,6 +10,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Mail, Server } from 'lucide-react';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/utils/passwordValidation';
 import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
@@ -202,7 +203,7 @@ const Auth = () => {
     password: ''
   });
 
-  // Sign up form state (creates organization + admin account)
+  // Sign up form state (creates organization + admin account only after OTP verify)
   const [signUpData, setSignUpData] = useState({
     organization_name: '',
     full_name: '',
@@ -210,6 +211,11 @@ const Auth = () => {
     password: '',
     confirm_password: '',
   });
+  const [signupStep, setSignupStep] = useState<'form' | 'otp'>('form');
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
 
   // Keep tab in sync when landing links use ?mode=signup
   useEffect(() => {
@@ -377,28 +383,136 @@ const Auth = () => {
       return;
     }
 
-    const signedUpEmail = signUpData.email.trim();
+    const signedUpEmail = signUpData.email.trim().toLowerCase();
 
-    // Always require email verification + manual sign-in (never open AI Builder from signup).
+    // Hold account creation until OTP is verified — show code entry step.
     skipAuthRedirectRef.current = true;
+    setPendingVerifyEmail(signedUpEmail);
+    setOtpCode('');
+    setSignupStep('otp');
     toast({
-      title: 'Verify your email',
+      title: 'Check your email',
       description: needsEmailVerification
-        ? `We sent a verification link to ${signedUpEmail}. Open it, then sign in here to finish setting up your account.`
-        : `Check ${signedUpEmail} for a verification link, then sign in to continue.`,
+        ? `We sent a 6-digit code to ${signedUpEmail}. Enter it below to create your account.`
+        : `Enter the 6-digit code sent to ${signedUpEmail} to create your account.`,
     });
+  };
 
-    setSignUpData({
-      organization_name: '',
-      full_name: '',
-      email: '',
-      password: '',
-      confirm_password: '',
-    });
+  const handleVerifySignupOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const code = otpCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast({
+        title: 'Invalid code',
+        description: 'Please enter the 6-digit code from your email.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    setActiveTab('signin');
-    setSignInData({ email: signedUpEmail, password: '' });
-    setSigninStep('email');
+    setOtpVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-signup', {
+        body: { email: pendingVerifyEmail, otp: code },
+      });
+
+      if (error) {
+        toast({
+          title: 'Verification failed',
+          description: error.message || 'Could not verify the code. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const payload = (data || {}) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+        email?: string;
+      };
+
+      if (!payload.success) {
+        toast({
+          title: 'Verification failed',
+          description: payload.error || 'Incorrect or expired code.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const verifiedEmail = payload.email || pendingVerifyEmail;
+      toast({
+        title: 'Account created',
+        description: 'Your email is verified. Please sign in to continue.',
+      });
+
+      setSignUpData({
+        organization_name: '',
+        full_name: '',
+        email: '',
+        password: '',
+        confirm_password: '',
+      });
+      setSignupStep('form');
+      setOtpCode('');
+      setPendingVerifyEmail('');
+      skipAuthRedirectRef.current = true;
+      setActiveTab('signin');
+      setSignInData({ email: verifiedEmail, password: '' });
+      setSigninStep('email');
+      navigate(
+        `/auth?mode=signin&verified=1&email=${encodeURIComponent(verifiedEmail)}`,
+        { replace: true },
+      );
+    } catch (err) {
+      toast({
+        title: 'Verification failed',
+        description: err instanceof Error ? err.message : 'Could not verify the code.',
+        variant: 'destructive',
+      });
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const handleResendSignupOtp = async () => {
+    if (!signUpData.email.trim() || !signUpData.password) {
+      toast({
+        title: 'Sign up again',
+        description: 'Your signup details expired. Please fill the form again.',
+        variant: 'destructive',
+      });
+      setSignupStep('form');
+      return;
+    }
+
+    setOtpResending(true);
+    try {
+      const { first_name, last_name } = splitFullName(signUpData.full_name);
+      const { error } = await registerOrganization({
+        name: signUpData.organization_name.trim(),
+        admin_email: signUpData.email.trim(),
+        admin_password: signUpData.password,
+        admin_first_name: first_name,
+        admin_last_name: last_name,
+      });
+      if (error) {
+        toast({
+          title: 'Could not resend code',
+          description: error.message || 'Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setOtpCode('');
+      toast({
+        title: 'Code resent',
+        description: `A new verification code was sent to ${pendingVerifyEmail || signUpData.email}.`,
+      });
+    } finally {
+      setOtpResending(false);
+    }
   };
 
   return (
@@ -412,14 +526,32 @@ const Auth = () => {
             <span className="text-2xl font-semibold tracking-tight">{t('common.appName')}</span>
           </div>
           <CardTitle className="text-2xl font-semibold tracking-tight">
-            {activeTab === 'signup' ? t('auth.signUp') : t('auth.signIn')}
+            {activeTab === 'signup'
+              ? signupStep === 'otp'
+                ? 'Verify your email'
+                : t('auth.signUp')
+              : t('auth.signIn')}
           </CardTitle>
           <CardDescription className="leading-relaxed">
-            {activeTab === 'signup' ? t('auth.signUpSubtitle') : t('auth.signInSubtitle')}
+            {activeTab === 'signup'
+              ? signupStep === 'otp'
+                ? 'Enter the code we emailed you to create your account'
+                : t('auth.signUpSubtitle')
+              : t('auth.signInSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => {
+              setActiveTab(value);
+              if (value !== 'signup') {
+                setSignupStep('form');
+                setOtpCode('');
+              }
+            }}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-2 h-auto gap-1">
               <TabsTrigger value="signin" className="text-sm px-3 py-2">{t('auth.signIn')}</TabsTrigger>
               <TabsTrigger value="signup" className="text-sm px-3 py-2">{t('auth.signUp')}</TabsTrigger>
@@ -580,82 +712,149 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4">
-              {ENABLE_GOOGLE_AUTH && (
-                <>
-                  <GoogleAuthButton label="Sign up with Google" />
-                  <div className="flex items-center gap-3" aria-hidden="true">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs uppercase text-muted-foreground">or create with email</span>
-                    <div className="h-px flex-1 bg-border" />
+              {signupStep === 'otp' ? (
+                <form onSubmit={handleVerifySignupOtp} className="space-y-4">
+                  <div className="space-y-2 text-center">
+                    <Mail className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Enter verification code</h3>
+                    <p className="text-sm text-muted-foreground">
+                      We sent a 6-digit code to{' '}
+                      <span className="font-medium text-foreground">{pendingVerifyEmail}</span>.
+                      Your account is created only after this code is verified.
+                    </p>
                   </div>
+                  <div className="flex justify-center py-2">
+                    <InputOTP
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={setOtpCode}
+                      disabled={otpVerifying}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={otpVerifying || otpCode.length !== 6}
+                  >
+                    {otpVerifying ? 'Creating account…' : 'Verify & create account'}
+                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={otpResending || otpVerifying}
+                      onClick={() => void handleResendSignupOtp()}
+                    >
+                      {otpResending ? 'Sending…' : 'Resend code'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full"
+                      disabled={otpVerifying}
+                      onClick={() => {
+                        setSignupStep('form');
+                        setOtpCode('');
+                        setPendingVerifyEmail('');
+                      }}
+                    >
+                      Back to sign up
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  {ENABLE_GOOGLE_AUTH && (
+                    <>
+                      <GoogleAuthButton label="Sign up with Google" />
+                      <div className="flex items-center gap-3" aria-hidden="true">
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="text-xs uppercase text-muted-foreground">or create with email</span>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+                    </>
+                  )}
+                  <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    {t('auth.signUpIntro')}
+                  </div>
+                  <form onSubmit={handleSignUp} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-org-name">{t('auth.organizationName')}</Label>
+                      <Input
+                        id="signup-org-name"
+                        placeholder="Acme Corp"
+                        value={signUpData.organization_name}
+                        onChange={(e) => setSignUpData({ ...signUpData, organization_name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-full-name">{t('auth.fullName')}</Label>
+                      <Input
+                        id="signup-full-name"
+                        placeholder="Jane Smith"
+                        value={signUpData.full_name}
+                        onChange={(e) => setSignUpData({ ...signUpData, full_name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">{t('auth.email')}</Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="jane@acmecorp.com"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">{t('auth.password')}</Label>
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        required
+                      />
+                      {signUpData.password && (
+                        <PasswordStrengthIndicator
+                          password={signUpData.password}
+                          policy={passwordPolicy}
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-confirm-password">{t('auth.confirmPassword')}</Label>
+                      <Input
+                        id="signup-confirm-password"
+                        type="password"
+                        value={signUpData.confirm_password}
+                        onChange={(e) => setSignUpData({ ...signUpData, confirm_password: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? 'Sending code…' : 'Continue'}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      We’ll email a one-time code. Your account is created only after you verify it.
+                    </p>
+                  </form>
                 </>
               )}
-              <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-                <Building2 className="h-4 w-4" />
-                {t('auth.signUpIntro')}
-              </div>
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-org-name">{t('auth.organizationName')}</Label>
-                  <Input
-                    id="signup-org-name"
-                    placeholder="Acme Corp"
-                    value={signUpData.organization_name}
-                    onChange={(e) => setSignUpData({ ...signUpData, organization_name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-full-name">{t('auth.fullName')}</Label>
-                  <Input
-                    id="signup-full-name"
-                    placeholder="Jane Smith"
-                    value={signUpData.full_name}
-                    onChange={(e) => setSignUpData({ ...signUpData, full_name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">{t('auth.email')}</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="jane@acmecorp.com"
-                    value={signUpData.email}
-                    onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">{t('auth.password')}</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={signUpData.password}
-                    onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                    required
-                  />
-                  {signUpData.password && (
-                    <PasswordStrengthIndicator
-                      password={signUpData.password}
-                      policy={passwordPolicy}
-                    />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">{t('auth.confirmPassword')}</Label>
-                  <Input
-                    id="signup-confirm-password"
-                    type="password"
-                    value={signUpData.confirm_password}
-                    onChange={(e) => setSignUpData({ ...signUpData, confirm_password: e.target.value })}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
-                </Button>
-              </form>
             </TabsContent>
           </Tabs>
 

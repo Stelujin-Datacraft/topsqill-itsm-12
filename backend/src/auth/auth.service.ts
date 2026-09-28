@@ -24,7 +24,7 @@ export class AuthService {
     );
   }
 
-  async verifySignup(token: string) {
-    return this.engineHost.verifySignup({ token });
+  async verifySignup(body: { token?: string; email?: string; otp?: string }) {
+    return this.engineHost.verifySignup(body);
   }
 }
