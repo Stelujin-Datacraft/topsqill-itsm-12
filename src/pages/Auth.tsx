@@ -31,10 +31,17 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
   const [activeTab, setActiveTab] = useState(initialMode);
-  const { signIn, signInWithGoogle, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const { signIn, signInWithGoogle, registerOrganization, signOut, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
-  const skipAuthRedirectRef = useRef(false);
+  // Skip auto-redirect when returning from email verification (or during post-signup).
+  const skipAuthRedirectRef = useRef(
+    typeof window !== 'undefined'
+      && (
+        new URLSearchParams(window.location.search).get('verified') === '1'
+        || /[?&#]type=(signup|email|magiclink)/i.test(`${window.location.search}${window.location.hash}`)
+      ),
+  );
 
   // Password policy state
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
@@ -55,13 +62,45 @@ const Auth = () => {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [usePasswordInstead, setUsePasswordInstead] = useState(false);
 
-  // Redirect authenticated users (unless we just finished signup → landing)
+  // Redirect authenticated users (unless we just finished signup / email verification)
   useEffect(() => {
     if (user && !isLoading && !skipAuthRedirectRef.current) {
       const destination = returnTo || '/build';
       navigate(destination, { replace: true });
     }
   }, [user, isLoading, navigate, returnTo]);
+
+  // After the user clicks the verification link, require a manual password sign-in
+  // (do not drop them straight into AI Builder).
+  useEffect(() => {
+    const verified = searchParams.get('verified') === '1';
+    const hashTypeMatch = /(?:^|[?&#])type=(signup|email|magiclink)/i.test(
+      `${window.location.search}${window.location.hash}`,
+    );
+    if (!verified && !hashTypeMatch) return;
+
+    skipAuthRedirectRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await signOut();
+      } catch {
+        // ignore — we still want the verify message
+      }
+      if (cancelled) return;
+      toast({
+        title: 'Email verified',
+        description: 'Please sign in with your email and password to continue.',
+      });
+      setActiveTab('signin');
+      navigate('/auth?mode=signin', { replace: true });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, signOut, navigate]);
 
   // Check if LDAP is available for the entered email domain
   const checkLdapAvailability = async (email: string) => {
@@ -349,11 +388,15 @@ const Auth = () => {
       return;
     }
 
+    const signedUpEmail = signUpData.email.trim();
+
+    // Always require email verification + manual sign-in (never open AI Builder from signup).
+    skipAuthRedirectRef.current = true;
     toast({
-      title: 'Account created!',
+      title: 'Verify your email',
       description: needsEmailVerification
-        ? 'Please verify your email, then sign in. Your organization will be set up automatically.'
-        : 'Welcome! Create your first form in the AI Builder.',
+        ? `We sent a verification link to ${signedUpEmail}. Open it, then sign in here to finish setting up your account.`
+        : `Check ${signedUpEmail} for a verification link, then sign in to continue.`,
     });
 
     setSignUpData({
@@ -364,16 +407,9 @@ const Auth = () => {
       confirm_password: '',
     });
 
-    // Email verification required: stay on auth / go home to sign in later.
-    // Otherwise take new users straight to AI Builder (their only page until a form exists).
-    if (needsEmailVerification) {
-      skipAuthRedirectRef.current = true;
-      setActiveTab('signin');
-      setSignInData({ email: signUpData.email.trim(), password: '' });
-      return;
-    }
-
-    navigate('/build', { replace: true });
+    setActiveTab('signin');
+    setSignInData({ email: signedUpEmail, password: '' });
+    setSigninStep('email');
   };
 
   return (
