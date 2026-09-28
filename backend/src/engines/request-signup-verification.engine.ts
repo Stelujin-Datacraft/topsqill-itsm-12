@@ -83,11 +83,24 @@ export async function requestSignupVerification(
       };
     }
 
+    const { data: existingOrg } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .ilike('name', organizationName)
+      .maybeSingle();
+
+    if (existingOrg) {
+      return {
+        success: false,
+        error: `Organization "${organizationName}" already exists. Choose a different name.`,
+      };
+    }
+
     const smtpConfig = await loadDefaultSmtp(supabase);
     if (!smtpConfig) {
       return {
         success: false,
-        error: 'No active default SMTP configuration found. Configure SMTP in Email settings first.',
+        error: 'No active SMTP configuration found. Add a default SMTP config in Email settings, then try again.',
       };
     }
 
@@ -114,7 +127,15 @@ export async function requestSignupVerification(
 
     if (insertError) {
       console.error('pending_signups insert failed:', insertError);
-      return { success: false, error: 'Could not start signup. Please try again.' };
+      const missingTable =
+        String(insertError.message || '').includes('pending_signups') ||
+        String(insertError.code || '') === '42P01';
+      return {
+        success: false,
+        error: missingTable
+          ? 'Signup verification is not set up yet (pending_signups migration missing). Please contact support.'
+          : 'Could not start signup. Please try again.',
+      };
     }
 
     const client = new SMTPClient({

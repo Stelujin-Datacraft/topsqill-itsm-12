@@ -102,12 +102,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    const { data: existingOrg } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .ilike('name', organizationName)
+      .maybeSingle();
+
+    if (existingOrg) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Organization "${organizationName}" already exists. Choose a different name.`,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const smtpConfig = await loadDefaultSmtp(supabase);
     if (!smtpConfig) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'No active default SMTP configuration found. Configure SMTP in Email settings first.',
+          error: 'No active SMTP configuration found. Add a default SMTP config in Email settings, then try again.',
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
@@ -138,8 +154,16 @@ Deno.serve(async (req) => {
 
     if (insertError) {
       console.error('pending_signups insert failed:', insertError);
+      const missingTable =
+        String(insertError.message || '').includes('pending_signups') ||
+        String(insertError.code || '') === '42P01';
       return new Response(
-        JSON.stringify({ success: false, error: 'Could not start signup. Please try again.' }),
+        JSON.stringify({
+          success: false,
+          error: missingTable
+            ? 'Signup verification is not set up yet (pending_signups migration missing). Please contact support.'
+            : 'Could not start signup. Please try again.',
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }

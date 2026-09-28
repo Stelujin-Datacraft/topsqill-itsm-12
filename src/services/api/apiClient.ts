@@ -126,7 +126,18 @@ async function invokeEdgeFunction<T>(
   try {
     const { rawSupabase } = await import('@/integrations/supabase/rawClient');
     const { data, error } = await rawSupabase.functions.invoke(functionName, { body });
-    if (error) return { data: null, error: { message: error.message || 'Edge function failed' } };
+
+    // Prefer business error from response body over generic FunctionsHttpError text.
+    const payload = (data || {}) as { error?: string; message?: string; success?: boolean };
+    if (error) {
+      const detail = payload.error || payload.message || error.message || 'Edge function failed';
+      // Still return data when present so callers can inspect success/error fields.
+      return {
+        data: (data as T) ?? null,
+        error: { message: detail },
+      };
+    }
+
     return { data: data as T, error: null };
   } catch (err) {
     return { data: null, error: { message: err instanceof Error ? err.message : 'Edge function failed' } };
@@ -146,6 +157,7 @@ export const api = {
       'verify-signup': { path: '/auth/verify-signup', auth: false },
       'request-signin-otp': { path: '/auth/request-signin-otp', auth: false },
       'verify-signin-otp': { path: '/auth/verify-signin-otp', auth: false },
+      'check-signup-availability': { path: '/auth/check-signup-availability', auth: false },
       'send-welcome-email': { path: '/auth/send-welcome-email' },
       'send-user-invitation': { path: '/auth/send-user-invitation' },
       'delete-user': { path: '/users/delete' },
@@ -184,6 +196,29 @@ export const api = {
 
     if (result.error && isNetworkFailure(result.error.message)) {
       return invokeEdgeFunction<T>(functionName, options?.body);
+    }
+
+    // For auth OTP flows, surface Nest business failures ({ success: false }) as invoke errors
+    // so the UI always gets a clear message. Keep data for callers that inspect the payload.
+    const otpAuthFunctions = new Set([
+      'request-signup-verification',
+      'verify-signup',
+      'request-signin-otp',
+      'verify-signin-otp',
+    ]);
+    if (
+      otpAuthFunctions.has(functionName) &&
+      !result.error &&
+      result.data &&
+      typeof result.data === 'object'
+    ) {
+      const payload = result.data as { success?: boolean; error?: string; message?: string };
+      if (payload.success === false && (payload.error || payload.message)) {
+        return {
+          data: result.data,
+          error: { message: payload.error || payload.message || 'Request failed' },
+        };
+      }
     }
 
     return result;

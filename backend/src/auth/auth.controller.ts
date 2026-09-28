@@ -40,6 +40,12 @@ export class AuthController {
     return this.authService.verifySigninOtp(body);
   }
 
+  @Public()
+  @Post('check-signup-availability')
+  checkSignupAvailability(@Body() body: { email?: string; organization_name?: string }) {
+    return this.authService.checkSignupAvailability(body);
+  }
+
   @UseGuards(SupabaseAuthGuard)
   @Post('send-welcome-email')
   sendWelcomeEmail(@Body() body: Record<string, unknown>) {

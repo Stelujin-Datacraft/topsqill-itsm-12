@@ -219,6 +219,12 @@ const Auth = () => {
   const [otpCode, setOtpCode] = useState('');
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpResending, setOtpResending] = useState(false);
+  const [signupSubmitting, setSignupSubmitting] = useState(false);
+  const [signupFieldErrors, setSignupFieldErrors] = useState<{
+    organization_name?: string;
+    email?: string;
+  }>({});
+  const [signupAvailabilityChecking, setSignupAvailabilityChecking] = useState(false);
 
   // Keep tab in sync when landing links use ?mode=signup
   useEffect(() => {
@@ -404,6 +410,62 @@ const Auth = () => {
     </Button>
   );
 
+  const checkSignupAvailability = async (opts?: {
+    email?: string;
+    organization_name?: string;
+  }): Promise<boolean> => {
+    const email = (opts?.email ?? signUpData.email).trim().toLowerCase();
+    const organization_name = (opts?.organization_name ?? signUpData.organization_name).trim();
+
+    if (!email && !organization_name) return true;
+
+    setSignupAvailabilityChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-signup-availability', {
+        body: { email: email || undefined, organization_name: organization_name || undefined },
+      });
+
+      const payload = (data || {}) as {
+        success?: boolean;
+        available?: boolean;
+        emailAvailable?: boolean;
+        organizationAvailable?: boolean;
+        emailError?: string | null;
+        organizationError?: string | null;
+        error?: string | null;
+      };
+
+      if (error && !payload.success) {
+        // Don't block signup on transient check failures; server will re-validate on submit.
+        return true;
+      }
+
+      setSignupFieldErrors((prev) => ({
+        ...prev,
+        ...(organization_name
+          ? {
+              organization_name: payload.organizationAvailable === false
+                ? (payload.organizationError || 'Organization name is already taken.')
+                : undefined,
+            }
+          : {}),
+        ...(email
+          ? {
+              email: payload.emailAvailable === false
+                ? (payload.emailError || 'This email is already registered.')
+                : undefined,
+            }
+          : {}),
+      }));
+
+      return payload.available !== false;
+    } catch {
+      return true;
+    } finally {
+      setSignupAvailabilityChecking(false);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -436,36 +498,63 @@ const Auth = () => {
       return;
     }
 
-    const { error, needsEmailVerification } = await registerOrganization({
-      name: signUpData.organization_name.trim(),
-      admin_email: signUpData.email.trim(),
-      admin_password: signUpData.password,
-      admin_first_name: first_name,
-      admin_last_name: last_name,
+    const available = await checkSignupAvailability({
+      email: signUpData.email,
+      organization_name: signUpData.organization_name,
     });
-
-    if (error) {
+    if (!available) {
       toast({
-        title: 'Sign up failed',
-        description: error.message || 'Failed to create your account. Please try again.',
+        title: 'Sign up unavailable',
+        description: 'Organization name or email is already in use. Please update and try again.',
         variant: 'destructive',
       });
       return;
     }
 
-    const signedUpEmail = signUpData.email.trim().toLowerCase();
+    setSignupSubmitting(true);
+    try {
+      const { error, needsEmailVerification } = await registerOrganization({
+        name: signUpData.organization_name.trim(),
+        admin_email: signUpData.email.trim(),
+        admin_password: signUpData.password,
+        admin_first_name: first_name,
+        admin_last_name: last_name,
+      });
 
-    // Hold account creation until OTP is verified — show code entry step.
-    skipAuthRedirectRef.current = true;
-    setPendingVerifyEmail(signedUpEmail);
-    setOtpCode('');
-    setSignupStep('otp');
-    toast({
-      title: 'Check your email',
-      description: needsEmailVerification
-        ? `We sent a 6-digit code to ${signedUpEmail}. Enter it below to create your account.`
-        : `Enter the 6-digit code sent to ${signedUpEmail} to create your account.`,
-    });
+      if (error) {
+        const message = error.message || 'Failed to send verification code. Please try again.';
+        const lower = message.toLowerCase();
+        if (lower.includes('organization') && lower.includes('already')) {
+          setSignupFieldErrors((prev) => ({ ...prev, organization_name: message }));
+        }
+        if (lower.includes('account already exists') || lower.includes('already exists for')) {
+          setSignupFieldErrors((prev) => ({ ...prev, email: message }));
+        }
+        toast({
+          title: 'Could not send verification code',
+          description: message,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const signedUpEmail = signUpData.email.trim().toLowerCase();
+
+      // Hold account creation until OTP is verified — show code entry step.
+      skipAuthRedirectRef.current = true;
+      setPendingVerifyEmail(signedUpEmail);
+      setOtpCode('');
+      setSignupStep('otp');
+      setSignupFieldErrors({});
+      toast({
+        title: 'Check your email',
+        description: needsEmailVerification
+          ? `We sent a 6-digit code to ${signedUpEmail}. Enter it below to create your account.`
+          : `Enter the 6-digit code sent to ${signedUpEmail} to create your account.`,
+      });
+    } finally {
+      setSignupSubmitting(false);
+    }
   };
 
   const handleVerifySignupOtp = async (e?: React.FormEvent) => {
@@ -486,21 +575,21 @@ const Auth = () => {
         body: { email: pendingVerifyEmail, otp: code },
       });
 
-      if (error) {
-        toast({
-          title: 'Verification failed',
-          description: error.message || 'Could not verify the code. Please try again.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
       const payload = (data || {}) as {
         success?: boolean;
         error?: string;
         message?: string;
         email?: string;
       };
+
+      if (error) {
+        toast({
+          title: 'Verification failed',
+          description: payload.error || payload.message || error.message || 'Could not verify the code. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       if (!payload.success) {
         toast({
@@ -971,9 +1060,25 @@ const Auth = () => {
                         id="signup-org-name"
                         placeholder="Acme Corp"
                         value={signUpData.organization_name}
-                        onChange={(e) => setSignUpData({ ...signUpData, organization_name: e.target.value })}
+                        onChange={(e) => {
+                          setSignUpData({ ...signUpData, organization_name: e.target.value });
+                          if (signupFieldErrors.organization_name) {
+                            setSignupFieldErrors((prev) => ({ ...prev, organization_name: undefined }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (signUpData.organization_name.trim()) {
+                            void checkSignupAvailability({
+                              organization_name: signUpData.organization_name,
+                            });
+                          }
+                        }}
+                        aria-invalid={!!signupFieldErrors.organization_name}
                         required
                       />
+                      {signupFieldErrors.organization_name && (
+                        <p className="text-xs text-destructive">{signupFieldErrors.organization_name}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-full-name">{t('auth.fullName')}</Label>
@@ -992,9 +1097,23 @@ const Auth = () => {
                         type="email"
                         placeholder="jane@acmecorp.com"
                         value={signUpData.email}
-                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        onChange={(e) => {
+                          setSignUpData({ ...signUpData, email: e.target.value });
+                          if (signupFieldErrors.email) {
+                            setSignupFieldErrors((prev) => ({ ...prev, email: undefined }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (signUpData.email.trim()) {
+                            void checkSignupAvailability({ email: signUpData.email });
+                          }
+                        }}
+                        aria-invalid={!!signupFieldErrors.email}
                         required
                       />
+                      {signupFieldErrors.email && (
+                        <p className="text-xs text-destructive">{signupFieldErrors.email}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">{t('auth.password')}</Label>
@@ -1022,8 +1141,21 @@ const Auth = () => {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? 'Sending code…' : 'Continue'}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={
+                        signupSubmitting ||
+                        signupAvailabilityChecking ||
+                        !!signupFieldErrors.email ||
+                        !!signupFieldErrors.organization_name
+                      }
+                    >
+                      {signupSubmitting
+                        ? 'Sending code…'
+                        : signupAvailabilityChecking
+                          ? 'Checking…'
+                          : 'Continue'}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                       We’ll email a one-time code. Your account is created only after you verify it.

@@ -35,4 +35,8 @@ export class AuthService {
   async verifySigninOtp(body: { email?: string; otp?: string; code?: string }) {
     return this.engineHost.verifySigninOtp(body);
   }
+
+  async checkSignupAvailability(body: { email?: string; organization_name?: string }) {
+    return this.engineHost.checkSignupAvailability(body);
+  }
 }
