@@ -31,16 +31,13 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
   const [activeTab, setActiveTab] = useState(initialMode);
-  const { signIn, signInWithGoogle, registerOrganization, signOut, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const { signIn, signInWithGoogle, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
   // Skip auto-redirect when returning from email verification (or during post-signup).
   const skipAuthRedirectRef = useRef(
     typeof window !== 'undefined'
-      && (
-        new URLSearchParams(window.location.search).get('verified') === '1'
-        || /[?&#]type=(signup|email|magiclink)/i.test(`${window.location.search}${window.location.hash}`)
-      ),
+      && new URLSearchParams(window.location.search).get('verified') === '1',
   );
 
   // Password policy state
@@ -69,38 +66,6 @@ const Auth = () => {
       navigate(destination, { replace: true });
     }
   }, [user, isLoading, navigate, returnTo]);
-
-  // After the user clicks the verification link, require a manual password sign-in
-  // (do not drop them straight into AI Builder).
-  useEffect(() => {
-    const verified = searchParams.get('verified') === '1';
-    const hashTypeMatch = /(?:^|[?&#])type=(signup|email|magiclink)/i.test(
-      `${window.location.search}${window.location.hash}`,
-    );
-    if (!verified && !hashTypeMatch) return;
-
-    skipAuthRedirectRef.current = true;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        await signOut();
-      } catch {
-        // ignore — we still want the verify message
-      }
-      if (cancelled) return;
-      toast({
-        title: 'Email verified',
-        description: 'Please sign in with your email and password to continue.',
-      });
-      setActiveTab('signin');
-      navigate('/auth?mode=signin', { replace: true });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [searchParams, signOut, navigate]);
 
   // Check if LDAP is available for the entered email domain
   const checkLdapAvailability = async (email: string) => {
@@ -233,7 +198,7 @@ const Auth = () => {
 
   // Sign in form state
   const [signInData, setSignInData] = useState({
-    email: '',
+    email: searchParams.get('email') || '',
     password: ''
   });
 
@@ -252,6 +217,30 @@ const Auth = () => {
     if (mode === 'signup') setActiveTab('signup');
     if (mode === 'signin') setActiveTab('signin');
   }, [searchParams]);
+
+  // After verify-signup redirects here, stay on sign-in (no auto AI Builder).
+  useEffect(() => {
+    const verified = searchParams.get('verified') === '1';
+    if (!verified) return;
+
+    skipAuthRedirectRef.current = true;
+    const verifiedEmail = searchParams.get('email') || '';
+    toast({
+      title: 'Email verified',
+      description: 'Please sign in with your email and password to continue.',
+    });
+    setActiveTab('signin');
+    setSigninStep('email');
+    if (verifiedEmail) {
+      setSignInData((prev) => ({ ...prev, email: verifiedEmail }));
+    }
+    navigate(
+      verifiedEmail
+        ? `/auth?mode=signin&email=${encodeURIComponent(verifiedEmail)}`
+        : '/auth?mode=signin',
+      { replace: true },
+    );
+  }, [searchParams, navigate]);
 
   const handleEmailNext = async (e: React.FormEvent) => {
     e.preventDefault();

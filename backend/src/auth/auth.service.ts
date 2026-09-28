@@ -16,4 +16,15 @@ export class AuthService {
   async sendUserInvitation(body: Record<string, unknown>) {
     return this.engineHost.sendUserInvitation(body);
   }
+
+  async requestSignupVerification(body: Record<string, unknown>, origin?: string) {
+    return this.engineHost.requestSignupVerification(
+      { ...body, origin },
+      origin ? { origin } : undefined,
+    );
+  }
+
+  async verifySignup(token: string) {
+    return this.engineHost.verifySignup({ token });
+  }
 }

@@ -31,3 +31,5 @@ export { sendWelcomeEmail } from './send-welcome-email.engine';
 export { terminateSession } from './terminate-session.engine';
 export { testSmtpConnection } from './test-smtp-connection.engine';
 export { verifyMfaCode } from './verify-mfa-code.engine';
+export { requestSignupVerification } from './request-signup-verification.engine';
+export { verifySignup } from './verify-signup.engine';

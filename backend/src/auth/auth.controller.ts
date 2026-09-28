@@ -1,7 +1,6 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Headers, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from '../common/decorators/public.decorator';
-import { UseGuards } from '@nestjs/common';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
 
 @Controller('auth')
@@ -12,6 +11,21 @@ export class AuthController {
   @Post('accept-invitation')
   acceptInvitation(@Body() body: { token: string }) {
     return this.authService.acceptInvitation(body.token);
+  }
+
+  @Public()
+  @Post('request-signup-verification')
+  requestSignupVerification(
+    @Body() body: Record<string, unknown>,
+    @Headers('origin') origin?: string,
+  ) {
+    return this.authService.requestSignupVerification(body, origin);
+  }
+
+  @Public()
+  @Post('verify-signup')
+  verifySignup(@Body() body: { token: string }) {
+    return this.authService.verifySignup(body.token);
   }
 
   @UseGuards(SupabaseAuthGuard)

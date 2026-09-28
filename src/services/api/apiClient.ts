@@ -142,6 +142,8 @@ export const api = {
       'terminate-session': { path: '/sessions/terminate' },
       'send-password-reset': { path: '/users/send-password-reset', auth: false },
       'accept-user-invitation': { path: '/auth/accept-invitation', auth: false },
+      'request-signup-verification': { path: '/auth/request-signup-verification', auth: false },
+      'verify-signup': { path: '/auth/verify-signup', auth: false },
       'send-welcome-email': { path: '/auth/send-welcome-email' },
       'send-user-invitation': { path: '/auth/send-user-invitation' },
       'delete-user': { path: '/users/delete' },

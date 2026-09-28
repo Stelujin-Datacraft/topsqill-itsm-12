@@ -690,82 +690,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const email = orgData.admin_email.trim();
       const orgName = orgData.name.trim();
-      // Auto domain for DB only — never collected from the signup form.
-      const autoDomain = buildOrgDomain(orgName, email);
-      const emailRedirectTo = `${window.location.origin}/auth?verified=1`;
 
-      const { data: authData, error: authError } = await rawSupabase.auth.signUp({
-        email,
-        password: orgData.admin_password,
-        options: {
-          emailRedirectTo,
-          data: {
-            first_name: orgData.admin_first_name,
-            last_name: orgData.admin_last_name,
-            role: 'admin',
-            organization_name: orgName,
-            organization_domain: autoDomain,
-          },
+      // Hold account creation until email is verified. Verification mail is sent
+      // via in-app smtp_configs (default SMTP), not Supabase Auth mailer.
+      const { data, error } = await supabase.functions.invoke('request-signup-verification', {
+        body: {
+          email,
+          password: orgData.admin_password,
+          first_name: orgData.admin_first_name,
+          last_name: orgData.admin_last_name,
+          organization_name: orgName,
+          origin: window.location.origin,
         },
       });
 
-      if (authError) {
-        const msg = (authError as any)?.message || '';
-        if (
-          (authError as any)?.code === 'user_already_exists' ||
-          /already\s+registered|already\s+exists/i.test(msg)
-        ) {
-          return {
-            error: new Error(
-              `An account already exists for ${email}. Use "Forgot Password" to reset it, or sign in with the existing password.`,
-            ),
-          };
-        }
-        return { error: authError };
+      if (error) {
+        return { error: new Error(error.message || 'Failed to start signup verification') };
       }
 
-      if (!authData.user) {
-        return { error: new Error('Sign up did not return a user account.') };
+      const payload = (data || {}) as {
+        success?: boolean;
+        error?: string;
+        needsEmailVerification?: boolean;
+        message?: string;
+      };
+
+      if (!payload.success) {
+        return { error: new Error(payload.error || 'Failed to start signup verification') };
       }
 
-      // Supabase may return a user with empty identities when the email is already registered.
-      const identities = (authData.user as { identities?: unknown[] }).identities;
-      if (Array.isArray(identities) && identities.length === 0) {
-        return {
-          error: new Error(
-            `An account already exists for ${email}. Use "Forgot Password" to reset it, or sign in with the existing password.`,
-          ),
-        };
+      // Ensure no leftover session from other flows
+      try {
+        await rawSupabase.auth.signOut();
+      } catch {
+        // ignore
       }
-
-      // Never leave the browser signed in after signup. Org/profile bootstrap
-      // happens on the first successful password sign-in after email verification.
-      if (authData.session) {
-        try {
-          await rawSupabase.auth.signOut();
-        } catch (signOutError) {
-          console.warn('Post-signup sign-out failed:', signOutError);
-        }
-        clearAuthTokenCache();
-        setSession(null);
-        setUser(null);
-        setUserProfile(null);
-        setOrganization(null);
-      }
-
-      // If confirmations are enabled, signUp already sent the email.
-      // If a session was returned (confirmations off), try an explicit resend.
-      if (authData.session) {
-        try {
-          await rawSupabase.auth.resend({
-            type: 'signup',
-            email,
-            options: { emailRedirectTo },
-          });
-        } catch (resendError) {
-          console.warn('Signup confirmation resend failed:', resendError);
-        }
-      }
+      clearAuthTokenCache();
+      setSession(null);
+      setUser(null);
+      setUserProfile(null);
+      setOrganization(null);
 
       return { error: null, needsEmailVerification: true };
     } catch (error) {

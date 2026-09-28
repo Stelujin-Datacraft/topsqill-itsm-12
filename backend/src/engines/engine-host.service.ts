@@ -120,6 +120,12 @@ export class EngineHostService {
   readonly verifyMfaCode = (body: Record<string, unknown>, headers?: Record<string, string | string[] | undefined>) =>
     this.run(engines.verifyMfaCode, body, headers);
 
+  readonly requestSignupVerification = (body: Record<string, unknown>, headers?: Record<string, string | string[] | undefined>) =>
+    this.run(engines.requestSignupVerification, body, headers);
+
+  readonly verifySignup = (body: Record<string, unknown>, headers?: Record<string, string | string[] | undefined>) =>
+    this.run(engines.verifySignup, body, headers);
+
   createPublicApiApp(headers?: Record<string, string | string[] | undefined>) {
     const supabase = this.getClient();
     const ctx = this.createContext(headers);

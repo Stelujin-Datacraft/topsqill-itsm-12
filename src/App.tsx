@@ -68,9 +68,10 @@ import KnowledgeBase from "./pages/KnowledgeBase";
 // main module entry pages to avoid a dev-only double loading sequence
 // (route chunk loader first, then page data loader).
 const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
+const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
+const VerifySignup = lazyWithRetry(() => import("./pages/VerifySignup"));
 const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
-const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const Solutions = lazyWithRetry(() => import("./pages/Solutions"));
 const Contact = lazyWithRetry(() => import("./pages/Contact"));
 const About = lazyWithRetry(() => import("./pages/About"));
@@ -216,6 +217,11 @@ const App = () => (
                       <Route path="/faq" element={<Index />} />
                       <Route path="/auth" element={<Auth />} />
                       <Route path="/login" element={<Navigate to="/auth" replace />} />
+                      <Route path="/verify-signup" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <VerifySignup />
+                        </Suspense>
+                      } />
                       <Route path="/auth/callback" element={
                         <Suspense fallback={<RouteLoader />}>
                           <AuthCallback />
