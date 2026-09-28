@@ -212,6 +212,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setOrganization(null);
         }
       } else {
+        // Solo signup recovery: attach org from admin_email / signup metadata.
+        try {
+          const { data: authData } = await rawSupabase.auth.getUser();
+          const authUser = authData?.user;
+          const email = (authUser?.email || profile.email || '').trim().toLowerCase();
+          const meta = authUser?.user_metadata || {};
+
+          let healedOrgId: string | null = null;
+
+          const { data: ownedOrgRows } = await supabase
+            .from('organizations')
+            .select('*')
+            .ilike('admin_email', email)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          const ownedOrg = ownedOrgRows?.[0] || null;
+
+          if (ownedOrg?.id) {
+            healedOrgId = ownedOrg.id;
+            await supabase
+              .from('user_profiles')
+              .update({ organization_id: ownedOrg.id, role: 'admin', status: 'active', email })
+              .eq('id', userId);
+            await supabase.from('user_organizations').upsert(
+              { user_id: userId, organization_id: ownedOrg.id, role: 'admin' },
+              { onConflict: 'user_id,organization_id' },
+            );
+            if (isStaleRequest()) return;
+            setUserProfile({ ...profile, organization_id: ownedOrg.id, email, role: 'admin' } as UserProfile);
+            setOrganization(ownedOrg as Organization);
+            return;
+          }
+
+          const orgName = String(meta.organization_name || '').trim();
+          if (orgName) {
+            const { data: rpcOrgId, error: rpcError } = await (rawSupabase.rpc as any)(
+              'register_new_organization',
+              {
+                p_name: orgName,
+                p_domain: meta.organization_domain || null,
+                p_description: null,
+                p_admin_first_name: meta.first_name || profile.first_name || null,
+                p_admin_last_name: meta.last_name || profile.last_name || null,
+              },
+            );
+            if (!rpcError && rpcOrgId) {
+              healedOrgId = rpcOrgId as string;
+            }
+          }
+
+          if (healedOrgId) {
+            const { data: refreshed } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', userId)
+              .maybeSingle();
+            const { data: org } = await supabase
+              .from('organizations')
+              .select('*')
+              .eq('id', healedOrgId)
+              .maybeSingle();
+            if (isStaleRequest()) return;
+            if (refreshed) setUserProfile(refreshed as UserProfile);
+            setOrganization((org as Organization) || null);
+            return;
+          }
+        } catch (healError) {
+          console.warn('Solo signup organization recovery failed:', healError);
+        }
+
+        if (isStaleRequest()) return;
         setOrganization(null);
       }
     } catch (error) {
