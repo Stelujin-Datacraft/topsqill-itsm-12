@@ -126,6 +126,12 @@ export class EngineHostService {
   readonly verifySignup = (body: Record<string, unknown>, headers?: Record<string, string | string[] | undefined>) =>
     this.run(engines.verifySignup, body, headers);
 
+  readonly requestSigninOtp = (body: Record<string, unknown>, headers?: Record<string, string | string[] | undefined>) =>
+    this.run(engines.requestSigninOtp, body, headers);
+
+  readonly verifySigninOtp = (body: Record<string, unknown>, headers?: Record<string, string | string[] | undefined>) =>
+    this.run(engines.verifySigninOtp, body, headers);
+
   createPublicApiApp(headers?: Record<string, string | string[] | undefined>) {
     const supabase = this.getClient();
     const ctx = this.createContext(headers);

@@ -144,6 +144,8 @@ export const api = {
       'accept-user-invitation': { path: '/auth/accept-invitation', auth: false },
       'request-signup-verification': { path: '/auth/request-signup-verification', auth: false },
       'verify-signup': { path: '/auth/verify-signup', auth: false },
+      'request-signin-otp': { path: '/auth/request-signin-otp', auth: false },
+      'verify-signin-otp': { path: '/auth/verify-signin-otp', auth: false },
       'send-welcome-email': { path: '/auth/send-welcome-email' },
       'send-user-invitation': { path: '/auth/send-user-invitation' },
       'delete-user': { path: '/users/delete' },

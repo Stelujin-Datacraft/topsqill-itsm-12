@@ -54,6 +54,8 @@ interface AuthContextType {
   passwordExpired: boolean;
   signUp: (email: string, password: string, userData: { first_name: string; last_name: string; organization_id: string }) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any; requiresMfa?: boolean; passwordExpired?: boolean }>;
+  requestSignInOtp: (email: string) => Promise<{ error: any; message?: string; expiryMinutes?: number }>;
+  verifySignInOtp: (email: string, otp: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   registerOrganization: (orgData: {
@@ -533,6 +535,148 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const requestSignInOtp = async (email: string) => {
+    try {
+      const normalized = email.trim().toLowerCase();
+      if (!normalized) {
+        return { error: new Error('Email is required') };
+      }
+
+      const lockoutCheck = await checkAccountLockout(normalized);
+      if (!lockoutCheck.allowed) {
+        return {
+          error: {
+            message: lockoutCheck.reason || 'Account is locked',
+            code: 'account_locked',
+          },
+        };
+      }
+
+      const { data, error } = await supabase.functions.invoke('request-signin-otp', {
+        body: { email: normalized },
+      });
+
+      if (error) {
+        return { error: new Error(error.message || 'Failed to send sign-in code') };
+      }
+
+      const payload = (data || {}) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+        expiryMinutes?: number;
+      };
+
+      if (!payload.success) {
+        return { error: new Error(payload.error || 'Failed to send sign-in code') };
+      }
+
+      return {
+        error: null,
+        message: payload.message,
+        expiryMinutes: payload.expiryMinutes,
+      };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const verifySignInOtp = async (email: string, otp: string) => {
+    try {
+      const normalized = email.trim().toLowerCase();
+      const code = otp.trim();
+
+      const lockoutCheck = await checkAccountLockout(normalized);
+      if (!lockoutCheck.allowed) {
+        return {
+          error: {
+            message: lockoutCheck.reason || 'Account is locked',
+            code: 'account_locked',
+          },
+        };
+      }
+
+      const { data, error } = await supabase.functions.invoke('verify-signin-otp', {
+        body: { email: normalized, otp: code },
+      });
+
+      if (error) {
+        await recordFailedLogin(normalized);
+        return { error: new Error(error.message || 'Failed to verify sign-in code') };
+      }
+
+      const payload = (data || {}) as {
+        success?: boolean;
+        error?: string;
+        email?: string;
+        userId?: string;
+        verification?: { hashedToken?: string; actionLink?: string };
+      };
+
+      if (!payload.success) {
+        await recordFailedLogin(normalized);
+        return { error: new Error(payload.error || 'Invalid or expired code') };
+      }
+
+      const hashedToken = payload.verification?.hashedToken;
+      if (!hashedToken) {
+        if (payload.verification?.actionLink) {
+          window.location.href = payload.verification.actionLink;
+          return { error: null };
+        }
+        return { error: new Error('No sign-in token returned') };
+      }
+
+      const { data: otpData, error: verifyErr } = await rawSupabase.auth.verifyOtp({
+        type: 'email',
+        token_hash: hashedToken,
+      });
+
+      if (verifyErr || !otpData.user) {
+        await recordFailedLogin(normalized);
+        return { error: verifyErr || new Error('Could not complete sign-in') };
+      }
+
+      const accessCheck = await checkAccessTimeRestrictions(otpData.user.id);
+      if (!accessCheck.allowed) {
+        await rawSupabase.auth.signOut();
+        return {
+          error: {
+            message: accessCheck.reason || 'Access is restricted at this time',
+            code: 'access_restricted',
+          },
+        };
+      }
+
+      const sessionCheck = await checkConcurrentSessions(otpData.user.id);
+      if (!sessionCheck.allowed) {
+        await rawSupabase.auth.signOut();
+        return {
+          error: {
+            message: sessionCheck.reason || 'Maximum concurrent sessions reached',
+            code: 'session_limit',
+          },
+        };
+      }
+
+      if (otpData.session) {
+        await createSession(otpData.user.id, otpData.session.access_token);
+      }
+      await recordSuccessfulLogin(otpData.user.id);
+
+      await supabase.from('audit_logs').insert({
+        user_id: otpData.user.id,
+        event_type: 'login_success',
+        event_category: 'authentication',
+        description: 'User logged in successfully via email OTP',
+      });
+
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
       // Log audit event before signing out
@@ -833,6 +977,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       passwordExpired,
       signUp,
       signIn,
+      requestSignInOtp,
+      verifySignInOtp,
       signInWithGoogle,
       signOut,
       registerOrganization,
@@ -861,6 +1007,8 @@ export const useAuth = () => {
       passwordExpired: false,
       signUp: async () => ({ error: new Error('AuthProvider not mounted') }),
       signIn: async () => ({ error: new Error('AuthProvider not mounted') }),
+      requestSignInOtp: async () => ({ error: new Error('AuthProvider not mounted') }),
+      verifySignInOtp: async () => ({ error: new Error('AuthProvider not mounted') }),
       signInWithGoogle: async () => ({ error: new Error('AuthProvider not mounted') }),
       signOut: async () => {},
       registerOrganization: async () => ({ error: new Error('AuthProvider not mounted') }),

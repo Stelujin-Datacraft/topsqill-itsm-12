@@ -33,3 +33,5 @@ export { testSmtpConnection } from './test-smtp-connection.engine';
 export { verifyMfaCode } from './verify-mfa-code.engine';
 export { requestSignupVerification } from './request-signup-verification.engine';
 export { verifySignup } from './verify-signup.engine';
+export { requestSigninOtp } from './request-signin-otp.engine';
+export { verifySigninOtp } from './verify-signin-otp.engine';

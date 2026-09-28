@@ -32,7 +32,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
   const [activeTab, setActiveTab] = useState(initialMode);
-  const { signIn, signInWithGoogle, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const { signIn, signInWithGoogle, registerOrganization, requestSignInOtp, verifySignInOtp, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
   // Skip auto-redirect when returning from email verification (or during post-signup).
@@ -55,10 +55,13 @@ const Auth = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [prefetchedAuthUrl, setPrefetchedAuthUrl] = useState<string | null>(null);
 
-  // Two-step email-first sign-in flow
-  const [signinStep, setSigninStep] = useState<'email' | 'method'>('email');
+  // Two-step email-first sign-in flow (+ optional email OTP)
+  const [signinStep, setSigninStep] = useState<'email' | 'method' | 'otp'>('email');
   const [lookupLoading, setLookupLoading] = useState(false);
   const [usePasswordInstead, setUsePasswordInstead] = useState(false);
+  const [signinOtpCode, setSigninOtpCode] = useState('');
+  const [signinOtpSending, setSigninOtpSending] = useState(false);
+  const [signinOtpVerifying, setSigninOtpVerifying] = useState(false);
 
   // Redirect authenticated users (unless we just finished signup / email verification)
   useEffect(() => {
@@ -284,6 +287,73 @@ const Auth = () => {
       });
       const redirectPath = returnTo || '/build';
       navigate(redirectPath, { replace: true });
+    }
+  };
+
+  const handleRequestSignInOtp = async () => {
+    const email = signInData.email.trim();
+    if (!email) {
+      toast({
+        title: 'Email required',
+        description: 'Enter your email first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSigninOtpSending(true);
+    try {
+      const result = await requestSignInOtp(email);
+      if (result.error) {
+        toast({
+          title: 'Could not send code',
+          description: result.error.message || 'Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setSigninOtpCode('');
+      setSigninStep('otp');
+      toast({
+        title: 'Check your email',
+        description: result.message || `We sent a sign-in code to ${email}.`,
+      });
+    } finally {
+      setSigninOtpSending(false);
+    }
+  };
+
+  const handleVerifySignInOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const code = signinOtpCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast({
+        title: 'Invalid code',
+        description: 'Please enter the 6-digit code from your email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSigninOtpVerifying(true);
+    try {
+      const result = await verifySignInOtp(signInData.email, code);
+      if (result.error) {
+        toast({
+          title: 'Sign in failed',
+          description: result.error.message || 'Incorrect or expired code.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Welcome back!',
+        description: 'You have been successfully signed in.',
+      });
+      const redirectPath = returnTo || '/build';
+      navigate(redirectPath, { replace: true });
+    } finally {
+      setSigninOtpVerifying(false);
     }
   };
 
@@ -530,14 +600,18 @@ const Auth = () => {
               ? signupStep === 'otp'
                 ? 'Verify your email'
                 : t('auth.signUp')
-              : t('auth.signIn')}
+              : signinStep === 'otp'
+                ? 'Sign in with email code'
+                : t('auth.signIn')}
           </CardTitle>
           <CardDescription className="leading-relaxed">
             {activeTab === 'signup'
               ? signupStep === 'otp'
                 ? 'Enter the code we emailed you to create your account'
                 : t('auth.signUpSubtitle')
-              : t('auth.signInSubtitle')}
+              : signinStep === 'otp'
+                ? 'Enter the one-time code we sent to your email'
+                : t('auth.signInSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -548,6 +622,10 @@ const Auth = () => {
               if (value !== 'signup') {
                 setSignupStep('form');
                 setOtpCode('');
+              }
+              if (value !== 'signin') {
+                setSigninStep('email');
+                setSigninOtpCode('');
               }
             }}
             className="w-full"
@@ -600,11 +678,78 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={lookupLoading}>
                     {lookupLoading ? 'Checking…' : 'Next'}
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={signinOtpSending || !signInData.email.trim()}
+                    onClick={() => void handleRequestSignInOtp()}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {signinOtpSending ? 'Sending code…' : 'Email me a sign-in code'}
+                  </Button>
                   <div className="text-center pt-2">
                     <Link to="/forgot-password" className="text-sm text-module-relationship hover:underline">
                       {t('auth.forgotPassword')}
                     </Link>
                   </div>
+                </form>
+              ) : signinStep === 'otp' ? (
+                <form onSubmit={handleVerifySignInOtp} className="space-y-4">
+                  <div className="space-y-2 text-center">
+                    <Mail className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Enter sign-in code</h3>
+                    <p className="text-sm text-muted-foreground">
+                      We sent a 6-digit code to{' '}
+                      <span className="font-medium text-foreground">{signInData.email}</span>.
+                    </p>
+                  </div>
+                  <div className="flex justify-center py-2">
+                    <InputOTP
+                      maxLength={6}
+                      value={signinOtpCode}
+                      onChange={setSigninOtpCode}
+                      disabled={signinOtpVerifying}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={signinOtpVerifying || signinOtpCode.length !== 6}
+                  >
+                    {signinOtpVerifying ? 'Signing in…' : 'Verify & sign in'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={signinOtpSending || signinOtpVerifying}
+                    onClick={() => void handleRequestSignInOtp()}
+                  >
+                    {signinOtpSending ? 'Sending…' : 'Resend code'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    disabled={signinOtpVerifying}
+                    onClick={() => {
+                      setSigninStep('method');
+                      setSigninOtpCode('');
+                      setUsePasswordInstead(true);
+                    }}
+                  >
+                    Sign in with password instead
+                  </Button>
                 </form>
               ) : (
                 <form onSubmit={handleSignIn} className="space-y-4">
@@ -620,6 +765,7 @@ const Auth = () => {
                           setSigninStep('email');
                           setSignInData({ ...signInData, password: '' });
                           setUsePasswordInstead(false);
+                          setSigninOtpCode('');
                         }}
                       >
                         Change
@@ -649,6 +795,16 @@ const Auth = () => {
                       <Mail className="h-4 w-4 mr-2" />
                       Sign in with password instead
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={signinOtpSending}
+                      onClick={() => void handleRequestSignInOtp()}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {signinOtpSending ? 'Sending code…' : 'Sign in with email code'}
+                    </Button>
                     </>
                   ) : ldapEnabled && !usePasswordInstead ? (
                     <>
@@ -669,6 +825,16 @@ const Auth = () => {
                       <Mail className="h-4 w-4 mr-2" />
                       Sign in with password instead
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={signinOtpSending}
+                      onClick={() => void handleRequestSignInOtp()}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {signinOtpSending ? 'Sending code…' : 'Sign in with email code'}
+                    </Button>
                     </>
                   ) : (
                     <>
@@ -687,6 +853,16 @@ const Auth = () => {
                       </div>
                       <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? t('auth.signingIn') : t('auth.signIn')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        disabled={signinOtpSending || isLoading}
+                        onClick={() => void handleRequestSignInOtp()}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        {signinOtpSending ? 'Sending code…' : 'Sign in with email code'}
                       </Button>
                       {ldapEnabled && (
                         <Button

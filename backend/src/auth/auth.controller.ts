@@ -28,6 +28,18 @@ export class AuthController {
     return this.authService.verifySignup(body);
   }
 
+  @Public()
+  @Post('request-signin-otp')
+  requestSigninOtp(@Body() body: { email?: string }) {
+    return this.authService.requestSigninOtp(body);
+  }
+
+  @Public()
+  @Post('verify-signin-otp')
+  verifySigninOtp(@Body() body: { email?: string; otp?: string; code?: string }) {
+    return this.authService.verifySigninOtp(body);
+  }
+
   @UseGuards(SupabaseAuthGuard)
   @Post('send-welcome-email')
   sendWelcomeEmail(@Body() body: Record<string, unknown>) {

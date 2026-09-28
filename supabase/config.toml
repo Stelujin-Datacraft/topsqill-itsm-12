@@ -21,6 +21,12 @@ verify_jwt = false
 [functions.verify-signup]
 verify_jwt = false
 
+[functions.request-signin-otp]
+verify_jwt = false
+
+[functions.verify-signin-otp]
+verify_jwt = false
+
 [functions.execute-data-feed]
 verify_jwt = false
 
