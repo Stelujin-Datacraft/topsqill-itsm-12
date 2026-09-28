@@ -365,7 +365,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/auth?verified=1`,
           data: {
             first_name: userData.first_name,
             last_name: userData.last_name,
@@ -692,12 +692,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const orgName = orgData.name.trim();
       // Auto domain for DB only — never collected from the signup form.
       const autoDomain = buildOrgDomain(orgName, email);
+      const emailRedirectTo = `${window.location.origin}/auth?verified=1`;
 
       const { data: authData, error: authError } = await rawSupabase.auth.signUp({
         email,
         password: orgData.admin_password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo,
           data: {
             first_name: orgData.admin_first_name,
             last_name: orgData.admin_last_name,
@@ -727,66 +728,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: new Error('Sign up did not return a user account.') };
       }
 
-      // Prefer the signup session; otherwise try password sign-in.
-      let session = authData.session;
-      if (!session) {
-        const { data: signInData, error: signInError } = await rawSupabase.auth.signInWithPassword({
-          email,
-          password: orgData.admin_password,
-        });
-        if (!signInError && signInData.session) {
-          session = signInData.session;
-        }
-      }
-
-      // Email confirmation enabled: auth user exists but no session yet.
-      // Treat as success — org bootstrap completes on first verified sign-in.
-      if (!session) {
-        return { error: null, needsEmailVerification: true };
-      }
-
-      // Keep backend client auth state in sync
-      setSession(session);
-      setUser(session.user);
-
-      // 1) Prefer secure RPC (works even with org RLS enabled)
-      const { data: orgIdFromRpc, error: rpcError } = await (rawSupabase.rpc as any)(
-        'register_new_organization',
-        {
-          p_name: orgName,
-          p_domain: autoDomain,
-          p_description: null,
-          p_admin_first_name: orgData.admin_first_name,
-          p_admin_last_name: orgData.admin_last_name,
-        },
-      );
-
-      if (!rpcError && orgIdFromRpc) {
-        await loadUserProfile(session.user.id);
-        return { error: null };
-      }
-
-      // 2) Fallback: direct inserts (works when org RLS is disabled / permissive)
-      try {
-        await bootstrapOrganizationDirect({
-          userId: session.user.id,
-          email,
-          name: orgName,
-          firstName: orgData.admin_first_name,
-          lastName: orgData.admin_last_name,
-          preferredDomain: autoDomain,
-        });
-        await loadUserProfile(session.user.id);
-        return { error: null };
-      } catch (directError: any) {
-        const rpcMsg = rpcError?.message ? `RPC: ${rpcError.message}. ` : '';
-        const directMsg = directError?.message || String(directError);
+      // Supabase may return a user with empty identities when the email is already registered.
+      const identities = (authData.user as { identities?: unknown[] }).identities;
+      if (Array.isArray(identities) && identities.length === 0) {
         return {
           error: new Error(
-            `${rpcMsg}Organization setup failed: ${directMsg}`,
+            `An account already exists for ${email}. Use "Forgot Password" to reset it, or sign in with the existing password.`,
           ),
         };
       }
+
+      // Never leave the browser signed in after signup. Org/profile bootstrap
+      // happens on the first successful password sign-in after email verification.
+      if (authData.session) {
+        try {
+          await rawSupabase.auth.signOut();
+        } catch (signOutError) {
+          console.warn('Post-signup sign-out failed:', signOutError);
+        }
+        clearAuthTokenCache();
+        setSession(null);
+        setUser(null);
+        setUserProfile(null);
+        setOrganization(null);
+      }
+
+      // If confirmations are enabled, signUp already sent the email.
+      // If a session was returned (confirmations off), try an explicit resend.
+      if (authData.session) {
+        try {
+          await rawSupabase.auth.resend({
+            type: 'signup',
+            email,
+            options: { emailRedirectTo },
+          });
+        } catch (resendError) {
+          console.warn('Signup confirmation resend failed:', resendError);
+        }
+      }
+
+      return { error: null, needsEmailVerification: true };
     } catch (error) {
       return { error };
     }
