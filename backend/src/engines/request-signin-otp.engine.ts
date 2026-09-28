@@ -2,6 +2,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EngineContext } from './shared/engine-context';
 import { SMTPClient } from './shared/smtp-client';
+import { resolveSignInAccount } from './shared/resolve-signin-account';
 
 const EXPIRY_MINUTES = 10;
 const MAX_ATTEMPTS = 5;
@@ -48,11 +49,7 @@ export async function requestSigninOtp(
       return { success: false, error: 'A valid email is required.' };
     }
 
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('id, email, organization_id, first_name, status')
-      .ilike('email', email)
-      .maybeSingle();
+    const profile = await resolveSignInAccount(supabase, email);
 
     if (!profile?.id) {
       return {
@@ -70,6 +67,7 @@ export async function requestSigninOtp(
       };
     }
 
+    // Prefer org SMTP, then any active default (including platform SMTP used during signup).
     const smtpConfig = await loadSmtp(supabase, profile.organization_id);
     if (!smtpConfig) {
       return {

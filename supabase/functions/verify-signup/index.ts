@@ -64,13 +64,13 @@ async function bootstrapOrg(
 
   const { error: profileError } = await supabase.from('user_profiles').upsert({
     id: args.userId,
-    email: args.email,
+    email: args.email.trim().toLowerCase(),
     first_name: args.firstName,
     last_name: args.lastName,
     organization_id: orgId,
     role: 'admin',
     status: 'active',
-  });
+  }, { onConflict: 'id' });
   if (profileError) throw profileError;
 
   await supabase.from('user_organizations').upsert({
@@ -226,9 +226,10 @@ Deno.serve(async (req) => {
     }
 
     const password = await decryptPassword(String(pending.password_encrypted), serviceKey);
+    const pendingEmail = String(pending.email || '').trim().toLowerCase();
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: String(pending.email),
+      email: pendingEmail,
       password,
       email_confirm: true,
       user_metadata: {
@@ -243,6 +244,60 @@ Deno.serve(async (req) => {
     if (authError || !authData.user) {
       const msg = authError?.message || 'Failed to create account';
       if (/already|registered|exists/i.test(msg)) {
+        // Ensure profile exists for immediate OTP/password sign-in.
+        const { data: authUserId } = await supabase.rpc('get_auth_user_id_by_email', {
+          p_email: pendingEmail,
+        });
+        if (authUserId) {
+          const { data: existingProfile } = await supabase
+            .from('user_profiles')
+            .select('id, organization_id')
+            .eq('id', String(authUserId))
+            .maybeSingle();
+
+          if (!existingProfile) {
+            try {
+              await bootstrapOrg(supabase, {
+                userId: String(authUserId),
+                email: pendingEmail,
+                name: String(pending.organization_name),
+                firstName: String(pending.first_name),
+                lastName: String(pending.last_name),
+                preferredDomain: pending.organization_domain as string | null,
+              });
+            } catch (ensureErr) {
+              console.warn('Could not ensure org/profile for existing auth user:', ensureErr);
+              await supabase.from('user_profiles').upsert({
+                id: String(authUserId),
+                email: pendingEmail,
+                first_name: String(pending.first_name || ''),
+                last_name: String(pending.last_name || ''),
+                role: 'admin',
+                status: 'active',
+              }, { onConflict: 'id' });
+            }
+          } else if (!existingProfile.organization_id) {
+            try {
+              await bootstrapOrg(supabase, {
+                userId: String(authUserId),
+                email: pendingEmail,
+                name: String(pending.organization_name),
+                firstName: String(pending.first_name),
+                lastName: String(pending.last_name),
+                preferredDomain: pending.organization_domain as string | null,
+              });
+            } catch (ensureErr) {
+              console.warn('Could not ensure org for existing profile:', ensureErr);
+            }
+          } else {
+            // Normalize email casing for reliable OTP lookup.
+            await supabase
+              .from('user_profiles')
+              .update({ email: pendingEmail, status: 'active' })
+              .eq('id', String(authUserId));
+          }
+        }
+
         await supabase
           .from('pending_signups')
           .update({ verified_at: new Date().toISOString() })
@@ -251,8 +306,8 @@ Deno.serve(async (req) => {
           JSON.stringify({
             success: true,
             alreadyExists: true,
-            email: pending.email,
-            message: 'Your email is verified. Please sign in with your password.',
+            email: pendingEmail,
+            message: 'Your email is verified. Please sign in.',
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
@@ -266,7 +321,7 @@ Deno.serve(async (req) => {
     try {
       await bootstrapOrg(supabase, {
         userId: authData.user.id,
-        email: String(pending.email),
+        email: pendingEmail,
         name: String(pending.organization_name),
         firstName: String(pending.first_name),
         lastName: String(pending.last_name),
@@ -294,7 +349,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        email: pending.email,
+        email: pendingEmail,
         message: 'Email verified. Your account is ready — please sign in.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

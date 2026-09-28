@@ -42,6 +42,73 @@ async function loadSmtp(
   return anyActive?.[0] || null;
 }
 
+async function resolveSignInAccount(
+  supabase: ReturnType<typeof createClient>,
+  email: string,
+) {
+  const normalized = email.trim().toLowerCase();
+
+  const { data: exact } = await supabase
+    .from('user_profiles')
+    .select('id, email, organization_id, first_name, status')
+    .eq('email', normalized)
+    .limit(1)
+    .maybeSingle();
+  if (exact?.id) return exact;
+
+  const { data: fuzzy, error: fuzzyError } = await supabase
+    .from('user_profiles')
+    .select('id, email, organization_id, first_name, status')
+    .ilike('email', normalized)
+    .limit(1);
+  if (!fuzzyError && Array.isArray(fuzzy) && fuzzy[0]?.id) return fuzzy[0];
+
+  const { data: authUserId, error: rpcError } = await supabase.rpc('get_auth_user_id_by_email', {
+    p_email: normalized,
+  });
+  let userId: string | null = !rpcError && authUserId ? String(authUserId) : null;
+
+  if (!userId) {
+    try {
+      const { data: linkData } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: normalized,
+      });
+      if (linkData?.user?.id) userId = linkData.user.id;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!userId) return null;
+
+  await supabase.from('user_profiles').upsert(
+    {
+      id: userId,
+      email: normalized,
+      status: 'active',
+      role: 'admin',
+    },
+    { onConflict: 'id' },
+  );
+
+  const { data: ensured } = await supabase
+    .from('user_profiles')
+    .select('id, email, organization_id, first_name, status')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (ensured?.id) return ensured;
+
+  return {
+    id: userId,
+    email: normalized,
+    organization_id: null,
+    first_name: null,
+    status: 'active',
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -62,11 +129,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('id, email, organization_id, first_name, status')
-      .ilike('email', email)
-      .maybeSingle();
+    const profile = await resolveSignInAccount(supabase, email);
 
     if (!profile?.id) {
       return new Response(
