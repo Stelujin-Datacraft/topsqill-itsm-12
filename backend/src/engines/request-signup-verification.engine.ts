@@ -110,32 +110,94 @@ export async function requestSignupVerification(
     const otpCode = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-    await supabase.from('pending_signups').delete().ilike('email', email).is('verified_at', null);
+    const mapPendingInsertError = (insertError: { message?: string; code?: string; details?: string }) => {
+      const msg = String(insertError.message || '');
+      const details = String(insertError.details || '');
+      const code = String(insertError.code || '');
+      const blob = `${msg} ${details} ${code}`.toLowerCase();
 
-    const { error: insertError } = await supabase.from('pending_signups').insert({
-      email,
-      password_encrypted: passwordEncrypted,
-      first_name: firstName,
-      last_name: lastName || firstName,
-      organization_name: organizationName,
-      organization_domain: organizationDomain,
-      verification_token: verificationToken,
-      otp_code: otpCode,
-      otp_attempts: 0,
-      expires_at: expiresAt,
+      if (
+        blob.includes('pending_signups') &&
+        (blob.includes('schema cache') || blob.includes('does not exist') || code === '42P01')
+      ) {
+        return 'Signup verification is not set up yet (pending_signups table missing). Please apply the latest database migration and try again.';
+      }
+      if (blob.includes('otp_code') && (blob.includes('column') || blob.includes('schema cache'))) {
+        return 'Signup verification schema is outdated (otp_code missing). Please apply the latest database migration and try again.';
+      }
+      if (code === '23505' || blob.includes('duplicate') || blob.includes('unique')) {
+        return 'A signup is already in progress for this email. Wait a moment and try again, or use a different email.';
+      }
+      if (blob.includes('permission') || blob.includes('row-level security') || blob.includes('rls')) {
+        return 'Signup service does not have permission to store pending signups. Please contact support.';
+      }
+      return msg || details || 'Could not start signup. Please try again.';
+    };
+
+    // Prefer SECURITY DEFINER RPC (atomic delete+insert, bypasses RLS quirks).
+    let pendingStored = false;
+    const { error: rpcError } = await supabase.rpc('create_pending_signup', {
+      p_email: email,
+      p_password_encrypted: passwordEncrypted,
+      p_first_name: firstName,
+      p_last_name: lastName || firstName,
+      p_organization_name: organizationName,
+      p_organization_domain: organizationDomain,
+      p_otp_code: otpCode,
+      p_expires_at: expiresAt,
+      p_verification_token: verificationToken,
     });
 
-    if (insertError) {
-      console.error('pending_signups insert failed:', insertError);
-      const missingTable =
-        String(insertError.message || '').includes('pending_signups') ||
-        String(insertError.code || '') === '42P01';
-      return {
-        success: false,
-        error: missingTable
-          ? 'Signup verification is not set up yet (pending_signups migration missing). Please contact support.'
-          : 'Could not start signup. Please try again.',
-      };
+    if (!rpcError) {
+      pendingStored = true;
+    } else {
+      console.warn('create_pending_signup RPC failed, falling back to direct insert:', rpcError);
+
+      // Fallback: aggressive delete then insert (and one retry on unique conflict).
+      await supabase.from('pending_signups').delete().ilike('email', email);
+
+      let { error: insertError } = await supabase.from('pending_signups').insert({
+        email,
+        password_encrypted: passwordEncrypted,
+        first_name: firstName,
+        last_name: lastName || firstName,
+        organization_name: organizationName,
+        organization_domain: organizationDomain,
+        verification_token: verificationToken,
+        otp_code: otpCode,
+        otp_attempts: 0,
+        expires_at: expiresAt,
+      });
+
+      if (insertError && (insertError.code === '23505' || /duplicate|unique/i.test(insertError.message || ''))) {
+        await supabase.from('pending_signups').delete().ilike('email', email);
+        const retry = await supabase.from('pending_signups').insert({
+          email,
+          password_encrypted: passwordEncrypted,
+          first_name: firstName,
+          last_name: lastName || firstName,
+          organization_name: organizationName,
+          organization_domain: organizationDomain,
+          verification_token: crypto.randomUUID(),
+          otp_code: otpCode,
+          otp_attempts: 0,
+          expires_at: expiresAt,
+        });
+        insertError = retry.error;
+      }
+
+      if (insertError) {
+        console.error('pending_signups insert failed:', insertError);
+        return {
+          success: false,
+          error: mapPendingInsertError(insertError),
+        };
+      }
+      pendingStored = true;
+    }
+
+    if (!pendingStored) {
+      return { success: false, error: 'Could not start signup. Please try again.' };
     }
 
     const client = new SMTPClient({
