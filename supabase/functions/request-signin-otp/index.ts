@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     if (!email || !email.includes('@')) {
       return new Response(
         JSON.stringify({ success: false, error: 'A valid email is required.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
           error: `No account found for ${email}. Please sign up first.`,
           code: 'ACCOUNT_NOT_FOUND',
         }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
           error: 'This account is not active. Contact your administrator.',
           code: 'ACCOUNT_INACTIVE',
         }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
           success: false,
           error: 'No active SMTP configuration found. Configure SMTP in Email settings first.',
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       console.error('signin otp insert failed:', insertError);
       return new Response(
         JSON.stringify({ success: false, error: 'Could not create sign-in code. Please try again.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
           success: false,
           error: 'Could not send sign-in email. Please check SMTP settings and try again.',
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to send sign-in code',
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });

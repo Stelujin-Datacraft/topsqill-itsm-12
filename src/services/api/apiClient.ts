@@ -118,29 +118,90 @@ function isNetworkFailure(message?: string | null): boolean {
   );
 }
 
-/** Fallback: call the Supabase Edge Function directly. */
+/** Fallback: call the Supabase Edge Function directly via fetch so we always read the JSON body. */
 async function invokeEdgeFunction<T>(
   functionName: string,
   body?: Record<string, unknown>,
 ): Promise<ApiResponse<T>> {
   try {
-    const { rawSupabase } = await import('@/integrations/supabase/rawClient');
-    const { data, error } = await rawSupabase.functions.invoke(functionName, { body });
+    const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = await import('@/integrations/supabase/rawClient');
 
-    // Prefer business error from response body over generic FunctionsHttpError text.
-    const payload = (data || {}) as { error?: string; message?: string; success?: boolean };
-    if (error) {
-      const detail = payload.error || payload.message || error.message || 'Edge function failed';
-      // Still return data when present so callers can inspect success/error fields.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify(body ?? {}),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timer);
+
+    let payload: Record<string, unknown> = {};
+    const contentType = response.headers.get('content-type') || '';
+    try {
+      if (contentType.includes('application/json')) {
+        payload = (await response.json()) as Record<string, unknown>;
+      } else {
+        const text = await response.text();
+        payload = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+      }
+    } catch {
+      payload = {};
+    }
+
+    const businessError =
+      (typeof payload.error === 'string' && payload.error) ||
+      (typeof payload.message === 'string' && payload.message) ||
+      null;
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          data: (payload as T) ?? null,
+          error: {
+            message:
+              businessError ||
+              `Signup service is not available yet (${functionName}). Please deploy the edge function or Nest API and try again.`,
+          },
+        };
+      }
+
       return {
-        data: (data as T) ?? null,
-        error: { message: detail },
+        data: (payload as T) ?? null,
+        error: {
+          message:
+            businessError ||
+            `Could not complete request (${response.status}). Check SMTP settings and try again.`,
+        },
       };
     }
 
-    return { data: data as T, error: null };
+    if (payload.success === false) {
+      return {
+        data: payload as T,
+        error: {
+          message: businessError || 'Request failed',
+        },
+      };
+    }
+
+    return { data: payload as T, error: null };
   } catch (err) {
-    return { data: null, error: { message: err instanceof Error ? err.message : 'Edge function failed' } };
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { data: null, error: { message: 'Request timed out while sending verification code.' } };
+    }
+    return {
+      data: null,
+      error: {
+        message: err instanceof Error ? err.message : 'Could not reach signup service',
+      },
+    };
   }
 }
 
@@ -189,36 +250,45 @@ export const api = {
       return invokeEdgeFunction<T>(functionName, options?.body);
     }
 
-    const result = await request<T>(route.path, {
-      method: route.method || 'POST',
-      body: options?.body ? JSON.stringify(options.body) : undefined,
-    }, route.auth !== false);
-
-    if (result.error && isNetworkFailure(result.error.message)) {
-      return invokeEdgeFunction<T>(functionName, options?.body);
-    }
-
-    // For auth OTP flows, surface Nest business failures ({ success: false }) as invoke errors
-    // so the UI always gets a clear message. Keep data for callers that inspect the payload.
     const otpAuthFunctions = new Set([
       'request-signup-verification',
       'verify-signup',
       'request-signin-otp',
       'verify-signin-otp',
+      'check-signup-availability',
     ]);
-    if (
-      otpAuthFunctions.has(functionName) &&
-      !result.error &&
-      result.data &&
-      typeof result.data === 'object'
-    ) {
-      const payload = result.data as { success?: boolean; error?: string; message?: string };
-      if (payload.success === false && (payload.error || payload.message)) {
+
+    const result = await request<T>(route.path, {
+      method: route.method || 'POST',
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+    }, route.auth !== false);
+
+    const payload =
+      result.data && typeof result.data === 'object'
+        ? (result.data as { success?: boolean; error?: string; message?: string })
+        : null;
+
+    // Nest returned an explicit business payload — trust it (don't hide behind edge).
+    if (payload && typeof payload.success === 'boolean') {
+      if (payload.success === false) {
         return {
           data: result.data,
           error: { message: payload.error || payload.message || 'Request failed' },
         };
       }
+      return { data: result.data, error: null };
+    }
+
+    // Nest unreachable / missing route / unexpected failure → try edge for auth OTP flows.
+    if (
+      otpAuthFunctions.has(functionName) &&
+      (result.error || !result.data)
+    ) {
+      return invokeEdgeFunction<T>(functionName, options?.body);
+    }
+
+    if (result.error && isNetworkFailure(result.error.message)) {
+      return invokeEdgeFunction<T>(functionName, options?.body);
     }
 
     return result;

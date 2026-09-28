@@ -862,11 +862,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Edge/Nest may return a transport error while still including the business error body.
       if (error) {
-        const detail =
+        const raw =
           payload.error ||
           payload.message ||
           error.message ||
           'Failed to start signup verification';
+        const detail = /non-2xx|edge function/i.test(String(raw))
+          ? 'Could not send verification email. Check that SMTP is configured and signup services are deployed, then try again.'
+          : String(raw);
         return { error: new Error(detail) };
       }
 

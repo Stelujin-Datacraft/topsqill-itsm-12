@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       if (!/^\d{6}$/.test(otp)) {
         return new Response(
           JSON.stringify({ success: false, error: 'Enter the 6-digit code from your email.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
             error: 'No pending signup found for this email. Please sign up again.',
             code: 'NOT_FOUND',
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
             error: 'This verification code has expired. Please sign up again.',
             code: 'EXPIRED',
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
             error: 'Too many incorrect attempts. Please sign up again to get a new code.',
             code: 'TOO_MANY_ATTEMPTS',
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
             error: 'Incorrect verification code. Please try again.',
             code: 'INVALID_OTP',
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -203,14 +203,14 @@ Deno.serve(async (req) => {
             error: 'This verification link is invalid or has already been used.',
             code: 'INVALID_TOKEN',
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
       pending = data;
     } else {
       return new Response(
         JSON.stringify({ success: false, error: 'Email and OTP code are required.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
           error: 'This verification code has expired. Please sign up again.',
           code: 'EXPIRED',
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({ success: false, error: msg }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
             ? bootstrapError.message
             : 'Account creation failed during organization setup.',
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -306,7 +306,7 @@ Deno.serve(async (req) => {
         success: false,
         error: error instanceof Error ? error.message : 'Verification failed',
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
