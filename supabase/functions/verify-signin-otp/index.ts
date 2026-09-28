@@ -22,14 +22,14 @@ Deno.serve(async (req) => {
     if (!email || !otp) {
       return new Response(
         JSON.stringify({ success: false, error: 'Email and OTP code are required.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     if (!/^\d{6}$/.test(otp)) {
       return new Response(
         JSON.stringify({ success: false, error: 'Enter the 6-digit code from your email.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     if (!profile?.id) {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid email or code.', code: 'INVALID' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
           error: 'No valid sign-in code found. Please request a new code.',
           code: 'NOT_FOUND',
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
           error: 'This sign-in code has expired. Please request a new one.',
           code: 'EXPIRED',
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
           error: 'Too many incorrect attempts. Please request a new code.',
           code: 'TOO_MANY_ATTEMPTS',
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
           code: 'INVALID_OTP',
           remainingAttempts: remaining,
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
       console.error('Sign-in OTP magic link failed:', linkError);
       return new Response(
         JSON.stringify({ success: false, error: 'Could not create sign-in session. Please try again.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
         success: false,
         error: error instanceof Error ? error.message : 'Sign-in verification failed',
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });

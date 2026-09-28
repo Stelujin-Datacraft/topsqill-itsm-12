@@ -74,14 +74,14 @@ Deno.serve(async (req) => {
     if (!email || !password || !firstName || !organizationName) {
       return new Response(
         JSON.stringify({ success: false, error: 'Email, password, name, and organization are required.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     if (password.length < 8) {
       return new Response(
         JSON.stringify({ success: false, error: 'Password must be at least 8 characters.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
           success: false,
           error: `An account already exists for ${email}. Sign in or use Forgot Password.`,
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
           success: false,
           error: `Organization "${organizationName}" already exists. Choose a different name.`,
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
           success: false,
           error: 'No active SMTP configuration found. Add a default SMTP config in Email settings, then try again.',
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
             ? 'Signup verification is not set up yet (pending_signups migration missing). Please contact support.'
             : 'Could not start signup. Please try again.',
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
           success: false,
           error: 'Could not send verification email. Please check SMTP settings and try again.',
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -241,7 +241,7 @@ Deno.serve(async (req) => {
         success: false,
         error: error instanceof Error ? error.message : 'Signup verification failed',
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
