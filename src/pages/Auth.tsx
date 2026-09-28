@@ -23,6 +23,9 @@ function splitFullName(fullName: string): { first_name: string; last_name: strin
   return { first_name: parts[0], last_name: parts.slice(1).join(' ') };
 }
 
+/** Temporarily hide Google SSO on Auth (sign-in + sign-up). Flip to true to restore. */
+const ENABLE_GOOGLE_AUTH = false;
+
 const Auth = () => {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -398,7 +401,7 @@ const Auth = () => {
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
-              {!showLdapLogin && signinStep === 'email' && (
+              {ENABLE_GOOGLE_AUTH && !showLdapLogin && signinStep === 'email' && (
                 <>
                   <GoogleAuthButton label="Continue with Google" />
                   <div className="flex items-center gap-3" aria-hidden="true">
@@ -552,12 +555,16 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4">
-              <GoogleAuthButton label="Sign up with Google" />
-              <div className="flex items-center gap-3" aria-hidden="true">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-xs uppercase text-muted-foreground">or create with email</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
+              {ENABLE_GOOGLE_AUTH && (
+                <>
+                  <GoogleAuthButton label="Sign up with Google" />
+                  <div className="flex items-center gap-3" aria-hidden="true">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs uppercase text-muted-foreground">or create with email</span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                </>
+              )}
               <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
                 <Building2 className="h-4 w-4" />
                 {t('auth.signUpIntro')}
