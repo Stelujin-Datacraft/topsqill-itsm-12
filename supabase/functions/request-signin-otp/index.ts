@@ -42,6 +42,119 @@ async function loadSmtp(
   return anyActive?.[0] || null;
 }
 
+function buildOrgDomain(orgName: string, email: string) {
+  const fromName = orgName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const base = fromName || email.split('@')[0]?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'org';
+  return `${base}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
+}
+
+async function ensureSoloOrganization(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    userId: string;
+    email: string;
+    firstName?: string | null;
+  },
+) {
+  const email = args.email.trim().toLowerCase();
+  const firstName = (args.firstName || email.split('@')[0] || 'User').trim();
+
+  const { data: existingProfile } = await supabase
+    .from('user_profiles')
+    .select('id, organization_id')
+    .eq('id', args.userId)
+    .maybeSingle();
+  if (existingProfile?.organization_id) return existingProfile.organization_id;
+
+  const { data: ownedOrgs } = await supabase
+    .from('organizations')
+    .select('id')
+    .ilike('admin_email', email)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  let orgId = ownedOrgs?.[0]?.id as string | undefined;
+
+  let orgName = '';
+  let orgDomain: string | null = null;
+  const { data: pending } = await supabase
+    .from('pending_signups')
+    .select('organization_name, organization_domain, first_name, last_name')
+    .ilike('email', email)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (pending?.organization_name) {
+    orgName = String(pending.organization_name);
+    orgDomain = (pending.organization_domain as string) || null;
+  }
+
+  if (!orgId) {
+    if (!orgName) {
+      try {
+        const { data: authUser } = await supabase.auth.admin.getUserById(args.userId);
+        const meta = authUser?.user?.user_metadata || {};
+        orgName = String(meta.organization_name || '').trim();
+        orgDomain = String(meta.organization_domain || '').trim() || orgDomain;
+      } catch {
+        // ignore
+      }
+    }
+    if (!orgName) orgName = `${firstName}'s Organization`;
+
+    const { data: created, error: createError } = await supabase
+      .from('organizations')
+      .insert({
+        name: orgName,
+        domain: orgDomain || buildOrgDomain(orgName, email),
+        description: null,
+        admin_email: email,
+        status: 'active',
+      })
+      .select('id')
+      .single();
+
+    if (createError || !created?.id) {
+      const { data: retry } = await supabase
+        .from('organizations')
+        .insert({
+          name: orgName,
+          domain: buildOrgDomain(orgName, email),
+          description: null,
+          admin_email: email,
+          status: 'active',
+        })
+        .select('id')
+        .single();
+      orgId = retry?.id;
+    } else {
+      orgId = created.id;
+    }
+  }
+
+  if (!orgId) return null;
+
+  await supabase.from('user_profiles').upsert(
+    {
+      id: args.userId,
+      email,
+      first_name: firstName,
+      last_name: firstName,
+      organization_id: orgId,
+      role: 'admin',
+      status: 'active',
+    },
+    { onConflict: 'id' },
+  );
+  await supabase.from('user_organizations').upsert(
+    { user_id: args.userId, organization_id: orgId, role: 'admin' },
+    { onConflict: 'user_id,organization_id' },
+  );
+  return orgId;
+}
+
 async function resolveSignInAccount(
   supabase: ReturnType<typeof createClient>,
   email: string,
@@ -54,43 +167,45 @@ async function resolveSignInAccount(
     .eq('email', normalized)
     .limit(1)
     .maybeSingle();
-  if (exact?.id) return exact;
+  let account = exact?.id ? exact : null;
 
-  const { data: fuzzy, error: fuzzyError } = await supabase
-    .from('user_profiles')
-    .select('id, email, organization_id, first_name, status')
-    .ilike('email', normalized)
-    .limit(1);
-  if (!fuzzyError && Array.isArray(fuzzy) && fuzzy[0]?.id) return fuzzy[0];
+  if (!account) {
+    const { data: fuzzy, error: fuzzyError } = await supabase
+      .from('user_profiles')
+      .select('id, email, organization_id, first_name, status')
+      .ilike('email', normalized)
+      .limit(1);
+    if (!fuzzyError && Array.isArray(fuzzy) && fuzzy[0]?.id) account = fuzzy[0];
+  }
 
-  const { data: authUserId, error: rpcError } = await supabase.rpc('get_auth_user_id_by_email', {
-    p_email: normalized,
-  });
-  let userId: string | null = !rpcError && authUserId ? String(authUserId) : null;
-
+  let userId = account?.id || null;
   if (!userId) {
-    try {
-      const { data: linkData } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: normalized,
-      });
-      if (linkData?.user?.id) userId = linkData.user.id;
-    } catch {
-      // ignore
+    const { data: authUserId, error: rpcError } = await supabase.rpc('get_auth_user_id_by_email', {
+      p_email: normalized,
+    });
+    userId = !rpcError && authUserId ? String(authUserId) : null;
+    if (!userId) {
+      try {
+        const { data: linkData } = await supabase.auth.admin.generateLink({
+          type: 'magiclink',
+          email: normalized,
+        });
+        if (linkData?.user?.id) userId = linkData.user.id;
+      } catch {
+        // ignore
+      }
     }
   }
 
   if (!userId) return null;
 
-  await supabase.from('user_profiles').upsert(
-    {
-      id: userId,
+  if (!account?.organization_id) {
+    await ensureSoloOrganization(supabase, {
+      userId,
       email: normalized,
-      status: 'active',
-      role: 'admin',
-    },
-    { onConflict: 'id' },
-  );
+      firstName: account?.first_name,
+    });
+  }
 
   const { data: ensured } = await supabase
     .from('user_profiles')
@@ -98,9 +213,7 @@ async function resolveSignInAccount(
     .eq('id', userId)
     .maybeSingle();
 
-  if (ensured?.id) return ensured;
-
-  return {
+  return ensured || account || {
     id: userId,
     email: normalized,
     organization_id: null,
