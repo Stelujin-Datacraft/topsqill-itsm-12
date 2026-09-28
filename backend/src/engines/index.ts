@@ -35,3 +35,4 @@ export { requestSignupVerification } from './request-signup-verification.engine'
 export { verifySignup } from './verify-signup.engine';
 export { requestSigninOtp } from './request-signin-otp.engine';
 export { verifySigninOtp } from './verify-signin-otp.engine';
+export { checkSignupAvailability } from './check-signup-availability.engine';

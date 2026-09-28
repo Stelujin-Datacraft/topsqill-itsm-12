@@ -220,6 +220,11 @@ const Auth = () => {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpResending, setOtpResending] = useState(false);
   const [signupSubmitting, setSignupSubmitting] = useState(false);
+  const [signupFieldErrors, setSignupFieldErrors] = useState<{
+    organization_name?: string;
+    email?: string;
+  }>({});
+  const [signupAvailabilityChecking, setSignupAvailabilityChecking] = useState(false);
 
   // Keep tab in sync when landing links use ?mode=signup
   useEffect(() => {
@@ -405,6 +410,62 @@ const Auth = () => {
     </Button>
   );
 
+  const checkSignupAvailability = async (opts?: {
+    email?: string;
+    organization_name?: string;
+  }): Promise<boolean> => {
+    const email = (opts?.email ?? signUpData.email).trim().toLowerCase();
+    const organization_name = (opts?.organization_name ?? signUpData.organization_name).trim();
+
+    if (!email && !organization_name) return true;
+
+    setSignupAvailabilityChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-signup-availability', {
+        body: { email: email || undefined, organization_name: organization_name || undefined },
+      });
+
+      const payload = (data || {}) as {
+        success?: boolean;
+        available?: boolean;
+        emailAvailable?: boolean;
+        organizationAvailable?: boolean;
+        emailError?: string | null;
+        organizationError?: string | null;
+        error?: string | null;
+      };
+
+      if (error && !payload.success) {
+        // Don't block signup on transient check failures; server will re-validate on submit.
+        return true;
+      }
+
+      setSignupFieldErrors((prev) => ({
+        ...prev,
+        ...(organization_name
+          ? {
+              organization_name: payload.organizationAvailable === false
+                ? (payload.organizationError || 'Organization name is already taken.')
+                : undefined,
+            }
+          : {}),
+        ...(email
+          ? {
+              email: payload.emailAvailable === false
+                ? (payload.emailError || 'This email is already registered.')
+                : undefined,
+            }
+          : {}),
+      }));
+
+      return payload.available !== false;
+    } catch {
+      return true;
+    } finally {
+      setSignupAvailabilityChecking(false);
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -437,6 +498,19 @@ const Auth = () => {
       return;
     }
 
+    const available = await checkSignupAvailability({
+      email: signUpData.email,
+      organization_name: signUpData.organization_name,
+    });
+    if (!available) {
+      toast({
+        title: 'Sign up unavailable',
+        description: 'Organization name or email is already in use. Please update and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSignupSubmitting(true);
     try {
       const { error, needsEmailVerification } = await registerOrganization({
@@ -448,9 +522,17 @@ const Auth = () => {
       });
 
       if (error) {
+        const message = error.message || 'Failed to send verification code. Please try again.';
+        const lower = message.toLowerCase();
+        if (lower.includes('organization') && lower.includes('already')) {
+          setSignupFieldErrors((prev) => ({ ...prev, organization_name: message }));
+        }
+        if (lower.includes('account already exists') || lower.includes('already exists for')) {
+          setSignupFieldErrors((prev) => ({ ...prev, email: message }));
+        }
         toast({
           title: 'Could not send verification code',
-          description: error.message || 'Failed to send verification code. Please try again.',
+          description: message,
           variant: 'destructive',
         });
         return;
@@ -463,6 +545,7 @@ const Auth = () => {
       setPendingVerifyEmail(signedUpEmail);
       setOtpCode('');
       setSignupStep('otp');
+      setSignupFieldErrors({});
       toast({
         title: 'Check your email',
         description: needsEmailVerification
@@ -977,9 +1060,25 @@ const Auth = () => {
                         id="signup-org-name"
                         placeholder="Acme Corp"
                         value={signUpData.organization_name}
-                        onChange={(e) => setSignUpData({ ...signUpData, organization_name: e.target.value })}
+                        onChange={(e) => {
+                          setSignUpData({ ...signUpData, organization_name: e.target.value });
+                          if (signupFieldErrors.organization_name) {
+                            setSignupFieldErrors((prev) => ({ ...prev, organization_name: undefined }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (signUpData.organization_name.trim()) {
+                            void checkSignupAvailability({
+                              organization_name: signUpData.organization_name,
+                            });
+                          }
+                        }}
+                        aria-invalid={!!signupFieldErrors.organization_name}
                         required
                       />
+                      {signupFieldErrors.organization_name && (
+                        <p className="text-xs text-destructive">{signupFieldErrors.organization_name}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-full-name">{t('auth.fullName')}</Label>
@@ -998,9 +1097,23 @@ const Auth = () => {
                         type="email"
                         placeholder="jane@acmecorp.com"
                         value={signUpData.email}
-                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        onChange={(e) => {
+                          setSignUpData({ ...signUpData, email: e.target.value });
+                          if (signupFieldErrors.email) {
+                            setSignupFieldErrors((prev) => ({ ...prev, email: undefined }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (signUpData.email.trim()) {
+                            void checkSignupAvailability({ email: signUpData.email });
+                          }
+                        }}
+                        aria-invalid={!!signupFieldErrors.email}
                         required
                       />
+                      {signupFieldErrors.email && (
+                        <p className="text-xs text-destructive">{signupFieldErrors.email}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">{t('auth.password')}</Label>
@@ -1028,8 +1141,21 @@ const Auth = () => {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={signupSubmitting}>
-                      {signupSubmitting ? 'Sending code…' : 'Continue'}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={
+                        signupSubmitting ||
+                        signupAvailabilityChecking ||
+                        !!signupFieldErrors.email ||
+                        !!signupFieldErrors.organization_name
+                      }
+                    >
+                      {signupSubmitting
+                        ? 'Sending code…'
+                        : signupAvailabilityChecking
+                          ? 'Checking…'
+                          : 'Continue'}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                       We’ll email a one-time code. Your account is created only after you verify it.

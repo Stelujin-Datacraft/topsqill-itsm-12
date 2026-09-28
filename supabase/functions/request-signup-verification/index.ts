@@ -102,6 +102,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    const { data: existingOrg } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .ilike('name', organizationName)
+      .maybeSingle();
+
+    if (existingOrg) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Organization "${organizationName}" already exists. Choose a different name.`,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const smtpConfig = await loadDefaultSmtp(supabase);
     if (!smtpConfig) {
       return new Response(

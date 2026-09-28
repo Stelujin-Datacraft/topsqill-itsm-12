@@ -27,6 +27,9 @@ verify_jwt = false
 [functions.verify-signin-otp]
 verify_jwt = false
 
+[functions.check-signup-availability]
+verify_jwt = false
+
 [functions.execute-data-feed]
 verify_jwt = false
 

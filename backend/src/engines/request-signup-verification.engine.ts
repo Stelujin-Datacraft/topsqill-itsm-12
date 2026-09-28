@@ -83,6 +83,19 @@ export async function requestSignupVerification(
       };
     }
 
+    const { data: existingOrg } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .ilike('name', organizationName)
+      .maybeSingle();
+
+    if (existingOrg) {
+      return {
+        success: false,
+        error: `Organization "${organizationName}" already exists. Choose a different name.`,
+      };
+    }
+
     const smtpConfig = await loadDefaultSmtp(supabase);
     if (!smtpConfig) {
       return {
