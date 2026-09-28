@@ -48,13 +48,13 @@ async function bootstrapOrg(
 
   const { error: profileError } = await supabase.from('user_profiles').upsert({
     id: args.userId,
-    email: args.email,
+    email: String(args.email || '').trim().toLowerCase(),
     first_name: args.firstName,
     last_name: args.lastName,
     organization_id: orgId,
     role: 'admin',
     status: 'active',
-  });
+  }, { onConflict: 'id' });
   if (profileError) throw profileError;
 
   await supabase.from('user_organizations').upsert(
@@ -180,9 +180,10 @@ export async function verifySignup(
     }
 
     const password = decryptPasswordNode(pending.password_encrypted, serviceKey);
+    const pendingEmail = String(pending.email || '').trim().toLowerCase();
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: pending.email,
+      email: pendingEmail,
       password,
       email_confirm: true,
       user_metadata: {
@@ -197,6 +198,58 @@ export async function verifySignup(
     if (authError || !authData.user) {
       const msg = authError?.message || 'Failed to create account';
       if (/already|registered|exists/i.test(msg)) {
+        const { data: authUserId } = await supabase.rpc('get_auth_user_id_by_email', {
+          p_email: pendingEmail,
+        });
+        if (authUserId) {
+          const { data: existingProfile } = await supabase
+            .from('user_profiles')
+            .select('id, organization_id')
+            .eq('id', String(authUserId))
+            .maybeSingle();
+
+          if (!existingProfile) {
+            try {
+              await bootstrapOrg(supabase, {
+                userId: String(authUserId),
+                email: pendingEmail,
+                name: pending.organization_name,
+                firstName: pending.first_name,
+                lastName: pending.last_name,
+                preferredDomain: pending.organization_domain,
+              });
+            } catch (ensureErr) {
+              console.warn('Could not ensure org/profile for existing auth user:', ensureErr);
+              await supabase.from('user_profiles').upsert({
+                id: String(authUserId),
+                email: pendingEmail,
+                first_name: pending.first_name || '',
+                last_name: pending.last_name || '',
+                role: 'admin',
+                status: 'active',
+              }, { onConflict: 'id' });
+            }
+          } else if (!existingProfile.organization_id) {
+            try {
+              await bootstrapOrg(supabase, {
+                userId: String(authUserId),
+                email: pendingEmail,
+                name: pending.organization_name,
+                firstName: pending.first_name,
+                lastName: pending.last_name,
+                preferredDomain: pending.organization_domain,
+              });
+            } catch (ensureErr) {
+              console.warn('Could not ensure org for existing profile:', ensureErr);
+            }
+          } else {
+            await supabase
+              .from('user_profiles')
+              .update({ email: pendingEmail, status: 'active' })
+              .eq('id', String(authUserId));
+          }
+        }
+
         await supabase
           .from('pending_signups')
           .update({ verified_at: new Date().toISOString() })
@@ -204,8 +257,8 @@ export async function verifySignup(
         return {
           success: true,
           alreadyExists: true,
-          email: pending.email,
-          message: 'Your email is verified. Please sign in with your password.',
+          email: pendingEmail,
+          message: 'Your email is verified. Please sign in.',
         };
       }
       return { success: false, error: msg };
@@ -214,7 +267,7 @@ export async function verifySignup(
     try {
       await bootstrapOrg(supabase, {
         userId: authData.user.id,
-        email: pending.email,
+        email: pendingEmail,
         name: pending.organization_name,
         firstName: pending.first_name,
         lastName: pending.last_name,
@@ -238,7 +291,7 @@ export async function verifySignup(
 
     return {
       success: true,
-      email: pending.email,
+      email: pendingEmail,
       message: 'Email verified. Your account is ready — please sign in.',
     };
   } catch (error) {
