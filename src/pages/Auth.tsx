@@ -10,6 +10,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building2, Mail, Server } from 'lucide-react';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/utils/passwordValidation';
 import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
@@ -31,16 +32,13 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
   const [activeTab, setActiveTab] = useState(initialMode);
-  const { signIn, signInWithGoogle, registerOrganization, signOut, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const { signIn, signInWithGoogle, registerOrganization, requestSignInOtp, verifySignInOtp, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
   // Skip auto-redirect when returning from email verification (or during post-signup).
   const skipAuthRedirectRef = useRef(
     typeof window !== 'undefined'
-      && (
-        new URLSearchParams(window.location.search).get('verified') === '1'
-        || /[?&#]type=(signup|email|magiclink)/i.test(`${window.location.search}${window.location.hash}`)
-      ),
+      && new URLSearchParams(window.location.search).get('verified') === '1',
   );
 
   // Password policy state
@@ -57,10 +55,13 @@ const Auth = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [prefetchedAuthUrl, setPrefetchedAuthUrl] = useState<string | null>(null);
 
-  // Two-step email-first sign-in flow
-  const [signinStep, setSigninStep] = useState<'email' | 'method'>('email');
+  // Two-step email-first sign-in flow (+ optional email OTP)
+  const [signinStep, setSigninStep] = useState<'email' | 'method' | 'otp'>('email');
   const [lookupLoading, setLookupLoading] = useState(false);
   const [usePasswordInstead, setUsePasswordInstead] = useState(false);
+  const [signinOtpCode, setSigninOtpCode] = useState('');
+  const [signinOtpSending, setSigninOtpSending] = useState(false);
+  const [signinOtpVerifying, setSigninOtpVerifying] = useState(false);
 
   // Redirect authenticated users (unless we just finished signup / email verification)
   useEffect(() => {
@@ -69,38 +70,6 @@ const Auth = () => {
       navigate(destination, { replace: true });
     }
   }, [user, isLoading, navigate, returnTo]);
-
-  // After the user clicks the verification link, require a manual password sign-in
-  // (do not drop them straight into AI Builder).
-  useEffect(() => {
-    const verified = searchParams.get('verified') === '1';
-    const hashTypeMatch = /(?:^|[?&#])type=(signup|email|magiclink)/i.test(
-      `${window.location.search}${window.location.hash}`,
-    );
-    if (!verified && !hashTypeMatch) return;
-
-    skipAuthRedirectRef.current = true;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        await signOut();
-      } catch {
-        // ignore — we still want the verify message
-      }
-      if (cancelled) return;
-      toast({
-        title: 'Email verified',
-        description: 'Please sign in with your email and password to continue.',
-      });
-      setActiveTab('signin');
-      navigate('/auth?mode=signin', { replace: true });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [searchParams, signOut, navigate]);
 
   // Check if LDAP is available for the entered email domain
   const checkLdapAvailability = async (email: string) => {
@@ -233,11 +202,11 @@ const Auth = () => {
 
   // Sign in form state
   const [signInData, setSignInData] = useState({
-    email: '',
+    email: searchParams.get('email') || '',
     password: ''
   });
 
-  // Sign up form state (creates organization + admin account)
+  // Sign up form state (creates organization + admin account only after OTP verify)
   const [signUpData, setSignUpData] = useState({
     organization_name: '',
     full_name: '',
@@ -245,6 +214,11 @@ const Auth = () => {
     password: '',
     confirm_password: '',
   });
+  const [signupStep, setSignupStep] = useState<'form' | 'otp'>('form');
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
 
   // Keep tab in sync when landing links use ?mode=signup
   useEffect(() => {
@@ -252,6 +226,30 @@ const Auth = () => {
     if (mode === 'signup') setActiveTab('signup');
     if (mode === 'signin') setActiveTab('signin');
   }, [searchParams]);
+
+  // After verify-signup redirects here, stay on sign-in (no auto AI Builder).
+  useEffect(() => {
+    const verified = searchParams.get('verified') === '1';
+    if (!verified) return;
+
+    skipAuthRedirectRef.current = true;
+    const verifiedEmail = searchParams.get('email') || '';
+    toast({
+      title: 'Email verified',
+      description: 'Please sign in with your email and password to continue.',
+    });
+    setActiveTab('signin');
+    setSigninStep('email');
+    if (verifiedEmail) {
+      setSignInData((prev) => ({ ...prev, email: verifiedEmail }));
+    }
+    navigate(
+      verifiedEmail
+        ? `/auth?mode=signin&email=${encodeURIComponent(verifiedEmail)}`
+        : '/auth?mode=signin',
+      { replace: true },
+    );
+  }, [searchParams, navigate]);
 
   const handleEmailNext = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,6 +287,73 @@ const Auth = () => {
       });
       const redirectPath = returnTo || '/build';
       navigate(redirectPath, { replace: true });
+    }
+  };
+
+  const handleRequestSignInOtp = async () => {
+    const email = signInData.email.trim();
+    if (!email) {
+      toast({
+        title: 'Email required',
+        description: 'Enter your email first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSigninOtpSending(true);
+    try {
+      const result = await requestSignInOtp(email);
+      if (result.error) {
+        toast({
+          title: 'Could not send code',
+          description: result.error.message || 'Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setSigninOtpCode('');
+      setSigninStep('otp');
+      toast({
+        title: 'Check your email',
+        description: result.message || `We sent a sign-in code to ${email}.`,
+      });
+    } finally {
+      setSigninOtpSending(false);
+    }
+  };
+
+  const handleVerifySignInOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const code = signinOtpCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast({
+        title: 'Invalid code',
+        description: 'Please enter the 6-digit code from your email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSigninOtpVerifying(true);
+    try {
+      const result = await verifySignInOtp(signInData.email, code);
+      if (result.error) {
+        toast({
+          title: 'Sign in failed',
+          description: result.error.message || 'Incorrect or expired code.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Welcome back!',
+        description: 'You have been successfully signed in.',
+      });
+      const redirectPath = returnTo || '/build';
+      navigate(redirectPath, { replace: true });
+    } finally {
+      setSigninOtpVerifying(false);
     }
   };
 
@@ -388,28 +453,136 @@ const Auth = () => {
       return;
     }
 
-    const signedUpEmail = signUpData.email.trim();
+    const signedUpEmail = signUpData.email.trim().toLowerCase();
 
-    // Always require email verification + manual sign-in (never open AI Builder from signup).
+    // Hold account creation until OTP is verified — show code entry step.
     skipAuthRedirectRef.current = true;
+    setPendingVerifyEmail(signedUpEmail);
+    setOtpCode('');
+    setSignupStep('otp');
     toast({
-      title: 'Verify your email',
+      title: 'Check your email',
       description: needsEmailVerification
-        ? `We sent a verification link to ${signedUpEmail}. Open it, then sign in here to finish setting up your account.`
-        : `Check ${signedUpEmail} for a verification link, then sign in to continue.`,
+        ? `We sent a 6-digit code to ${signedUpEmail}. Enter it below to create your account.`
+        : `Enter the 6-digit code sent to ${signedUpEmail} to create your account.`,
     });
+  };
 
-    setSignUpData({
-      organization_name: '',
-      full_name: '',
-      email: '',
-      password: '',
-      confirm_password: '',
-    });
+  const handleVerifySignupOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const code = otpCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast({
+        title: 'Invalid code',
+        description: 'Please enter the 6-digit code from your email.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    setActiveTab('signin');
-    setSignInData({ email: signedUpEmail, password: '' });
-    setSigninStep('email');
+    setOtpVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-signup', {
+        body: { email: pendingVerifyEmail, otp: code },
+      });
+
+      if (error) {
+        toast({
+          title: 'Verification failed',
+          description: error.message || 'Could not verify the code. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const payload = (data || {}) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+        email?: string;
+      };
+
+      if (!payload.success) {
+        toast({
+          title: 'Verification failed',
+          description: payload.error || 'Incorrect or expired code.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const verifiedEmail = payload.email || pendingVerifyEmail;
+      toast({
+        title: 'Account created',
+        description: 'Your email is verified. Please sign in to continue.',
+      });
+
+      setSignUpData({
+        organization_name: '',
+        full_name: '',
+        email: '',
+        password: '',
+        confirm_password: '',
+      });
+      setSignupStep('form');
+      setOtpCode('');
+      setPendingVerifyEmail('');
+      skipAuthRedirectRef.current = true;
+      setActiveTab('signin');
+      setSignInData({ email: verifiedEmail, password: '' });
+      setSigninStep('email');
+      navigate(
+        `/auth?mode=signin&verified=1&email=${encodeURIComponent(verifiedEmail)}`,
+        { replace: true },
+      );
+    } catch (err) {
+      toast({
+        title: 'Verification failed',
+        description: err instanceof Error ? err.message : 'Could not verify the code.',
+        variant: 'destructive',
+      });
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const handleResendSignupOtp = async () => {
+    if (!signUpData.email.trim() || !signUpData.password) {
+      toast({
+        title: 'Sign up again',
+        description: 'Your signup details expired. Please fill the form again.',
+        variant: 'destructive',
+      });
+      setSignupStep('form');
+      return;
+    }
+
+    setOtpResending(true);
+    try {
+      const { first_name, last_name } = splitFullName(signUpData.full_name);
+      const { error } = await registerOrganization({
+        name: signUpData.organization_name.trim(),
+        admin_email: signUpData.email.trim(),
+        admin_password: signUpData.password,
+        admin_first_name: first_name,
+        admin_last_name: last_name,
+      });
+      if (error) {
+        toast({
+          title: 'Could not resend code',
+          description: error.message || 'Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setOtpCode('');
+      toast({
+        title: 'Code resent',
+        description: `A new verification code was sent to ${pendingVerifyEmail || signUpData.email}.`,
+      });
+    } finally {
+      setOtpResending(false);
+    }
   };
 
   return (
@@ -423,14 +596,40 @@ const Auth = () => {
             <span className="text-2xl font-semibold tracking-tight">{t('common.appName')}</span>
           </div>
           <CardTitle className="text-2xl font-semibold tracking-tight">
-            {activeTab === 'signup' ? t('auth.signUp') : t('auth.signIn')}
+            {activeTab === 'signup'
+              ? signupStep === 'otp'
+                ? 'Verify your email'
+                : t('auth.signUp')
+              : signinStep === 'otp'
+                ? 'Sign in with email code'
+                : t('auth.signIn')}
           </CardTitle>
           <CardDescription className="leading-relaxed">
-            {activeTab === 'signup' ? t('auth.signUpSubtitle') : t('auth.signInSubtitle')}
+            {activeTab === 'signup'
+              ? signupStep === 'otp'
+                ? 'Enter the code we emailed you to create your account'
+                : t('auth.signUpSubtitle')
+              : signinStep === 'otp'
+                ? 'Enter the one-time code we sent to your email'
+                : t('auth.signInSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => {
+              setActiveTab(value);
+              if (value !== 'signup') {
+                setSignupStep('form');
+                setOtpCode('');
+              }
+              if (value !== 'signin') {
+                setSigninStep('email');
+                setSigninOtpCode('');
+              }
+            }}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-2 h-auto gap-1">
               <TabsTrigger value="signin" className="text-sm px-3 py-2">{t('auth.signIn')}</TabsTrigger>
               <TabsTrigger value="signup" className="text-sm px-3 py-2">{t('auth.signUp')}</TabsTrigger>
@@ -479,11 +678,78 @@ const Auth = () => {
                   <Button type="submit" className="w-full" disabled={lookupLoading}>
                     {lookupLoading ? 'Checking…' : 'Next'}
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={signinOtpSending || !signInData.email.trim()}
+                    onClick={() => void handleRequestSignInOtp()}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {signinOtpSending ? 'Sending code…' : 'Email me a sign-in code'}
+                  </Button>
                   <div className="text-center pt-2">
                     <Link to="/forgot-password" className="text-sm text-module-relationship hover:underline">
                       {t('auth.forgotPassword')}
                     </Link>
                   </div>
+                </form>
+              ) : signinStep === 'otp' ? (
+                <form onSubmit={handleVerifySignInOtp} className="space-y-4">
+                  <div className="space-y-2 text-center">
+                    <Mail className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Enter sign-in code</h3>
+                    <p className="text-sm text-muted-foreground">
+                      We sent a 6-digit code to{' '}
+                      <span className="font-medium text-foreground">{signInData.email}</span>.
+                    </p>
+                  </div>
+                  <div className="flex justify-center py-2">
+                    <InputOTP
+                      maxLength={6}
+                      value={signinOtpCode}
+                      onChange={setSigninOtpCode}
+                      disabled={signinOtpVerifying}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={signinOtpVerifying || signinOtpCode.length !== 6}
+                  >
+                    {signinOtpVerifying ? 'Signing in…' : 'Verify & sign in'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={signinOtpSending || signinOtpVerifying}
+                    onClick={() => void handleRequestSignInOtp()}
+                  >
+                    {signinOtpSending ? 'Sending…' : 'Resend code'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    disabled={signinOtpVerifying}
+                    onClick={() => {
+                      setSigninStep('method');
+                      setSigninOtpCode('');
+                      setUsePasswordInstead(true);
+                    }}
+                  >
+                    Sign in with password instead
+                  </Button>
                 </form>
               ) : (
                 <form onSubmit={handleSignIn} className="space-y-4">
@@ -499,6 +765,7 @@ const Auth = () => {
                           setSigninStep('email');
                           setSignInData({ ...signInData, password: '' });
                           setUsePasswordInstead(false);
+                          setSigninOtpCode('');
                         }}
                       >
                         Change
@@ -528,6 +795,16 @@ const Auth = () => {
                       <Mail className="h-4 w-4 mr-2" />
                       Sign in with password instead
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={signinOtpSending}
+                      onClick={() => void handleRequestSignInOtp()}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {signinOtpSending ? 'Sending code…' : 'Sign in with email code'}
+                    </Button>
                     </>
                   ) : ldapEnabled && !usePasswordInstead ? (
                     <>
@@ -548,6 +825,16 @@ const Auth = () => {
                       <Mail className="h-4 w-4 mr-2" />
                       Sign in with password instead
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={signinOtpSending}
+                      onClick={() => void handleRequestSignInOtp()}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {signinOtpSending ? 'Sending code…' : 'Sign in with email code'}
+                    </Button>
                     </>
                   ) : (
                     <>
@@ -566,6 +853,16 @@ const Auth = () => {
                       </div>
                       <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? t('auth.signingIn') : t('auth.signIn')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        disabled={signinOtpSending || isLoading}
+                        onClick={() => void handleRequestSignInOtp()}
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        {signinOtpSending ? 'Sending code…' : 'Sign in with email code'}
                       </Button>
                       {ldapEnabled && (
                         <Button
@@ -591,82 +888,149 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4">
-              {ENABLE_GOOGLE_AUTH && (
-                <>
-                  <GoogleAuthButton label="Sign up with Google" />
-                  <div className="flex items-center gap-3" aria-hidden="true">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs uppercase text-muted-foreground">or create with email</span>
-                    <div className="h-px flex-1 bg-border" />
+              {signupStep === 'otp' ? (
+                <form onSubmit={handleVerifySignupOtp} className="space-y-4">
+                  <div className="space-y-2 text-center">
+                    <Mail className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold">Enter verification code</h3>
+                    <p className="text-sm text-muted-foreground">
+                      We sent a 6-digit code to{' '}
+                      <span className="font-medium text-foreground">{pendingVerifyEmail}</span>.
+                      Your account is created only after this code is verified.
+                    </p>
                   </div>
+                  <div className="flex justify-center py-2">
+                    <InputOTP
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={setOtpCode}
+                      disabled={otpVerifying}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={otpVerifying || otpCode.length !== 6}
+                  >
+                    {otpVerifying ? 'Creating account…' : 'Verify & create account'}
+                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={otpResending || otpVerifying}
+                      onClick={() => void handleResendSignupOtp()}
+                    >
+                      {otpResending ? 'Sending…' : 'Resend code'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full"
+                      disabled={otpVerifying}
+                      onClick={() => {
+                        setSignupStep('form');
+                        setOtpCode('');
+                        setPendingVerifyEmail('');
+                      }}
+                    >
+                      Back to sign up
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  {ENABLE_GOOGLE_AUTH && (
+                    <>
+                      <GoogleAuthButton label="Sign up with Google" />
+                      <div className="flex items-center gap-3" aria-hidden="true">
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="text-xs uppercase text-muted-foreground">or create with email</span>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+                    </>
+                  )}
+                  <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    {t('auth.signUpIntro')}
+                  </div>
+                  <form onSubmit={handleSignUp} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-org-name">{t('auth.organizationName')}</Label>
+                      <Input
+                        id="signup-org-name"
+                        placeholder="Acme Corp"
+                        value={signUpData.organization_name}
+                        onChange={(e) => setSignUpData({ ...signUpData, organization_name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-full-name">{t('auth.fullName')}</Label>
+                      <Input
+                        id="signup-full-name"
+                        placeholder="Jane Smith"
+                        value={signUpData.full_name}
+                        onChange={(e) => setSignUpData({ ...signUpData, full_name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">{t('auth.email')}</Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="jane@acmecorp.com"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">{t('auth.password')}</Label>
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        required
+                      />
+                      {signUpData.password && (
+                        <PasswordStrengthIndicator
+                          password={signUpData.password}
+                          policy={passwordPolicy}
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-confirm-password">{t('auth.confirmPassword')}</Label>
+                      <Input
+                        id="signup-confirm-password"
+                        type="password"
+                        value={signUpData.confirm_password}
+                        onChange={(e) => setSignUpData({ ...signUpData, confirm_password: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? 'Sending code…' : 'Continue'}
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      We’ll email a one-time code. Your account is created only after you verify it.
+                    </p>
+                  </form>
                 </>
               )}
-              <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-                <Building2 className="h-4 w-4" />
-                {t('auth.signUpIntro')}
-              </div>
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-org-name">{t('auth.organizationName')}</Label>
-                  <Input
-                    id="signup-org-name"
-                    placeholder="Acme Corp"
-                    value={signUpData.organization_name}
-                    onChange={(e) => setSignUpData({ ...signUpData, organization_name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-full-name">{t('auth.fullName')}</Label>
-                  <Input
-                    id="signup-full-name"
-                    placeholder="Jane Smith"
-                    value={signUpData.full_name}
-                    onChange={(e) => setSignUpData({ ...signUpData, full_name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">{t('auth.email')}</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="jane@acmecorp.com"
-                    value={signUpData.email}
-                    onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">{t('auth.password')}</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    value={signUpData.password}
-                    onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                    required
-                  />
-                  {signUpData.password && (
-                    <PasswordStrengthIndicator
-                      password={signUpData.password}
-                      policy={passwordPolicy}
-                    />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-confirm-password">{t('auth.confirmPassword')}</Label>
-                  <Input
-                    id="signup-confirm-password"
-                    type="password"
-                    value={signUpData.confirm_password}
-                    onChange={(e) => setSignUpData({ ...signUpData, confirm_password: e.target.value })}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
-                </Button>
-              </form>
             </TabsContent>
           </Tabs>
 
