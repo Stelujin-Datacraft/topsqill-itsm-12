@@ -88,14 +88,22 @@ function fieldChoices(form: DiscoveredForm | undefined): Array<{ value: string; 
   }));
 }
 
+function hasConfiguredStaticValue(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'object') return true;
+  return String(value) !== '';
+}
+
 function actionConfigured(action: WorkflowActionSpec | null | undefined): boolean {
   if (!action) return false;
   switch (action.actionType) {
-    case 'change_field_value':
-      return Boolean(action.targetFieldId || action.targetFieldLabel)
-        && action.staticValue !== undefined
-        && action.staticValue !== null
-        && String(action.staticValue) !== '';
+    case 'change_field_value': {
+      if (!(action.targetFieldId || action.targetFieldLabel)) return false;
+      if (action.valueType === 'dynamic') {
+        return Boolean(action.dynamicValuePath);
+      }
+      return hasConfiguredStaticValue(action.staticValue);
+    }
     case 'create_record': {
       const hasStaticDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
       const hasMapDraft = action.createDraftKind === 'map'
@@ -494,6 +502,7 @@ function planGenericActionRequirements(
     if (
       condition
       && (condition.value === undefined || condition.value === null || condition.value === '')
+      && !condition.compareFieldId
       && hints.conditionValueHint
       && (
         !hints.conditionFieldHint
@@ -501,13 +510,57 @@ function planGenericActionRequirements(
         || fieldMatchesHint({ label: condition.fieldLabel }, hints.conditionFieldHint)
       )
     ) {
+      condition.valueKind = condition.valueKind || 'static';
       condition.value = sanitizeConditionValueHint(hints.conditionValueHint);
       condition.pendingOptionLabel = sanitizeConditionValueHint(hints.conditionValueHint);
       condition.pendingOptionCreate = false;
     }
 
-    // ── Condition value ─────────────────────────────────────────────────────
-    if (condition && (condition.value === undefined || condition.value === null || condition.value === '')) {
+    // Static vs map for condition comparison value
+    if (
+      condition
+      && !condition.valueKind
+      && (condition.value === undefined || condition.value === null || condition.value === '')
+      && !condition.compareFieldId
+    ) {
+      push(req({
+        id: 'condition.value_kind',
+        scope: 'condition',
+        key: 'condition_value_kind',
+        question: [
+          `How should **${condField?.label || condition.fieldLabel}** be compared?`,
+          '',
+          '- **Static value** — type or pick a fixed value',
+          '- **Map from form field** — compare against another field on the same submission',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: [
+          { value: '__static_value__', label: 'Static value' },
+          { value: '__map_from_field__', label: 'Map from form field' },
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    if (condition?.valueKind === 'dynamic' && !condition.compareFieldId) {
+      const mapOpts = fieldChoices(hydratedForm).filter((o) => o.value !== condition.fieldId);
+      push(req({
+        id: 'condition.value_map_field',
+        scope: 'condition',
+        key: 'condition_value_map_field',
+        question: `Which **form field** should **${condField?.label || condition.fieldLabel}** be compared to?`,
+        inputKind: 'field_select',
+        options: mapOpts,
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    // ── Condition value (static) ────────────────────────────────────────────
+    if (
+      condition
+      && condition.valueKind !== 'dynamic'
+      && (condition.value === undefined || condition.value === null || condition.value === '')
+    ) {
       const opts = fieldOptionChoices(condField);
       if (opts.length) {
         push(req({
@@ -533,6 +586,8 @@ function planGenericActionRequirements(
     // Option already on field (e.g. created earlier) → never re-ask
     if (
       condition
+      && condition.valueKind !== 'dynamic'
+      && typeof condition.value !== 'object'
       && condField
       && fieldHasOption(condField, condition.value)
     ) {
@@ -544,6 +599,8 @@ function planGenericActionRequirements(
     // Missing option on condition field → ask permission to create it
     if (
       condition
+      && condition.valueKind !== 'dynamic'
+      && typeof condition.value !== 'object'
       && condField
       && fieldNeedsOptionCreateCheck(condField)
       && !fieldHasOption(condField, condition.value)
@@ -1782,6 +1839,7 @@ function planGenericActionRequirements(
   if (
     needsActionField
     && (action.targetFieldId || action.targetFieldLabel)
+    && action.valueType !== 'dynamic'
     && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
     && hints.actionValueHint
     && (
@@ -1789,14 +1847,61 @@ function planGenericActionRequirements(
       || fieldMatchesHint({ label: action.targetFieldLabel }, hints.actionFieldHint)
     )
   ) {
+    action.valueType = 'static';
+    action.valueKindAsked = true;
     action.staticValue = sanitizeConditionValueHint(hints.actionValueHint);
     action.pendingOptionLabel = sanitizeConditionValueHint(hints.actionValueHint);
     action.pendingOptionCreate = false;
   }
 
-  // Action value
+  // Static vs map for change_field_value
   if (
     needsActionField
+    && (action.targetFieldId || action.targetFieldLabel)
+    && !action.valueKindAsked
+    && action.valueType !== 'dynamic'
+    && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
+  ) {
+    push(req({
+      id: 'action.value_kind',
+      scope: 'workflow',
+      key: 'action_value_kind',
+      question: [
+        `How should **${action.targetFieldLabel || 'this field'}** be set?`,
+        '',
+        '- **Static value** — type or pick a fixed value',
+        '- **Map from form field** — copy from another field on the submission',
+      ].join('\n'),
+      inputKind: 'choice',
+      options: [
+        { value: '__static_value__', label: 'Static value' },
+        { value: '__map_from_field__', label: 'Map from form field' },
+      ],
+    }));
+    return mergeUnansweredFirst(out);
+  }
+
+  if (
+    needsActionField
+    && action.valueType === 'dynamic'
+    && !action.dynamicValuePath
+  ) {
+    const mapOpts = fieldChoices(hydratedForm).filter((o) => o.value !== action.targetFieldId);
+    push(req({
+      id: 'action.value_map_field',
+      scope: 'workflow',
+      key: 'action_value_map_field',
+      question: `Which **form field** should supply the value for **${action.targetFieldLabel || 'the field'}**?`,
+      inputKind: 'field_select',
+      options: mapOpts,
+    }));
+    return mergeUnansweredFirst(out);
+  }
+
+  // Action value (static)
+  if (
+    needsActionField
+    && action.valueType !== 'dynamic'
     && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
   ) {
     const linkedForm = action.targetFormId
@@ -1835,8 +1940,10 @@ function planGenericActionRequirements(
   // Missing option on action field → ask permission to create it
   if (
     needsActionField
+    && action.valueType !== 'dynamic'
     && action.staticValue !== undefined
     && action.staticValue !== null
+    && typeof action.staticValue !== 'object'
     && String(action.staticValue) !== ''
     && !action.pendingOptionCreate
   ) {
@@ -2045,8 +2152,59 @@ function planApprovalRequirements(
   }));
 
   for (const level of definition.levels) {
-    const hasUser = level.approver.type === 'user' && Boolean(level.approver.entityId) && level.approver.resolved;
-    if (!hasUser) {
+    const hasStaticUser = level.approver.type === 'user'
+      && Boolean(level.approver.entityId)
+      && level.approver.resolved;
+    const hasMappedField = level.approver.type === 'field'
+      && Boolean(level.approver.fieldId || level.approver.fieldLabel)
+      && level.approver.resolved;
+    const hasApprover = hasStaticUser || hasMappedField;
+
+    if (!level.approverAssignmentKind && !hasApprover) {
+      const hint = level.approver.rawHint ? ` (${level.approver.rawHint})` : '';
+      push(req({
+        id: `level.${level.level}.approver.kind`,
+        scope: 'level',
+        level: level.level,
+        key: 'approver_assignment_kind',
+        question: [
+          `How should **Level ${level.level} approver**${hint} be set on **${definition.accessFieldLabel || SUBMISSION_ACCESS_FIELD_LABEL}**?`,
+          '',
+          '- **Static user** — pick a specific person from your organization',
+          '- **Map from form field** — copy the approver from a user / access field on the submission',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: [
+          { value: '__static_user__', label: 'Static user — pick a person' },
+          { value: '__map_from_field__', label: 'Map from form field' },
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    if (!hasApprover && level.approverAssignmentKind === 'map') {
+      const mapFields = (hydratedForm?.fields || [])
+        .filter((f) => isApproverCompatibleFieldType(f.type))
+        .map((f) => ({ value: f.id, label: `${f.label} (${f.type})` }));
+      push(req({
+        id: `level.${level.level}.approver.map_field`,
+        scope: 'level',
+        level: level.level,
+        key: 'approver_map_field',
+        question: [
+          `Which **form field** should supply the Level ${level.level} approver?`,
+          '',
+          `Its value will be mapped onto **${definition.accessFieldLabel || SUBMISSION_ACCESS_FIELD_LABEL}** at runtime.`,
+        ].join('\n'),
+        inputKind: 'field_select',
+        options: mapFields.length
+          ? mapFields
+          : fieldChoices(hydratedForm),
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    if (!hasApprover) {
       const hint = level.approver.rawHint ? ` (${level.approver.rawHint})` : '';
       if (userOptions.length) {
         push(req({
@@ -2434,10 +2592,50 @@ export function applyAnswerToDefinition(
     return next;
   }
 
+  if (requirement.key === 'condition_value_kind') {
+    const cond = next.conditions[0];
+    if (cond) {
+      if (value === '__map_from_field__' || /^map\b/i.test(value)) {
+        cond.valueKind = 'dynamic';
+        cond.value = '';
+        cond.compareFieldId = undefined;
+        cond.compareFieldLabel = undefined;
+        cond.pendingOptionCreate = false;
+        cond.pendingOptionLabel = undefined;
+      } else {
+        cond.valueKind = 'static';
+        cond.compareFieldId = undefined;
+        cond.compareFieldLabel = undefined;
+      }
+    }
+    return next;
+  }
+
+  if (requirement.key === 'condition_value_map_field') {
+    const cond = next.conditions[0];
+    if (cond) {
+      const field = form?.fields.find((f) => f.id === value)
+        || searchFields(form, value).matched;
+      cond.valueKind = 'dynamic';
+      cond.compareFieldId = field?.id || value;
+      cond.compareFieldLabel = field?.label || value;
+      // Store a structured ref so compile/runtime can resolve the other field
+      cond.value = {
+        __formFieldRef: cond.compareFieldId,
+        fieldLabel: cond.compareFieldLabel,
+      };
+      cond.resolved = Boolean(cond.fieldId && cond.compareFieldId);
+      cond.pendingOptionCreate = false;
+      cond.pendingOptionLabel = undefined;
+    }
+    return next;
+  }
+
   if (requirement.key === 'condition_value') {
     const cond = next.conditions[0];
     if (cond) {
       const field = hydrateDiscoveredForm(form)?.fields.find((f) => f.id === cond.fieldId);
+      cond.valueKind = cond.valueKind || 'static';
       cond.resolved = Boolean(cond.fieldId);
       cond.pendingOptionCreate = false;
       cond.pendingOptionLabel = undefined;
@@ -2912,9 +3110,45 @@ export function applyAnswerToDefinition(
     next.action.targetFieldLabel = field?.label || value;
     next.action.targetFieldType = field?.type;
     next.action.valueType = 'static';
+    next.action.valueKindAsked = isCreate ? true : false;
+    next.action.staticValue = undefined;
+    next.action.dynamicValuePath = undefined;
+    next.action.dynamicFieldLabel = undefined;
+    next.action.pendingOptionCreate = false;
+    next.action.pendingOptionLabel = undefined;
+    return next;
+  }
+
+  if (requirement.key === 'action_value_kind' && next.action) {
+    next.action.valueKindAsked = true;
+    if (value === '__map_from_field__' || /^map\b/i.test(value)) {
+      next.action.valueType = 'dynamic';
+      next.action.staticValue = undefined;
+      next.action.dynamicValuePath = undefined;
+      next.action.dynamicFieldLabel = undefined;
+      next.action.pendingOptionCreate = false;
+      next.action.pendingOptionLabel = undefined;
+    } else {
+      next.action.valueType = 'static';
+      next.action.dynamicValuePath = undefined;
+      next.action.dynamicFieldLabel = undefined;
+      next.action.staticValue = undefined;
+    }
+    next.action.configured = actionConfigured(next.action);
+    return next;
+  }
+
+  if (requirement.key === 'action_value_map_field' && next.action) {
+    const field = form?.fields.find((f) => f.id === value)
+      || searchFields(form, value).matched;
+    next.action.valueType = 'dynamic';
+    next.action.valueKindAsked = true;
+    next.action.dynamicValuePath = field?.id || value;
+    next.action.dynamicFieldLabel = field?.label || value;
     next.action.staticValue = undefined;
     next.action.pendingOptionCreate = false;
     next.action.pendingOptionLabel = undefined;
+    next.action.configured = actionConfigured(next.action);
     return next;
   }
 
@@ -3192,6 +3426,37 @@ export function applyAnswerToDefinition(
     const level = next.levels.find((l) => l.level === requirement.level);
     if (!level) return next;
 
+    if (requirement.key === 'approver_assignment_kind') {
+      if (value === '__map_from_field__' || /^map\b/i.test(value)) {
+        level.approverAssignmentKind = 'map';
+        level.approver = {
+          type: 'unresolved',
+          resolved: false,
+          rawHint: level.approver.rawHint,
+        };
+      } else {
+        level.approverAssignmentKind = 'static';
+        level.approver = {
+          type: 'unresolved',
+          resolved: false,
+          rawHint: level.approver.rawHint,
+        };
+      }
+    }
+
+    if (requirement.key === 'approver_map_field') {
+      const field = form?.fields.find((f) => f.id === value)
+        || searchFields(form, value).matched;
+      level.approverAssignmentKind = 'map';
+      level.approver = {
+        type: 'field',
+        fieldId: field?.id || value,
+        fieldLabel: field?.label || value,
+        rawHint: level.approver.rawHint || field?.label || value,
+        resolved: Boolean(field?.id || value),
+      };
+    }
+
     if (requirement.key === 'approver_user') {
       const fromOpt = requirement.options?.find((o) =>
         o.value === value
@@ -3200,6 +3465,7 @@ export function applyAnswerToDefinition(
       );
       const entityId = fromOpt?.value || value;
       const entityLabel = fromOpt?.label || value;
+      level.approverAssignmentKind = 'static';
       level.approver = {
         type: 'user',
         entityId,

@@ -178,26 +178,32 @@ function buildActionNodeConfig(
     : (action.targetFormId && action.targetFormId !== formId ? undefined : formFields);
 
   switch (action.actionType) {
-    case 'change_field_value':
+    case 'change_field_value': {
+      const isDynamic = action.valueType === 'dynamic' && Boolean(action.dynamicValuePath);
       return {
         ...base,
         targetFormId: formId,
         targetFormName: formName,
-        valueType: action.valueType || 'static',
+        valueType: isDynamic ? 'dynamic' : 'static',
         targetFieldId: fieldId,
         targetFieldName: fieldLabel,
         targetFieldType: fieldType,
         targetFieldOptions: fieldOptions,
-        staticValue,
+        staticValue: isDynamic ? undefined : staticValue,
+        dynamicValuePath: isDynamic ? action.dynamicValuePath : undefined,
+        dynamicFieldName: isDynamic ? (action.dynamicFieldLabel || undefined) : undefined,
         fieldUpdates: [{
           targetFieldId: fieldId,
           targetFieldName: fieldLabel,
           targetFieldType: fieldType,
           targetFieldOptions: fieldOptions,
-          valueType: 'static',
-          staticValue,
+          valueType: isDynamic ? 'dynamic' : 'static',
+          staticValue: isDynamic ? undefined : staticValue,
+          dynamicValuePath: isDynamic ? action.dynamicValuePath : undefined,
+          dynamicFieldName: isDynamic ? (action.dynamicFieldLabel || undefined) : undefined,
         }],
       };
+    }
     case 'create_record': {
       const values = (!action.skipCreateFieldValues ? (action.createFieldValues || []) : [])
         .filter((f) => f.fieldId || f.fieldLabel)
@@ -560,14 +566,32 @@ function compileGenericActionGraph(
   const fieldLabel = condField?.label || cond?.fieldLabel || '';
   const fieldType = condField?.type || cond?.fieldType || 'text';
   const operator = cond?.operator || '==';
-  // Bind label/synonym → real option.value so runtime == matches submission_data
-  const value = resolvePreferredOptionValue(condField, cond?.value ?? '');
+  // Map-from-field: keep structured ref for runtime; static: bind option text → real option.value
+  const rawCondValue = cond?.value ?? '';
+  const isFieldRefValue = Boolean(
+    cond?.valueKind === 'dynamic'
+    || cond?.compareFieldId
+    || (rawCondValue && typeof rawCondValue === 'object' && (rawCondValue as any).__formFieldRef),
+  );
+  const value = isFieldRefValue
+    ? {
+        __formFieldRef: cond?.compareFieldId
+          || (rawCondValue as any)?.__formFieldRef
+          || '',
+        fieldLabel: cond?.compareFieldLabel
+          || (rawCondValue as any)?.fieldLabel
+          || '',
+      }
+    : resolvePreferredOptionValue(condField, rawCondValue);
   const conditionDeferred = definition.action?.actionType === 'create_combination_records'
     && !fieldId
     && !fieldLabel;
 
   // Deferred combo conditions must evaluate true at runtime (no field bound yet).
   // Use an empty conditions list so enhanced evaluation short-circuits to true.
+  const condValueLabel = isFieldRefValue
+    ? `{${(value as any).fieldLabel || (value as any).__formFieldRef || 'field'}}`
+    : String(value ?? '');
   const enhancedCondition = conditionDeferred
     ? {
         systemType: 'field_level',
@@ -596,7 +620,7 @@ function compileGenericActionGraph(
     type: 'condition',
     label: conditionDeferred
       ? 'Condition (set in designer)'
-      : (fieldLabel ? `${fieldLabel} ${operator} ${value}` : 'Condition'),
+      : (fieldLabel ? `${fieldLabel} ${operator} ${condValueLabel}` : 'Condition'),
     description: conditionDeferred
       ? 'Configure this condition node in the workflow designer'
       : `${fieldLabel} ${operator} ${value}`,
@@ -769,38 +793,64 @@ export function compileWorkflowDefinition(
       || level.approver.fieldLabel
       || level.approver.rawHint
       || `Level ${level.level} Approver`;
+    const mapFromFieldId = level.approver.type === 'field'
+      ? (level.approver.fieldId || '')
+      : '';
     const userId = level.approver.type === 'user' ? (level.approver.entityId || '') : '';
     const sacValue = {
       users: userId ? [userId] : [],
       groups: [] as string[],
     };
+    const setAccessIsDynamic = Boolean(mapFromFieldId);
 
     const syncLabels = mainStatusSyncLabelsForLevel(level.level);
     const afterAccess = setPendingStatusId || notifyId;
 
-    // 1) Set Submission Access Control to this level's approver user
+    // 1) Set Submission Access Control — static user object OR map from form field
     nodes.push({
       tempId: setAccessId,
       type: 'action',
       label: `Set Level ${level.level} Approver`,
-      description: `Set ${accessFieldLabel} to ${approverLabel}`,
-      config: {
-        actionType: 'change_field_value',
-        targetFormId: formId,
-        targetFormName: formName,
-        valueType: 'static',
-        targetFieldId: accessFieldId,
-        targetFieldName: accessFieldLabel,
-        targetFieldType: accessFieldType,
-        staticValue: sacValue,
-        fieldUpdates: [{
-          targetFieldId: accessFieldId,
-          targetFieldName: accessFieldLabel,
-          targetFieldType: accessFieldType,
-          valueType: 'static',
-          staticValue: sacValue,
-        }],
-      },
+      description: setAccessIsDynamic
+        ? `Map ${accessFieldLabel} from ${approverLabel}`
+        : `Set ${accessFieldLabel} to ${approverLabel}`,
+      config: setAccessIsDynamic
+        ? {
+            actionType: 'change_field_value',
+            targetFormId: formId,
+            targetFormName: formName,
+            valueType: 'dynamic',
+            targetFieldId: accessFieldId,
+            targetFieldName: accessFieldLabel,
+            targetFieldType: accessFieldType,
+            dynamicValuePath: mapFromFieldId,
+            dynamicFieldName: level.approver.fieldLabel || approverLabel,
+            fieldUpdates: [{
+              targetFieldId: accessFieldId,
+              targetFieldName: accessFieldLabel,
+              targetFieldType: accessFieldType,
+              valueType: 'dynamic',
+              dynamicValuePath: mapFromFieldId,
+              dynamicFieldName: level.approver.fieldLabel || approverLabel,
+            }],
+          }
+        : {
+            actionType: 'change_field_value',
+            targetFormId: formId,
+            targetFormName: formName,
+            valueType: 'static',
+            targetFieldId: accessFieldId,
+            targetFieldName: accessFieldLabel,
+            targetFieldType: accessFieldType,
+            staticValue: sacValue,
+            fieldUpdates: [{
+              targetFieldId: accessFieldId,
+              targetFieldName: accessFieldLabel,
+              targetFieldType: accessFieldType,
+              valueType: 'static',
+              staticValue: sacValue,
+            }],
+          },
       connections: [{ to: afterAccess }],
     });
 

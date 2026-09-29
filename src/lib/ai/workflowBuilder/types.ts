@@ -72,6 +72,11 @@ export interface WorkflowConditionSpec {
   operator: string;
   value: unknown;
   resolved: boolean;
+  /** static literal vs map/compare from another form field */
+  valueKind?: 'static' | 'dynamic';
+  /** When valueKind=dynamic — compare against this form field's submitted value */
+  compareFieldId?: string;
+  compareFieldLabel?: string;
   /** User confirmed creating this value as a new option on the field */
   pendingOptionCreate?: boolean;
   /** Raw label the user asked for when option was missing */
@@ -118,6 +123,14 @@ export interface WorkflowActionSpec {
   targetFieldType?: string;
   valueType?: 'static' | 'dynamic';
   staticValue?: unknown;
+  /** change_field_value: map source field id on the trigger form */
+  dynamicValuePath?: string;
+  dynamicFieldLabel?: string;
+  /**
+   * change_field_value: user answered Static vs Map (before value / source field).
+   * Distinct from valueType so we can re-ask cleanly.
+   */
+  valueKindAsked?: boolean;
   /** User confirmed creating this value as a new option on the action field */
   pendingOptionCreate?: boolean;
   pendingOptionLabel?: string;
@@ -223,6 +236,12 @@ export interface WorkflowLevelSpec {
   level: number;
   label: string;
   approver: ApproverRef;
+  /**
+   * How the level approver is assigned onto Submission Access Control:
+   * - static: pick a concrete org user
+   * - map: copy from a form user/access field at runtime
+   */
+  approverAssignmentKind?: 'static' | 'map';
   /** Choice/status field that records approval decision */
   approvalFieldId?: string;
   approvalFieldLabel?: string;

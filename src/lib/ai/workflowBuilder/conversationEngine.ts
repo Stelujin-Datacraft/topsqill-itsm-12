@@ -756,6 +756,9 @@ export function continueWorkflowBuilderSession(params: {
     && answer !== '__skip_create_field_values__'
     && answer !== '__done_create_fields__'
     && answer !== '__map_from_trigger__'
+    && answer !== '__map_from_field__'
+    && answer !== '__static_value__'
+    && answer !== '__static_user__'
     && answer !== '__map_combo__'
     && answer !== '__skip_combo_maps__'
     && answer !== '__done_combo_maps__'
@@ -1440,6 +1443,36 @@ function buildAck(
   }
   if (req.key === 'action_value') {
     return `Action value set to **${answer}**.`;
+  }
+  if (req.key === 'action_value_kind') {
+    if (answer === '__map_from_field__' || /^map\b/i.test(answer)) {
+      return 'Okay — we\'ll map the value from another form field. Pick the source field next.';
+    }
+    return 'Okay — we\'ll use a static value. What should it be set to?';
+  }
+  if (req.key === 'action_value_map_field') {
+    if (field) return `I'll copy FROM **${field.label}** into the target field.`;
+    return 'Source field for the mapped value noted.';
+  }
+  if (req.key === 'condition_value_kind') {
+    if (answer === '__map_from_field__' || /^map\b/i.test(answer)) {
+      return 'Okay — we\'ll compare against another form field. Pick that field next.';
+    }
+    return 'Okay — we\'ll use a static comparison value.';
+  }
+  if (req.key === 'condition_value_map_field') {
+    if (field) return `Condition will compare against **${field.label}**.`;
+    return 'Compare field noted.';
+  }
+  if (req.key === 'approver_assignment_kind') {
+    if (answer === '__map_from_field__' || /^map\b/i.test(answer)) {
+      return 'Okay — we\'ll map the approver from a form field. Pick that field next.';
+    }
+    return 'Okay — pick the static approver user next.';
+  }
+  if (req.key === 'approver_map_field') {
+    if (field) return `Level approver will be mapped from **${field.label}**.`;
+    return 'Approver map field noted.';
   }
   if (req.key === 'action_value_create') {
     if (answer === '__create_option__' || /^(y|yes)/i.test(answer)) {
