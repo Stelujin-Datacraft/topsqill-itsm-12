@@ -104,6 +104,15 @@ export default function AIStudio() {
     }
   }, [formFirstLocked, createType]);
 
+  // After a successful report create/update, keep the Report create-type selected.
+  useEffect(() => {
+    const last = [...messages].reverse().find((m) => m.action?.status === 'success');
+    if (!last?.action) return;
+    if (last.action.type === 'create_report' || last.action.type === 'update_report') {
+      if (!formFirstLocked) setCreateType('report');
+    }
+  }, [messages, formFirstLocked]);
+
   const viewFormsList = () => {
     unlockWorkspace();
     navigate('/forms');

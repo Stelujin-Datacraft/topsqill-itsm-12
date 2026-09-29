@@ -281,11 +281,19 @@ export function promptCreatesDashboard(text: string): boolean {
 
 /** User is asking to create a chart/report from form data. */
 export function promptCreatesReport(text: string): boolean {
-  const t = text.toLowerCase();
+  const t = text.toLowerCase().replace(/\s+/g, ' ').trim();
   if (promptCreatesDashboard(text)) return false;
   if (promptUpdatesExistingReport(t)) return false;
-  if (/\b(create|make|build|set up|add|generate)\b/.test(t) && /\breports?\b/.test(t)) return true;
+  // "createa" typos / missing space still count as create
+  const creates = /\b(create|createa|make|build|set up|add|generate)\b/.test(t)
+    || /^(create|createa|make|build|generate)\w*/.test(t);
+  if (creates && /\breports?\b/.test(t)) return true;
   if (/\breports?\b/.test(t) && /\b(chart|graph|visual|bar|pie|line|group|aggregate|count)\b/.test(t)) return true;
+  // Chart/graph language without the word "report" still means a report asset in AI Builder
+  if (creates && /\b(charts?|graphs?|visuali[sz]e|bar chart|pie chart|line chart)\b/.test(t)) return true;
+  if (creates && /\b(by\s+date|grouped?\s+by|over\s+time)\b/.test(t) && /\b(name|count|status|field)\b/.test(t)) {
+    return true;
+  }
   return false;
 }
 
