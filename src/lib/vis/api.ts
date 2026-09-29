@@ -253,6 +253,54 @@ export const visApi = {
       () => nestVis(`/executions/${executionId}/retry-failed`, { method: 'POST', body: {} }),
       () => visClientEngine.retryFailedExecution(executionId),
     ),
+  activateIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/activate`, { method: 'POST', body: {} }),
+      async () => {
+        throw new Error('Activate requires Nest backend');
+      },
+    ),
+  pauseIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/pause`, { method: 'POST', body: {} }),
+      async () => {
+        throw new Error('Pause requires Nest backend');
+      },
+    ),
+  resumeIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/resume`, { method: 'POST', body: {} }),
+      async () => {
+        throw new Error('Resume requires Nest backend');
+      },
+    ),
+  getRealtimeStatus: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/event-status`),
+      async () => ({ health: 'DISCONNECTED', metrics: {} }),
+    ),
+  listEvents: (integrationId?: string) =>
+    withFallback(
+      () => nestVis(`/events${integrationId ? `?integrationId=${integrationId}` : ''}`),
+      async () => [],
+    ),
+  getEvent: (id: string) =>
+    withFallback(
+      () => nestVis(`/events/${id}`),
+      async () => {
+        throw new Error('Event detail requires Nest backend');
+      },
+    ),
+  setEventConfig: (id: string, body: Record<string, unknown>) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/event-config`, { method: 'POST', body }),
+      async () => body,
+    ),
+  testEvent: (id: string, body: Record<string, unknown>) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/test-event`, { method: 'POST', body }),
+      async () => ({ dryRun: true }),
+    ),
   listDeadLetters: (executionId?: string) =>
     withFallback(
       () => nestVis(`/dead-letters${executionId ? `?executionId=${executionId}` : ''}`),

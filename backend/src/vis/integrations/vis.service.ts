@@ -30,6 +30,13 @@ import {
 } from '../executions/index';
 import type { DeadLetterRecord } from '../executions/in-memory-queue';
 import type { SourceReader } from '../executions/source-processor';
+import {
+  EventIngestionService,
+  getEventIngestionService,
+  PollingFallbackService,
+  defaultRealtimeConfig,
+} from '../events/index';
+import type { RealtimeEventConfig } from '../core/types/index';
 
 @Injectable()
 export class VisService {
@@ -40,10 +47,14 @@ export class VisService {
   private readonly runners = new Map<string, ExecutionRunner>();
   /** Idempotency keys across retries within process lifetime */
   private readonly processedKeys = new Map<string, Set<string>>();
+  private readonly events: EventIngestionService;
+  private readonly polling: PollingFallbackService;
 
   constructor() {
     this.store = getVisStore();
     this.assistant = new VisAssistant(new MockAIProvider());
+    this.events = getEventIngestionService(this.store);
+    this.polling = new PollingFallbackService(this.store, this.events);
   }
 
   // ── Dashboard ──────────────────────────────────────────────────────────
@@ -249,15 +260,36 @@ export class VisService {
       status: 'DESIGN_READY',
       updatedAt: new Date().toISOString(),
     });
+    const isRealtime =
+      design.executionMode === 'REAL_TIME'
+      || design.executionMode === 'REALTIME'
+      || design.executionMode === 'EVENT_DRIVEN';
+    const eventConfig = isRealtime
+      ? defaultRealtimeConfig({
+          eventEnabled: true,
+          eventTriggerTypes: /updated/.test(prompt.toLowerCase())
+            ? ['RECORD_CREATED', 'RECORD_UPDATED']
+            : /deleted/.test(prompt.toLowerCase())
+              ? ['RECORD_DELETED']
+              : ['RECORD_CREATED', 'RECORD_UPDATED'],
+          sourceEnvironmentId: /uat/.test(prompt.toLowerCase()) && /dev/.test(prompt.toLowerCase()) ? 'DEV' : 'DEV',
+          targetEnvironmentId: /uat/.test(prompt.toLowerCase()) ? 'UAT' : 'PROD',
+          webhookAuthType: 'NONE',
+          loopPreventionEnabled: true,
+          payloadStrategy: 'HYBRID',
+        })
+      : undefined;
     this.patchCurrentVersion(id, {
       design,
       directions,
       aiProposal: design,
       userChanges: {},
+      ...(eventConfig ? { eventConfig } : {}),
     });
     this.audit(id, String(integration.currentVersionId || ''), 'INTEGRATION_ANALYZED', {
       language: design.language,
       status: 'DESIGN_READY',
+      executionMode: design.executionMode,
     });
     return this.getIntegration(id);
   }
@@ -1209,6 +1241,186 @@ export class VisService {
     ];
   }
 
+  // ── Phase 4 — Realtime / events ────────────────────────────────────────
+  ingestWebhook(
+    endpointId: string,
+    headers: Record<string, string | string[] | undefined>,
+    rawBody: string,
+    parsedBody: Record<string, unknown>,
+  ) {
+    return this.events.ingestWebhook({ endpointId, headers, rawBody, parsedBody });
+  }
+
+  listEvents(filters?: { integrationId?: string; status?: string }) {
+    return this.events.listEvents(filters);
+  }
+
+  getEvent(id: string) {
+    const row = this.events.getEvent(id);
+    if (!row) throw new NotFoundException('Event not found');
+    return row;
+  }
+
+  replayEvent(id: string) {
+    return this.events.replayEvent(id);
+  }
+
+  listEventDeadLetters(integrationId?: string) {
+    return this.events.listEventDeadLetters(integrationId);
+  }
+
+  getEventConfig(id: string) {
+    this.getIntegration(id);
+    return this.events.getEventConfig(id);
+  }
+
+  setEventConfig(id: string, body: Record<string, unknown>) {
+    this.getIntegration(id);
+    const cfg = this.events.setEventConfig(id, body as Partial<RealtimeEventConfig>);
+    this.audit(id, null, 'EVENT_CONFIG_UPDATED', { keys: Object.keys(body) });
+    return cfg;
+  }
+
+  testEvent(
+    id: string,
+    event: Record<string, unknown>,
+    opts?: { execute?: boolean; dryRun?: boolean },
+  ) {
+    this.getIntegration(id);
+    return this.events.testEvent(id, event, opts);
+  }
+
+  activateIntegration(id: string) {
+    const h = this.getIntegration(id);
+    if (!['APPROVED', 'PAUSED', 'DISABLED', 'INACTIVE'].includes(String(h.status))) {
+      throw new BadRequestException('Approve the design before activation');
+    }
+    this.store.update('integrations', id, {
+      status: 'ACTIVATING',
+      updatedAt: new Date().toISOString(),
+    });
+    const cfg = this.events.getEventConfig(id);
+    if (!cfg.eventEnabled) {
+      this.events.setEventConfig(id, defaultRealtimeConfig({
+        eventEnabled: true,
+        sourceEnvironmentId: cfg.sourceEnvironmentId || 'DEV',
+        targetEnvironmentId: cfg.targetEnvironmentId || 'UAT',
+        webhookAuthType: cfg.webhookAuthType || 'NONE',
+      }));
+    }
+    const endpoint = this.events.ensureEndpoint(id);
+    this.store.update('integrations', id, {
+      status: 'ACTIVE',
+      updatedAt: new Date().toISOString(),
+    });
+    this.events.ensureWorkers();
+    const latest = this.events.getEventConfig(id);
+    if (latest.eventSourceType === 'POLLING' && latest.pollingIntervalSeconds) {
+      this.polling.start(id, latest.pollingIntervalSeconds);
+    }
+    this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_ACTIVATED', {
+      endpointId: endpoint.id,
+    });
+    return this.getIntegration(id);
+  }
+
+  pauseIntegration(id: string) {
+    const h = this.getIntegration(id);
+    if (String(h.status) !== 'ACTIVE') {
+      throw new BadRequestException('Only ACTIVE integrations can be paused');
+    }
+    this.store.update('integrations', id, {
+      status: 'PAUSED',
+      updatedAt: new Date().toISOString(),
+    });
+    this.polling.stop(id);
+    this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_PAUSED', {});
+    return this.getIntegration(id);
+  }
+
+  resumeIntegration(id: string) {
+    const h = this.getIntegration(id);
+    if (String(h.status) !== 'PAUSED') {
+      throw new BadRequestException('Only PAUSED integrations can be resumed');
+    }
+    this.store.update('integrations', id, {
+      status: 'ACTIVE',
+      updatedAt: new Date().toISOString(),
+    });
+    const cfg = this.events.getEventConfig(id);
+    if (cfg.eventSourceType === 'POLLING' && cfg.pollingIntervalSeconds) {
+      this.polling.start(id, cfg.pollingIntervalSeconds);
+    }
+    this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_RESUMED', {});
+    return this.getIntegration(id);
+  }
+
+  deactivateIntegration(id: string) {
+    const h = this.getIntegration(id);
+    this.store.update('integrations', id, {
+      status: 'DEACTIVATING',
+      updatedAt: new Date().toISOString(),
+    });
+    this.polling.stop(id);
+    this.store.update('integrations', id, {
+      status: 'DISABLED',
+      updatedAt: new Date().toISOString(),
+    });
+    this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_DEACTIVATED', {});
+    return this.getIntegration(id);
+  }
+
+  getRealtimeStatus(id: string) {
+    const h = this.getIntegration(id);
+    const cfg = this.events.getEventConfig(id);
+    const metrics = this.events.metrics.snapshot();
+    const recent = this.events.listEvents({ integrationId: id }).slice(0, 20);
+    let health: string = 'DISCONNECTED';
+    if (h.status === 'PAUSED') health = 'PAUSED';
+    else if (h.status === 'ACTIVE') health = metrics.eventsFailed > metrics.eventsSucceeded ? 'DEGRADED' : 'HEALTHY';
+    else if (h.status === 'DISABLED') health = 'UNHEALTHY';
+    return {
+      integrationId: id,
+      status: h.status,
+      health,
+      eventConfig: cfg,
+      endpoint: this.store.list('eventEndpoints').find((e) => e.integrationId === id) || null,
+      metrics,
+      recentEvents: recent,
+    };
+  }
+
+  createEventSubscription(id: string, body: Record<string, unknown>) {
+    this.getIntegration(id);
+    const row = this.store.create('eventSubscriptions', {
+      integrationId: id,
+      eventTypes: body.eventTypes || ['RECORD_CREATED'],
+      endpointUrl: body.endpointUrl || null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    this.audit(id, null, 'EVENT_SUBSCRIPTION_CREATED', { id: row.id });
+    return row;
+  }
+
+  listEventSubscriptions(id: string) {
+    return this.store.list('eventSubscriptions').filter((s) => s.integrationId === id);
+  }
+
+  deleteEventSubscription(id: string, subscriptionId: string) {
+    const row = this.store.get('eventSubscriptions', subscriptionId);
+    if (!row || row.integrationId !== id) throw new NotFoundException('Subscription not found');
+    this.store.remove('eventSubscriptions', subscriptionId);
+    this.audit(id, null, 'EVENT_SUBSCRIPTION_DELETED', { id: subscriptionId });
+    return { ok: true };
+  }
+
+  async pollIntegration(id: string) {
+    this.getIntegration(id);
+    return this.polling.pollOnce(id);
+  }
+
   listAudit(integrationId?: string) {
     const all = this.store.list('audits');
     return integrationId ? all.filter((a) => a.integrationId === integrationId) : all.slice().reverse();
@@ -1237,6 +1449,7 @@ export class VisService {
       sourceSample: version?.sourceSample || null,
       openApiDiscovery: version?.openApiDiscovery || null,
       selectedEndpoint: version?.selectedEndpoint || null,
+      eventConfig: version?.eventConfig || null,
       version: version
         ? { id: version.id, version: version.version, status: version.status }
         : null,
@@ -1290,6 +1503,7 @@ export class VisService {
     if (body.sourceSample !== undefined) patch.sourceSample = body.sourceSample;
     if (body.openApiDiscovery !== undefined) patch.openApiDiscovery = body.openApiDiscovery;
     if (body.selectedEndpoint !== undefined) patch.selectedEndpoint = body.selectedEndpoint;
+    if (body.eventConfig !== undefined) patch.eventConfig = body.eventConfig;
     this.store.update('versions', version.id, patch);
   }
 

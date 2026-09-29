@@ -14,14 +14,162 @@ export const INTEGRATION_DIRECTIONS = ['UNIDIRECTIONAL', 'BIDIRECTIONAL'] as con
 export type IntegrationDirectionKind = (typeof INTEGRATION_DIRECTIONS)[number];
 
 export const EXECUTION_MODES = [
+  'REAL_TIME',
   'REALTIME',
   'SCHEDULED',
   'EVENT_DRIVEN',
   'MANUAL',
   'ON_DEMAND',
   'BATCH',
+  'API_TRIGGERED',
+  'POLLING',
 ] as const;
 export type ExecutionMode = (typeof EXECUTION_MODES)[number];
+
+
+export const EVENT_TRIGGER_TYPES = [
+  'RECORD_CREATED',
+  'RECORD_UPDATED',
+  'RECORD_DELETED',
+  'RECORD_CREATED_OR_UPDATED',
+  'RECORD_CHANGED',
+  'CUSTOM_EVENT',
+] as const;
+export type EventTriggerType = (typeof EVENT_TRIGGER_TYPES)[number];
+
+export const EVENT_SOURCE_TYPES = [
+  'WEBHOOK',
+  'EVENT_API',
+  'MESSAGE_QUEUE',
+  'KAFKA',
+  'RABBITMQ',
+  'SQS_SNS',
+  'AZURE_SERVICE_BUS',
+  'HTTP',
+  'POLLING',
+] as const;
+export type EventSourceType = (typeof EVENT_SOURCE_TYPES)[number];
+
+export const EVENT_STATUSES = [
+  'RECEIVED',
+  'ACCEPTED',
+  'REJECTED',
+  'DUPLICATE',
+  'QUEUED',
+  'PROCESSING',
+  'SUCCESS',
+  'FAILED',
+  'RETRYING',
+  'DEAD_LETTER',
+  'IGNORED',
+  'REPLAYED',
+] as const;
+export type EventStatus = (typeof EVENT_STATUSES)[number];
+
+export const EVENT_PAYLOAD_STRATEGIES = ['EVENT_PAYLOAD', 'FETCH_RECORD', 'HYBRID'] as const;
+export type EventPayloadStrategy = (typeof EVENT_PAYLOAD_STRATEGIES)[number];
+
+export const EVENT_ORDERING_STRATEGIES = ['NONE', 'PER_ENTITY', 'PER_INTEGRATION', 'GLOBAL'] as const;
+export type EventOrderingStrategy = (typeof EVENT_ORDERING_STRATEGIES)[number];
+
+export const EVENT_DEDUP_STRATEGIES = ['PROVIDER_EVENT_ID', 'CONTENT_HASH', 'COMPOSITE'] as const;
+export type EventDedupStrategy = (typeof EVENT_DEDUP_STRATEGIES)[number];
+
+export const PAUSE_BEHAVIORS = ['QUEUE', 'REJECT_WITH_RETRY', 'DISABLE_ENDPOINT'] as const;
+export type PauseBehavior = (typeof PAUSE_BEHAVIORS)[number];
+
+export const REALTIME_HEALTH = ['HEALTHY', 'DEGRADED', 'UNHEALTHY', 'PAUSED', 'DISCONNECTED'] as const;
+export type RealtimeHealth = (typeof REALTIME_HEALTH)[number];
+
+/** Normalized vendor-neutral event envelope. */
+export interface EventEnvelope {
+  eventId: string;
+  eventType: EventTriggerType | string;
+  eventVersion: string;
+  sourceSystem: string;
+  sourceEnvironment: string;
+  entityType: string;
+  entityId: string;
+  occurredAt: string;
+  receivedAt: string;
+  correlationId: string;
+  causationId?: string | null;
+  originIntegrationId?: string | null;
+  originEventId?: string | null;
+  hopCount?: number;
+  payload: Record<string, unknown>;
+  payloadHash?: string;
+  metadata?: Record<string, unknown>;
+  schemaVersion?: string;
+  tenantId?: string | null;
+}
+
+export interface EventFilterCondition {
+  field: string;
+  op: 'equals' | 'notEquals' | 'contains' | 'startsWith' | 'endsWith' | 'greaterThan' | 'lessThan' | 'in';
+  value: unknown;
+}
+
+export interface EventFilterGroup {
+  logic: 'AND' | 'OR';
+  conditions: EventFilterCondition[];
+  not?: boolean;
+}
+
+export interface RealtimeEventConfig {
+  eventEnabled: boolean;
+  eventSourceType: EventSourceType;
+  eventTriggerTypes: Array<EventTriggerType | string>;
+  eventDeliveryMode: 'WEBHOOK' | 'PUSH' | 'POLL' | 'QUEUE';
+  payloadStrategy: EventPayloadStrategy;
+  orderingStrategy: EventOrderingStrategy;
+  deduplicationStrategy: EventDedupStrategy;
+  deduplicationTtlSeconds: number;
+  loopPreventionEnabled: boolean;
+  maxHopCount: number;
+  pauseBehavior: PauseBehavior;
+  eventBatchingEnabled: boolean;
+  eventBatchWindowMs: number;
+  maxEventConcurrency: number;
+  eventTimeoutMs: number;
+  eventReplayEnabled: boolean;
+  eventRetentionDays: number;
+  webhookAuthType: 'HMAC' | 'API_KEY' | 'BEARER' | 'BASIC' | 'NONE';
+  webhookCredentialRefId?: string | null;
+  webhookSignatureHeader?: string | null;
+  webhookTimestampHeader?: string | null;
+  webhookMaxSkewSeconds?: number;
+  sourceEnvironmentId?: string | null;
+  targetEnvironmentId?: string | null;
+  filters?: EventFilterGroup | null;
+  supportedEventVersions?: string[];
+  pollingIntervalSeconds?: number | null;
+  reconciliationEnabled?: boolean;
+  reconciliationCron?: string | null;
+}
+
+export interface EventMetricsSnapshot {
+  eventsReceived: number;
+  eventsAccepted: number;
+  eventsRejected: number;
+  eventsDuplicated: number;
+  eventsProcessing: number;
+  eventsSucceeded: number;
+  eventsFailed: number;
+  eventsRetried: number;
+  eventsDlq: number;
+  eventsReplayed: number;
+  queueDepth: number;
+  activeWorkers: number;
+  avgIngestionLatencyMs?: number;
+  avgEndToEndLatencyMs?: number;
+  p50LatencyMs?: number;
+  p95LatencyMs?: number;
+  p99LatencyMs?: number;
+  rateLimitResponses: number;
+  oauthRefreshes: number;
+}
+
 
 export const CRUD_OPERATIONS = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'UPSERT'] as const;
 export type CrudOperation = (typeof CRUD_OPERATIONS)[number];
@@ -53,7 +201,11 @@ export const INTEGRATION_STATUSES = [
   'NEEDS_REVIEW',
   'VALIDATED',
   'APPROVED',
+  'ACTIVATING',
   'ACTIVE',
+  'DEACTIVATING',
+  'PAUSED',
+  'DISABLED',
   'INACTIVE',
 ] as const;
 export type IntegrationStatus = (typeof INTEGRATION_STATUSES)[number];
@@ -137,7 +289,12 @@ export interface ExecutionPlan {
   idempotency: { strategy: string };
   timeouts: { connectionMs: number; readMs: number; totalMs: number };
   language: ProgrammingLanguage;
+  /** Phase 4 — event/trigger metadata (optional for batch/manual). */
+  triggerType?: 'EVENT' | 'SCHEDULE' | 'MANUAL' | 'API' | 'POLLING';
+  eventId?: string | null;
+  causationId?: string | null;
 }
+
 
 export interface ExecutionMetrics {
   recordsRead: number;

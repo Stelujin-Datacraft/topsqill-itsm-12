@@ -14,7 +14,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Public } from '../../common/decorators/public.decorator';
-import { getVisStore } from '../store/vis.store';
+import { getVisStore, type VisRecord } from '../store/vis.store';
 
 /**
  * Mock EXTERNAL systems for demo + resilience testing.
@@ -70,6 +70,8 @@ export class VisMocksController {
     expiresAt: Date.now() + 3600_000,
     refreshCount: 0,
   };
+
+  private subscribers: Array<{ url: string; secret?: string; eventTypes?: string[] }> = [];
 
   @Post('behavior')
   setBehavior(@Body() body: Record<string, unknown>) {
@@ -309,7 +311,8 @@ export class VisMocksController {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    return { ...row, status: 201 };
+    const delivered = await this.deliverEvent('RECORD_CREATED', id, row);
+    return { ...row, status: 201, eventsDelivered: delivered };
   }
 
   @Post('forms/:id/records/bulk')
@@ -340,11 +343,127 @@ export class VisMocksController {
     const store = getVisStore();
     const row = store.get('mockRecords', recordId);
     if (!row || row.formId !== id) throw new NotFoundException('Record not found');
-    return store.update('mockRecords', recordId, {
+    const updated = store.update('mockRecords', recordId, {
       data: { ...(row.data as object), ...body },
       correlationId: correlationId || row.correlationId || null,
       updatedAt: new Date().toISOString(),
     });
+    await this.deliverEvent('RECORD_UPDATED', id, updated!);
+    return updated;
+  }
+
+  /** Configure webhook subscribers for mock event delivery. */
+  @Post('event-subscribers')
+  setSubscribers(@Body() body: { subscribers?: Array<{ url: string; secret?: string; eventTypes?: string[] }> }) {
+    this.subscribers = body.subscribers || [];
+    return { ok: true, count: this.subscribers.length };
+  }
+
+  @Get('event-subscribers')
+  getSubscribers() {
+    return { items: this.subscribers.map((s) => ({ url: s.url, eventTypes: s.eventTypes })) };
+  }
+
+  /** Load-test helper: emit N synthetic events to a webhook URL. */
+  @Post('generate-events')
+  async generateEvents(
+    @Body()
+    body: {
+      count?: number;
+      webhookUrl?: string;
+      endpointId?: string;
+      duplicateRate?: number;
+      outOfOrder?: boolean;
+      failureRate?: number;
+      eventType?: string;
+    },
+  ) {
+    const n = Math.min(100_000, Math.max(1, Number(body.count) || 100));
+    const events: Record<string, unknown>[] = [];
+    for (let i = 0; i < n; i++) {
+      events.push({
+        eventId: `gen-${i}`,
+        eventType: body.eventType || 'RECORD_CREATED',
+        entityType: 'Vulnerability',
+        entityId: `VUL-G${i}`,
+        sourceEnvironment: 'DEV',
+        payload: {
+          id: `VUL-G${i}`,
+          severity: ['Critical', 'High', 'Medium', 'Low'][i % 4],
+          description: `Generated event ${i}`,
+          team: 'Platform',
+        },
+      });
+    }
+    if (body.outOfOrder) events.reverse();
+    if (body.duplicateRate) {
+      const extra = Math.floor(n * body.duplicateRate);
+      for (let i = 0; i < extra; i++) events.push({ ...events[i % n], eventId: (events[i % n] as any).eventId });
+    }
+
+    let delivered = 0;
+    let failed = 0;
+    if (body.webhookUrl || body.endpointId) {
+      const { getEventIngestionService } = await import('../events/event-ingestion');
+      const { getVisStore } = await import('../store/vis.store');
+      const ingestion = getEventIngestionService(getVisStore());
+      for (const ev of events) {
+        if (body.failureRate && Math.random() < body.failureRate) {
+          failed += 1;
+          continue;
+        }
+        if (body.endpointId) {
+          const res = await ingestion.ingestWebhook({
+            endpointId: body.endpointId,
+            headers: {},
+            rawBody: JSON.stringify(ev),
+            parsedBody: ev,
+          });
+          if (res.status < 300) delivered += 1;
+          else failed += 1;
+        } else {
+          delivered += 1; // counted; actual HTTP delivery optional
+        }
+      }
+    }
+    return { generated: events.length, delivered, failed };
+  }
+
+  private async deliverEvent(eventType: string, formId: string, row: VisRecord | null) {
+    if (!row || !this.subscribers.length) return 0;
+    const data = (row.data || {}) as Record<string, unknown>;
+    const entityId = String(data.vulnerability_id || data.id || row.id);
+    const envelope = {
+      eventId: `mock-${eventType}-${row.id}-${Date.now()}`,
+      eventType,
+      entityType: formId.includes('vulnerability') ? 'Vulnerability' : 'Record',
+      entityId,
+      sourceSystem: 'InternalApplication',
+      sourceEnvironment: 'DEV',
+      payload: { id: entityId, ...data },
+      occurredAt: new Date().toISOString(),
+    };
+    let delivered = 0;
+    for (const sub of this.subscribers) {
+      if (sub.eventTypes?.length && !sub.eventTypes.includes(eventType)) continue;
+      try {
+        // Prefer in-process delivery when URL points at our webhook path
+        const match = String(sub.url).match(/events\/webhook\/([^/?]+)/);
+        if (match) {
+          const { getEventIngestionService } = await import('../events/event-ingestion');
+          await getEventIngestionService(getVisStore()).ingestWebhook({
+            endpointId: match[1],
+            headers: sub.secret ? { 'x-api-key': sub.secret } : {},
+            rawBody: JSON.stringify(envelope),
+            parsedBody: envelope,
+          });
+          delivered += 1;
+        }
+      } catch {
+        /* ignore delivery errors in mock */
+      }
+    }
+    return delivered;
   }
 
   private async applyResilience(authorization?: string) {

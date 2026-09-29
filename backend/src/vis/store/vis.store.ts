@@ -18,6 +18,12 @@ export interface VisStoreData {
   logs: VisRecord[];
   audits: VisRecord[];
   deadLetters: VisRecord[];
+  /** Phase 4 realtime */
+  events: VisRecord[];
+  eventEndpoints: VisRecord[];
+  eventSubscriptions: VisRecord[];
+  eventDeadLetters: VisRecord[];
+  eventCheckpoints: VisRecord[];
   /** Mock internal app forms/records (demo only) */
   mockForms: VisRecord[];
   mockRecords: VisRecord[];
@@ -33,6 +39,11 @@ const EMPTY: VisStoreData = {
   logs: [],
   audits: [],
   deadLetters: [],
+  events: [],
+  eventEndpoints: [],
+  eventSubscriptions: [],
+  eventDeadLetters: [],
+  eventCheckpoints: [],
   mockForms: [],
   mockRecords: [],
 };
@@ -116,7 +127,7 @@ export class VisStore {
     const row: VisRecord = { id: record.id || randomUUID(), ...record };
     (this.data[collection] as VisRecord[]).push(row);
     // Hot paths (logs, mockRecords, deadLetters) debounce; others flush immediately
-    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions') {
+    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions' || collection === 'events' || collection === 'eventDeadLetters') {
       this.schedulePersist();
     } else {
       this.persist();
@@ -129,7 +140,7 @@ export class VisStore {
     const idx = list.findIndex((r) => r.id === id);
     if (idx < 0) return null;
     list[idx] = { ...list[idx], ...patch, id };
-    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions') {
+    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions' || collection === 'events' || collection === 'eventDeadLetters') {
       this.schedulePersist();
     } else {
       this.persist();

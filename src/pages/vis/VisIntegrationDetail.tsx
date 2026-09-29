@@ -985,7 +985,7 @@ export default function VisIntegrationDetail() {
               </Button>
               <Button
                 variant="secondary"
-                disabled={busy || !['APPROVED', 'ACTIVE', 'VALIDATED'].includes(integration.status)}
+                disabled={busy || !['APPROVED', 'ACTIVE', 'VALIDATED', 'PAUSED'].includes(integration.status)}
                 onClick={async () => {
                   if (!id) return;
                   setBusy(true);
@@ -1009,6 +1009,76 @@ export default function VisIntegrationDetail() {
               >
                 <Play className="h-4 w-4 mr-1" /> Start Execution
               </Button>
+              <Button
+                variant="outline"
+                disabled={busy || !['APPROVED', 'PAUSED', 'DISABLED'].includes(integration.status)}
+                onClick={async () => {
+                  if (!id) return;
+                  setBusy(true);
+                  try {
+                    await visApi.activateIntegration(id);
+                    const st = await visApi.getRealtimeStatus(id);
+                    toast({
+                      title: 'Integration activated',
+                      description: `Health: ${st.health || 'ACTIVE'}`,
+                    });
+                    const updated = await visApi.getIntegration(id);
+                    setIntegration(updated);
+                  } catch (e: any) {
+                    toast({
+                      title: 'Activate failed',
+                      description: e?.message,
+                      variant: 'destructive',
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Activate Real-Time
+              </Button>
+              {integration.status === 'ACTIVE' && (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!id) return;
+                    setBusy(true);
+                    try {
+                      const updated = await visApi.pauseIntegration(id);
+                      setIntegration(updated);
+                      toast({ title: 'Paused' });
+                    } catch (e: any) {
+                      toast({ title: 'Pause failed', description: e?.message, variant: 'destructive' });
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Pause
+                </Button>
+              )}
+              {integration.status === 'PAUSED' && (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!id) return;
+                    setBusy(true);
+                    try {
+                      const updated = await visApi.resumeIntegration(id);
+                      setIntegration(updated);
+                      toast({ title: 'Resumed' });
+                    } catch (e: any) {
+                      toast({ title: 'Resume failed', description: e?.message, variant: 'destructive' });
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Resume
+                </Button>
+              )}
             </CardContent>
           </Card>
 
