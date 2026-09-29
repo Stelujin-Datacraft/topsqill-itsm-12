@@ -28,11 +28,27 @@ export default function VisDashboard() {
 
   if (error) {
     return (
-      <div className="p-8">
-        <p className="text-destructive mb-4">{error}</p>
+      <div className="p-8 max-w-xl space-y-4">
+        <p className="text-destructive font-medium">{error}</p>
         <p className="text-sm text-muted-foreground">
-          Ensure the Nest backend is running (`npm run dev:backend`) so `/api/vis` is available.
+          Integration Studio needs the Nest API (`/api/vis`). In local dev run the backend in a
+          second terminal, then reload this page:
         </p>
+        <pre className="text-xs bg-muted rounded-md p-3 overflow-x-auto">npm run dev:backend</pre>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setError(null);
+            setLoading(true);
+            visApi
+              .dashboard()
+              .then(setData)
+              .catch((e) => setError(e.message))
+              .finally(() => setLoading(false));
+          }}
+        >
+          Retry
+        </Button>
       </div>
     );
   }

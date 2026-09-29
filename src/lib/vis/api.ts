@@ -1,22 +1,61 @@
 /** VIS frontend API client — calls Nest /api/vis/* */
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
+import { getApiBaseUrl } from '@/services/api/apiClient';
+
+/**
+ * Resolve API base for browser calls.
+ * Never force a baked-in localhost URL when the page is served from another host
+ * (published / preview) — that causes "Failed to fetch". Prefer same-origin `/api`
+ * so Vite proxy (dev) or reverse proxy (prod) can reach Nest.
+ */
+export function getVisApiBase(): string {
+  const configured = String(getApiBaseUrl() || import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const pageIsLocal = host === 'localhost' || host === '127.0.0.1';
+    const configuredIsLocal =
+      !configured || /localhost|127\.0\.0\.1/.test(configured);
+    if (!pageIsLocal && configuredIsLocal) {
+      return '/api';
+    }
+    // Dev: prefer same-origin /api so Vite proxy forwards to Nest (avoids CORS / wrong host)
+    if (pageIsLocal && configuredIsLocal) {
+      return '/api';
+    }
+  }
+  return configured || '/api';
+}
 
 async function visFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path.startsWith('/') ? path : `/${path}`}`, {
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      ...(init?.headers || {}),
-    },
-  });
+  const base = getVisApiBase();
+  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        'content-type': 'application/json',
+        ...(init?.headers || {}),
+      },
+    });
+  } catch (err: any) {
+    const hint =
+      'Cannot reach the Integration Studio API. Start the Nest backend with `npm run dev:backend` (Vite proxies `/api` → port 3001).';
+    throw new Error(err?.message === 'Failed to fetch' ? hint : err?.message || hint);
+  }
   if (!res.ok) {
     const text = await res.text();
     let message = text;
     try {
-      message = JSON.parse(text)?.message || text;
+      const parsed = JSON.parse(text);
+      message = parsed?.message || parsed?.error || text;
     } catch {
       /* keep */
+    }
+    if (res.status === 404) {
+      throw new Error(
+        'Integration Studio API not found (404). Redeploy/restart the Nest backend so `/api/vis` is registered.',
+      );
     }
     throw new Error(Array.isArray(message) ? message.join(', ') : String(message || res.statusText));
   }
@@ -47,6 +86,8 @@ export const visApi = {
   listConnections: () => visFetch<any[]>('/vis/connections'),
   createConnection: (body: Record<string, unknown>) =>
     visFetch<any>('/vis/connections', { method: 'POST', body: JSON.stringify(body) }),
+  bootstrapDemo: () =>
+    visFetch<{ connections: any[] }>('/vis/demo/bootstrap', { method: 'POST', body: '{}' }),
   testConnection: (id: string) =>
     visFetch<any>(`/vis/connections/${id}/test`, { method: 'POST', body: '{}' }),
   discoverForms: (connectionId: string) =>

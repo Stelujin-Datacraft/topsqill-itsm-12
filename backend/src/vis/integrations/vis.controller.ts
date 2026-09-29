@@ -144,4 +144,10 @@ export class VisController {
   listAudit(@Query('integrationId') integrationId?: string) {
     return this.vis.listAudit(integrationId);
   }
+
+  /** Create demo source + internal-app connections pointed at this Nest process. */
+  @Post('demo/bootstrap')
+  bootstrapDemo() {
+    return this.vis.bootstrapDemoConnections();
+  }
 }

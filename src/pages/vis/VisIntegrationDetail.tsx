@@ -68,37 +68,16 @@ export default function VisIntegrationDetail() {
   async function createInternalConnection() {
     setBusy(true);
     try {
-      // Point at mock internal app on same API host
-      const apiBase = (import.meta as any).env?.VITE_API_URL || `${window.location.origin}/api`;
-      const conn = await visApi.createConnection({
-        name: 'Mock Internal Application',
-        kind: 'INTERNAL_APPLICATION_API',
-        baseUrl: `${apiBase}/vis/mocks`,
-        authType: 'NONE',
-        allowPrivateNetwork: true,
-        environment: 'DEV',
-        config: {
-          apiVersion: 'v1',
-          paths: {
-            formsPath: '/forms',
-            formFieldsPath: '/forms/{formId}/fields',
-            recordsPath: '/forms/{formId}/records',
-            recordByIdPath: '/forms/{formId}/records/{recordId}',
-          },
-        },
-      });
-      await visApi.createConnection({
-        name: 'Mock Vulnerability Source',
-        kind: 'REST_API',
-        baseUrl: `${apiBase}/vis/mocks`,
-        authType: 'NONE',
-        allowPrivateNetwork: true,
-        environment: 'DEV',
-        config: { listPath: '/vulnerabilities' },
-      });
-      setSelectedConnectionId(conn.id);
+      const boot = await visApi.bootstrapDemo();
+      const internal = (boot.connections || []).find(
+        (c: any) => c.kind === 'INTERNAL_APPLICATION_API',
+      );
+      if (internal?.id) {
+        setSelectedConnectionId(internal.id);
+        await loadForms(internal.id);
+      }
       await reload();
-      toast({ title: 'Demo connections created' });
+      toast({ title: 'Demo connections ready' });
     } catch (e: any) {
       toast({ title: 'Failed', description: e.message, variant: 'destructive' });
     } finally {

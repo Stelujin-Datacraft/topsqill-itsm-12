@@ -228,6 +228,63 @@ export class VisService {
     return this.maskConnection(row);
   }
 
+  /**
+   * Create demo REST source + Internal App connections that call this Nest
+   * process's /api/vis/mocks/* endpoints (loopback, allowPrivateNetwork).
+   */
+  bootstrapDemoConnections() {
+    const port = process.env.PORT || '3001';
+    const mockBase = `http://127.0.0.1:${port}/api/vis/mocks`;
+    const existing = this.store.list('connections');
+    const hasInternal = existing.some(
+      (c) => c.kind === 'INTERNAL_APPLICATION_API' && String(c.baseUrl || '').includes('/vis/mocks'),
+    );
+    const hasSource = existing.some(
+      (c) => c.kind === 'REST_API' && String(c.name || '').toLowerCase().includes('vulnerability'),
+    );
+
+    const created: VisRecord[] = [];
+    if (!hasInternal) {
+      created.push(
+        this.createConnection({
+          name: 'Mock Internal Application',
+          kind: 'INTERNAL_APPLICATION_API',
+          baseUrl: mockBase,
+          authType: 'NONE',
+          allowPrivateNetwork: true,
+          environment: 'DEV',
+          config: {
+            apiVersion: 'v1',
+            paths: {
+              formsPath: '/forms',
+              formFieldsPath: '/forms/{formId}/fields',
+              recordsPath: '/forms/{formId}/records',
+              recordByIdPath: '/forms/{formId}/records/{recordId}',
+            },
+          },
+        }) as VisRecord,
+      );
+    }
+    if (!hasSource) {
+      created.push(
+        this.createConnection({
+          name: 'Mock Vulnerability Source',
+          kind: 'REST_API',
+          baseUrl: mockBase,
+          authType: 'NONE',
+          allowPrivateNetwork: true,
+          environment: 'DEV',
+          config: { listPath: '/vulnerabilities' },
+        }) as VisRecord,
+      );
+    }
+    return {
+      mockBaseUrl: mockBase,
+      connections: created.length ? created : this.listConnections(),
+      created: created.length,
+    };
+  }
+
   async testConnection(id: string) {
     const conn = this.store.get('connections', id);
     if (!conn) throw new NotFoundException('Connection not found');
