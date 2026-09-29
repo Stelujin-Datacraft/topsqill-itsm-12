@@ -41,6 +41,15 @@ import { useConditionResolution } from '@/hooks/useConditionResolution';
 import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
 import { shouldUseConversationalWorkflowBuilder, bindConditionNodesToDecisionValues } from '@/lib/ai/workflowBuilder';
 import { applyPendingConfigActions } from '@/lib/ai/workflowBuilder/applyPendingConfigActions';
+import {
+  applyReportConfirmAnswer,
+  reportChartTypeChoices,
+  reportConfirmChoices,
+  reportFieldChoices,
+  summarizeReportDraft,
+  type PendingReportDraft,
+} from '@/lib/ai/reportBuilderConversation';
+import { finalizeAiChartConfig } from '@/components/reports/utils/aiReportGrouping';
 import type { FieldRule, FormField } from '@/types/form';
 
 export interface CopilotMessage {
@@ -163,6 +172,9 @@ export function useCopilotEngine() {
   const location = useLocation();
   const { hasPermission } = useUnifiedAccessControl();
   const [pendingAction, setPendingAction] = useState<{ action: string; params: Record<string, any>; prompt: string; messageId: string } | null>(null);
+  const [pendingReportConfirm, setPendingReportConfirm] = useState<(PendingReportDraft & { messageId: string }) | null>(null);
+  const pendingReportConfirmRef = useRef<(PendingReportDraft & { messageId: string }) | null>(null);
+  pendingReportConfirmRef.current = pendingReportConfirm;
   const chatHydratedRef = useRef(false);
   const activeFormIdRef = useRef<string | null>(null);
   const activeWorkflowIdRef = useRef<string | null>(null);
@@ -832,8 +844,15 @@ export function useCopilotEngine() {
     return next;
   }, [enrichFormParams, enrichReportParams, enrichWorkflowParams]);
 
-  const buildNavMessage = (result: any): string | null => {
+  const buildNavMessage = (result: any, action?: string): string | null => {
     if (!result) return null;
+    // Prefer the asset that was actually created (report results also include source formId).
+    if (result.reportId || action === 'create_report' || action === 'update_report') {
+      const id = result.reportId;
+      return id
+        ? `Would you like to [View Report](/report-editor/${id})?`
+        : `Would you like to [View Reports](/reports)?`;
+    }
     if (result.formId && result.workflowId) {
       return `🎉 **Created both!**\n\n• [View Form](/forms)\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
     }
@@ -846,11 +865,10 @@ export function useCopilotEngine() {
     if (result.formId && result.updated) {
       return `✅ **Form updated.** Preview refreshes beside chat, or [View Form](/forms) in your list.`;
     }
-    if (result.formId) return `Would you like to [View Form](/forms)?`;
     if (result.workflowId && result.nodeId) return `✅ **Email action added!**\n\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
     if (result.workflowId) return `Would you like to [open the workflow](/workflow-designer/${result.workflowId})?`;
     if (result.dashboardId) return `Would you like to [open the dashboard](/dashboard-view/${result.dashboardId})?`;
-    if (result.reportId) return `Would you like to [open the report](/report-editor/${result.reportId})?`;
+    if (result.formId) return `Would you like to [View Form](/forms)?`;
     if (result.slaTemplateId) return `✅ **SLA tracking configured!**\n\n• [View SLA Management](/sla-management)`;
     return null;
   };
@@ -1402,7 +1420,7 @@ export function useCopilotEngine() {
         await loadContext();
       }
 
-      const nav = wasCancelled ? null : buildNavMessage(actionResult?.result);
+      const nav = wasCancelled ? null : buildNavMessage(actionResult?.result, action);
       if (nav) {
         setMessages((prev) => [...prev, {
           id: `nav-offer-${Date.now()}`,
@@ -1547,11 +1565,122 @@ export function useCopilotEngine() {
 
       const headline = i === 0 ? messageContent : `Continuing with **${action.replace(/_/g, ' ')}**…`;
       const formIdForEnrichment = resolved.triggerFormId || resolved.formId;
+
+      // Report create/update: generate a chart draft and confirm fields before executing
+      // (mirrors Report Editor → AI Report Builder confirm UX).
+      if (
+        (action === 'create_report' || action === 'update_report')
+        && !resolved.__reportConfirmed
+      ) {
+        try {
+          const enriched = await enrichActionParams(action, resolved, trimmed, formIdForEnrichment);
+          const form = formsWithFields.find((f) => f.id === (enriched.formId || formIdForEnrichment));
+          const fields = (form?.fields || []).map((f) => ({ id: f.id, label: f.label, type: f.type }));
+          if (enriched.chartConfig && form) {
+            enriched.chartConfig = finalizeAiChartConfig(enriched.chartConfig, form.id);
+            enriched.name = enriched.name || enriched.chartConfig.title || enriched.name;
+          }
+          const confirmId = `report-confirm-${Date.now()}`;
+          const draft: PendingReportDraft & { messageId: string } = {
+            action: action as 'create_report' | 'update_report',
+            params: enriched,
+            prompt: trimmed,
+            formId: String(enriched.formId || formIdForEnrichment || ''),
+            formName: form?.name,
+            step: 'confirm',
+            messageId: confirmId,
+          };
+          setPendingReportConfirm(draft);
+          setMessages((prev) => [...prev, {
+            id: confirmId,
+            role: 'assistant',
+            content: summarizeReportDraft(enriched, form?.name || 'the selected form', fields),
+            timestamp: new Date(),
+            choices: reportConfirmChoices(),
+          }]);
+          return;
+        } catch (e) {
+          const detail = e instanceof Error ? e.message : 'Could not draft the report';
+          setMessages((prev) => [...prev, {
+            id: `report-draft-err-${Date.now()}`,
+            role: 'assistant',
+            content: `❌ **Could not prepare the report draft:** ${detail}`,
+            timestamp: new Date(),
+          }]);
+          return;
+        }
+      }
+
       await runToolCall(action, resolved, trimmed, headline, formIdForEnrichment);
     }
-  }, [activeProject?.name, formsWithFields, resolveFormParams, runToolCall]);
+  }, [activeProject?.name, enrichActionParams, formsWithFields, resolveFormParams, runToolCall]);
+
+  const finishReportConfirm = useCallback(async (
+    draft: PendingReportDraft & { messageId: string },
+    answer: string,
+  ) => {
+    const form = formsWithFields.find((f) => f.id === draft.formId);
+    const fields = (form?.fields || []).map((f) => ({ id: f.id, label: f.label, type: f.type }));
+    const result = applyReportConfirmAnswer(draft, answer, fields);
+
+    if (result.cancelled) {
+      setPendingReportConfirm(null);
+      setMessages((prev) => [...prev, {
+        id: `report-cancel-${Date.now()}`,
+        role: 'assistant',
+        content: result.assistantMessage || 'Okay — report creation cancelled.',
+        timestamp: new Date(),
+      }]);
+      return;
+    }
+
+    if (result.ready && result.draft) {
+      setPendingReportConfirm(null);
+      const params = { ...result.draft.params, __reportConfirmed: true };
+      if (params.chartConfig && draft.formId) {
+        params.chartConfig = finalizeAiChartConfig(params.chartConfig, draft.formId);
+      }
+      await runToolCall(
+        result.draft.action,
+        params,
+        result.draft.prompt,
+        `Creating report **${params.name || 'Report'}**…`,
+        draft.formId,
+      );
+      return;
+    }
+
+    if (result.draft) {
+      const nextDraft = { ...result.draft, messageId: draft.messageId };
+      setPendingReportConfirm(nextDraft);
+      const step = result.draft.step;
+      const choices = step === 'chart_type'
+        ? reportChartTypeChoices()
+        : step === 'dimension' || step === 'metric'
+          ? [
+              ...(step === 'metric' ? [{ label: 'Count (records)', value: '__count__' }] : []),
+              ...reportFieldChoices(fields),
+            ]
+          : reportConfirmChoices();
+      setMessages((prev) => [...prev, {
+        id: `report-step-${Date.now()}`,
+        role: 'assistant',
+        content: result.assistantMessage
+          || summarizeReportDraft(result.draft!.params, draft.formName || 'form', fields),
+        timestamp: new Date(),
+        choices,
+      }]);
+    }
+  }, [formsWithFields, runToolCall]);
 
   const resolveFormChoice = useCallback((messageId: string, formId: string) => {
+    const pendingReport = pendingReportConfirmRef.current;
+    if (pendingReport) {
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, resolved: true } : m)));
+      void finishReportConfirm(pendingReport, formId);
+      return;
+    }
+
     const pending = pendingAction;
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, resolved: true } : m)));
     if (!pending || pending.messageId !== messageId) return;
@@ -1568,13 +1697,20 @@ export function useCopilotEngine() {
       undefined,
       formId,
     );
-  }, [formsWithFields, pendingAction, rememberActiveForm, runToolCall]);
+  }, [finishReportConfirm, formsWithFields, pendingAction, rememberActiveForm, runToolCall]);
 
   const sendPrompt = useCallback(async (text: string, options?: { formId?: string; createType?: CopilotCreateType }) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
 
-    const createType = options?.createType || null;
+    const createTypeRaw = options?.createType || null;
+    // Chart/report language with Form tab still selected → treat as Report (don't remap to create_form).
+    const createType: CopilotCreateType | null =
+      createTypeRaw === 'form'
+      && promptCreatesReport(trimmed)
+      && !promptCreatesNewForm(trimmed)
+        ? 'report'
+        : createTypeRaw;
 
     const userMessage: CopilotMessage = {
       id: `user-${Date.now()}`,
@@ -1583,6 +1719,13 @@ export function useCopilotEngine() {
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
+
+    // Continue an in-progress report confirmation (Static/Map-style Q&A for charts).
+    const pendingReport = pendingReportConfirmRef.current;
+    if (pendingReport) {
+      await finishReportConfirm(pendingReport, trimmed);
+      return;
+    }
 
     // ── Conversational Workflow Builder (all AI Suggest workflows) ─────────
     // Do NOT blindly create; ask missing questions, validate, preview, then publish.
@@ -1822,8 +1965,10 @@ export function useCopilotEngine() {
   }, [
     activeFormName,
     activeProject?.id,
+    activeProject?.organization_id,
     chatbotAssist,
     copilotEnabled,
+    finishReportConfirm,
     formsWithFields,
     isBuilderActive,
     isLoading,
