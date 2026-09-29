@@ -326,6 +326,64 @@ export const visApi = {
       () => nestVis('/audit'),
       () => visClientEngine.listAudit(),
     ),
+
+  // ── Phase 5–10 enterprise ──────────────────────────────────────────────
+  enterpriseDashboard: () =>
+    withFallback(
+      () => nestVis('/enterprise/dashboard'),
+      async () => ({
+        metrics: {},
+        health: { status: 'DISABLED', reasons: ['Nest backend offline'] },
+        alerts: [],
+        recommendations: [],
+        connectors: 0,
+        drift: [],
+        healing: [],
+        __clientMode: true,
+      }),
+    ),
+  enterpriseHealth: (integrationId?: string) =>
+    withFallback(
+      () => nestVis(`/enterprise/health${integrationId ? `?integrationId=${integrationId}` : ''}`),
+      async () => ({ status: 'DISABLED', reasons: ['offline'], metrics: {} }),
+    ),
+  enterpriseMetrics: () =>
+    withFallback(
+      () => nestVis('/enterprise/metrics'),
+      async () => ({}),
+    ),
+  generateCode: (integrationId: string, language?: string) =>
+    withFallback(
+      () => nestVis(`/enterprise/codegen/${integrationId}`, { method: 'POST', body: { language } }),
+      async () => {
+        throw new Error('Code generation requires Nest backend');
+      },
+    ),
+  listConnectors: () =>
+    withFallback(
+      () => nestVis('/enterprise/connectors'),
+      async () => [],
+    ),
+  listRecommendations: (integrationId?: string) =>
+    withFallback(
+      () =>
+        nestVis(
+          `/enterprise/ai/recommendations${integrationId ? `?integrationId=${integrationId}` : ''}`,
+        ),
+      async () => [],
+    ),
+  promoteIntegration: (id: string, targetEnvironment: string) =>
+    withFallback(
+      () =>
+        nestVis(`/enterprise/integrations/${id}/promote`, {
+          method: 'POST',
+          body: { targetEnvironment },
+        }),
+      async () => {
+        throw new Error('Promotion requires Nest backend');
+      },
+    ),
+
   mockForms: () =>
     withFallback(
       () => nestVis('/mocks/forms'),

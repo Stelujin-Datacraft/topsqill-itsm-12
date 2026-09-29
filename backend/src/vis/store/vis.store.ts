@@ -27,6 +27,25 @@ export interface VisStoreData {
   /** Mock internal app forms/records (demo only) */
   mockForms: VisRecord[];
   mockRecords: VisRecord[];
+  /** Phase 5–10 enterprise */
+  codegenArtifacts: VisRecord[];
+  promotions: VisRecord[];
+  changeHistory: VisRecord[];
+  approvals: VisRecord[];
+  metrics: VisRecord[];
+  traces: VisRecord[];
+  alerts: VisRecord[];
+  reconciliationReports: VisRecord[];
+  repairReports: VisRecord[];
+  driftFindings: VisRecord[];
+  impactAnalyses: VisRecord[];
+  connectors: VisRecord[];
+  connectorInstalls: VisRecord[];
+  connectorUpgrades: VisRecord[];
+  aiRecommendations: VisRecord[];
+  generatedTests: VisRecord[];
+  generatedDocs: VisRecord[];
+  healingActions: VisRecord[];
 }
 
 const EMPTY: VisStoreData = {
@@ -46,6 +65,24 @@ const EMPTY: VisStoreData = {
   eventCheckpoints: [],
   mockForms: [],
   mockRecords: [],
+  codegenArtifacts: [],
+  promotions: [],
+  changeHistory: [],
+  approvals: [],
+  metrics: [],
+  traces: [],
+  alerts: [],
+  reconciliationReports: [],
+  repairReports: [],
+  driftFindings: [],
+  impactAnalyses: [],
+  connectors: [],
+  connectorInstalls: [],
+  connectorUpgrades: [],
+  aiRecommendations: [],
+  generatedTests: [],
+  generatedDocs: [],
+  healingActions: [],
 };
 
 function defaultPath(): string {
@@ -127,7 +164,17 @@ export class VisStore {
     const row: VisRecord = { id: record.id || randomUUID(), ...record };
     (this.data[collection] as VisRecord[]).push(row);
     // Hot paths (logs, mockRecords, deadLetters) debounce; others flush immediately
-    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions' || collection === 'events' || collection === 'eventDeadLetters') {
+    if (
+      collection === 'logs'
+      || collection === 'mockRecords'
+      || collection === 'deadLetters'
+      || collection === 'executions'
+      || collection === 'events'
+      || collection === 'eventDeadLetters'
+      || collection === 'metrics'
+      || collection === 'traces'
+      || collection === 'healingActions'
+    ) {
       this.schedulePersist();
     } else {
       this.persist();
@@ -140,7 +187,17 @@ export class VisStore {
     const idx = list.findIndex((r) => r.id === id);
     if (idx < 0) return null;
     list[idx] = { ...list[idx], ...patch, id };
-    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions' || collection === 'events' || collection === 'eventDeadLetters') {
+    if (
+      collection === 'logs'
+      || collection === 'mockRecords'
+      || collection === 'deadLetters'
+      || collection === 'executions'
+      || collection === 'events'
+      || collection === 'eventDeadLetters'
+      || collection === 'metrics'
+      || collection === 'traces'
+      || collection === 'healingActions'
+    ) {
       this.schedulePersist();
     } else {
       this.persist();

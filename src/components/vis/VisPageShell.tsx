@@ -73,12 +73,17 @@ export function VisPageHeader({
   );
 }
 
-export function VisSubnav({ active }: { active: 'dashboard' | 'integrations' | 'connections' | 'executions' }) {
+export function VisSubnav({
+  active,
+}: {
+  active: 'dashboard' | 'integrations' | 'connections' | 'executions' | 'enterprise';
+}) {
   const items = [
     { id: 'dashboard' as const, label: 'Dashboard', to: '/vis' },
     { id: 'integrations' as const, label: 'Integrations', to: '/vis/integrations' },
     { id: 'connections' as const, label: 'Connections', to: '/vis/connections' },
     { id: 'executions' as const, label: 'Executions', to: '/vis/executions' },
+    { id: 'enterprise' as const, label: 'Enterprise', to: '/vis/enterprise' },
   ];
 
   return (
