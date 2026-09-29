@@ -48,6 +48,8 @@ function defaultPath(): string {
 export class VisStore {
   private data: VisStoreData;
   private readonly filePath: string;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private persistDeferred = false;
 
   constructor(filePath?: string) {
     this.filePath = filePath || process.env.VIS_STORE_PATH || defaultPath();
@@ -66,10 +68,44 @@ export class VisStore {
     return structuredClone(EMPTY);
   }
 
+  /** Immediate flush to disk. */
   persist(): void {
+    if (process.env.VIS_STORE_MEMORY === '1') return;
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    this.persistDeferred = false;
     const dir = dirname(this.filePath);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf8');
+  }
+
+  /** Coalesce high-frequency writes (execution workers) into one flush. */
+  private schedulePersist(): void {
+    if (process.env.VIS_STORE_MEMORY === '1') return;
+    this.persistDeferred = true;
+    if (this.persistTimer) return;
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      if (this.persistDeferred) this.persistFast();
+    }, 500);
+    if (typeof this.persistTimer === 'object' && 'unref' in this.persistTimer) {
+      (this.persistTimer as NodeJS.Timeout).unref?.();
+    }
+  }
+
+  /** Persist without pretty-print for speed during large executions. */
+  persistFast(): void {
+    if (process.env.VIS_STORE_MEMORY === '1') return;
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+    this.persistDeferred = false;
+    const dir = dirname(this.filePath);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(this.filePath, JSON.stringify(this.data), 'utf8');
   }
 
   snapshot(): VisStoreData {
@@ -79,7 +115,12 @@ export class VisStore {
   create<K extends keyof VisStoreData>(collection: K, record: Omit<VisRecord, 'id'> & { id?: string }): VisRecord {
     const row: VisRecord = { id: record.id || randomUUID(), ...record };
     (this.data[collection] as VisRecord[]).push(row);
-    this.persist();
+    // Hot paths (logs, mockRecords, deadLetters) debounce; others flush immediately
+    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions') {
+      this.schedulePersist();
+    } else {
+      this.persist();
+    }
     return row;
   }
 
@@ -88,7 +129,11 @@ export class VisStore {
     const idx = list.findIndex((r) => r.id === id);
     if (idx < 0) return null;
     list[idx] = { ...list[idx], ...patch, id };
-    this.persist();
+    if (collection === 'logs' || collection === 'mockRecords' || collection === 'deadLetters' || collection === 'executions') {
+      this.schedulePersist();
+    } else {
+      this.persist();
+    }
     return list[idx];
   }
 

@@ -238,10 +238,25 @@ export const visApi = {
       () => nestVis(`/integrations/${id}/suggest-mappings`, { method: 'POST', body }),
       () => visClientEngine.suggestMappings(id),
     ),
-  createExecution: (id: string) =>
+  createExecution: (id: string, body: Record<string, unknown> = {}) =>
     withFallback(
-      () => nestVis(`/integrations/${id}/executions`, { method: 'POST', body: {} }),
+      () => nestVis(`/integrations/${id}/executions`, { method: 'POST', body }),
       () => visClientEngine.createExecution(id),
+    ),
+  cancelExecution: (executionId: string) =>
+    withFallback(
+      () => nestVis(`/executions/${executionId}/cancel`, { method: 'POST', body: {} }),
+      () => visClientEngine.cancelExecution(executionId),
+    ),
+  retryFailedExecution: (executionId: string) =>
+    withFallback(
+      () => nestVis(`/executions/${executionId}/retry-failed`, { method: 'POST', body: {} }),
+      () => visClientEngine.retryFailedExecution(executionId),
+    ),
+  listDeadLetters: (executionId?: string) =>
+    withFallback(
+      () => nestVis(`/dead-letters${executionId ? `?executionId=${executionId}` : ''}`),
+      () => visClientEngine.listDeadLetters(executionId),
     ),
   listExecutions: (integrationId?: string) =>
     withFallback(

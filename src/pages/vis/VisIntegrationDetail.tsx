@@ -307,7 +307,7 @@ export default function VisIntegrationDetail() {
       setIntegration(updated);
       const auditRows = await visApi.listAuditFor(id).catch(() => []);
       setAudits(Array.isArray(auditRows) ? auditRows : []);
-      toast({ title: 'Design approved', description: 'Not activated — production execution deferred.' });
+      toast({ title: 'Design approved', description: 'You can start an execution from this page.' });
     } catch (e: any) {
       toast({ title: 'Approve failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -969,7 +969,8 @@ export default function VisIntegrationDetail() {
             <CardHeader>
               <CardTitle className="text-base">Approval</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Explicit user approval required. This phase does not activate production execution.
+                Explicit user approval required. After approval you can start a Phase 3 execution
+                against the mock source and Internal Application API.
               </p>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
@@ -981,6 +982,32 @@ export default function VisIntegrationDetail() {
               </Button>
               <Button onClick={approve} disabled={busy || integration.status !== 'VALIDATED'}>
                 Approve Design
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={busy || !['APPROVED', 'ACTIVE', 'VALIDATED'].includes(integration.status)}
+                onClick={async () => {
+                  if (!id) return;
+                  setBusy(true);
+                  try {
+                    const exec = await visApi.createExecution(id, { awaitCompletion: false });
+                    toast({
+                      title: 'Execution started',
+                      description: exec.correlationId || exec.id,
+                    });
+                    window.location.href = `/vis/executions/${exec.id}`;
+                  } catch (e: any) {
+                    toast({
+                      title: 'Execution failed to start',
+                      description: e?.message || 'Unable to start',
+                      variant: 'destructive',
+                    });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Play className="h-4 w-4 mr-1" /> Start Execution
               </Button>
             </CardContent>
           </Card>

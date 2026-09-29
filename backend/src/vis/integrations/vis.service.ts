@@ -18,12 +18,28 @@ import type {
 import { validateIntegrationDesign } from '../core/schemas/integrationDesign';
 import { OpenApiDiscovery, inferSourceFieldsFromSample, inferSourceFieldsFromOpenApiSchema } from '../core/discovery/openApi';
 import { defaultMatchingStrategy, diffSchemas, filterMappingsByConfidence } from '../core/mapping/index';
+import {
+  buildCorrelationId,
+  buildExecutionPlan,
+  ExecutionPlanError,
+  ExecutionRunner,
+  createArraySourceReader,
+  createStoreTargetAdapter,
+  failExecutionForPlanError,
+  canCancel,
+} from '../executions/index';
+import type { DeadLetterRecord } from '../executions/in-memory-queue';
+import type { SourceReader } from '../executions/source-processor';
 
 @Injectable()
 export class VisService {
   private readonly store: VisStore;
   private readonly assistant: VisAssistant;
   private readonly openApi = new OpenApiDiscovery();
+  /** Active runners for cancel / live metrics */
+  private readonly runners = new Map<string, ExecutionRunner>();
+  /** Idempotency keys across retries within process lifetime */
+  private readonly processedKeys = new Map<string, Set<string>>();
 
   constructor() {
     this.store = getVisStore();
@@ -839,14 +855,215 @@ export class VisService {
   }
 
   // ── Executions / logs ──────────────────────────────────────────────────
-  createExecution(integrationId: string) {
-    const integration = this.store.get('integrations', integrationId);
-    if (!integration) throw new NotFoundException('Integration not found');
-    const correlationId = randomUUID();
+  /**
+   * Start an execution from an approved (or validated) integration.
+   * Returns immediately with QUEUED/RUNNING; workers run in-process.
+   * Pass `{ awaitCompletion: true }` for tests / small sync runs.
+   */
+  async createExecution(
+    integrationId: string,
+    opts?: {
+      awaitCompletion?: boolean;
+      sourceRecords?: Record<string, unknown>[];
+      maxPages?: number;
+      workers?: number;
+      concurrency?: number;
+      batchSize?: number;
+      rateLimitPerMinute?: number | null;
+    },
+  ) {
+    const hydrated = this.getIntegration(integrationId);
+    if (!hydrated.design) throw new BadRequestException('Integration has no design — analyze first');
+    if (!['APPROVED', 'ACTIVE', 'VALIDATED', 'DESIGN_READY'].includes(String(hydrated.status))) {
+      throw new BadRequestException(
+        `Integration status ${hydrated.status} cannot be executed — approve the design first`,
+      );
+    }
+    const direction = (hydrated.directions || [])[0] as DirectionConfig | undefined;
+    if (!direction) throw new BadRequestException('No direction configuration');
+
+    const correlationId = buildCorrelationId('INT-VUL');
     const execution = this.store.create('executions', {
       integrationId,
-      versionId: integration.currentVersionId,
+      versionId: hydrated.currentVersionId,
       status: 'QUEUED',
+      startedAt: null,
+      completedAt: null,
+      recordsRead: 0,
+      recordsCreated: 0,
+      recordsUpdated: 0,
+      recordsFailed: 0,
+      recordsProcessed: 0,
+      recordsRetried: 0,
+      recordsSkipped: 0,
+      retryCount: 0,
+      errorMessage: null,
+      correlationId,
+      createdAt: new Date().toISOString(),
+    });
+    this.log(execution.id, integrationId, correlationId, 'INFO', 'enqueue', 'Execution queued');
+
+    let plan;
+    try {
+      const dirOverride: DirectionConfig = {
+        ...direction,
+        workers: opts?.workers ?? direction.workers,
+        concurrency: opts?.concurrency ?? direction.concurrency,
+        batchSize: opts?.batchSize ?? direction.batchSize,
+        rateLimitPerMinute:
+          opts?.rateLimitPerMinute !== undefined
+            ? opts.rateLimitPerMinute
+            : direction.rateLimitPerMinute,
+      };
+      plan = buildExecutionPlan({
+        integrationId,
+        versionId: hydrated.version?.id ? String(hydrated.version.id) : null,
+        versionNumber: hydrated.version?.version != null ? Number(hydrated.version.version) : null,
+        design: hydrated.design,
+        direction: dirOverride,
+        correlationId,
+        sourceAuthType: hydrated.design.authHint,
+        sourceCredentialRefId: null,
+        sourceListPath:
+          (direction.endpointConfig as any)?.path
+          || '/vulnerabilities',
+      });
+    } catch (err) {
+      const e = err instanceof Error ? err : new ExecutionPlanError(String(err));
+      failExecutionForPlanError(
+        {
+          updateExecution: (id, patch) => this.store.update('executions', id, patch),
+          saveDeadLetter: () => undefined,
+          loadDeadLetters: () => [],
+          updateDeadLetter: () => undefined,
+        },
+        execution.id,
+        e,
+      );
+      this.log(execution.id, integrationId, correlationId, 'ERROR', 'plan', e.message, 'CONFIGURATION_ERROR');
+      return this.getExecution(execution.id);
+    }
+
+    const formId = direction.selectedFormId || 'form-vulnerability';
+    const matchFields = plan.matchingStrategy.targetFields;
+    const target = createStoreTargetAdapter(this.store, formId, matchFields);
+    const sourceRecords =
+      opts?.sourceRecords
+      || this.defaultMockSourceRecords();
+    const source: SourceReader = createArraySourceReader(sourceRecords);
+
+    const keys =
+      this.processedKeys.get(integrationId) || new Set<string>();
+    this.processedKeys.set(integrationId, keys);
+
+    const runner = new ExecutionRunner({
+      plan,
+      executionId: execution.id,
+      integrationId,
+      source,
+      target,
+      maxPages: opts?.maxPages,
+      processedKeys: keys,
+      logger: {
+        log: (input) => {
+          if (input.level === 'DEBUG') return;
+          this.store.create('logs', {
+            executionId: input.executionId,
+            integrationId: input.integrationId,
+            correlationId: input.correlationId,
+            level: input.level,
+            step: input.step,
+            message: input.message,
+            recordId: input.recordId || null,
+            workerId: input.workerId || null,
+            errorCode: input.errorCode || null,
+            metadata: input.metadata ? maskSecrets(input.metadata) : null,
+            timestamp: new Date().toISOString(),
+          });
+        },
+      },
+      callbacks: {
+        updateExecution: (id, patch) => {
+          this.store.update('executions', id, patch);
+        },
+        saveDeadLetter: (row) => {
+          this.store.create('deadLetters', { ...row, ignored: false });
+        },
+        loadDeadLetters: (execId) =>
+          this.store
+            .list('deadLetters')
+            .filter((d) => d.executionId === execId) as unknown as DeadLetterRecord[],
+        updateDeadLetter: (id, patch) => {
+          this.store.update('deadLetters', id, patch);
+        },
+      },
+    });
+
+    this.runners.set(execution.id, runner);
+
+    const runPromise = runner.run().finally(() => {
+      this.runners.delete(execution.id);
+    });
+
+    if (opts?.awaitCompletion) {
+      await runPromise;
+      return this.getExecution(execution.id);
+    }
+
+    // Fire-and-forget for API — client polls getExecution
+    void runPromise;
+    return this.getExecution(execution.id);
+  }
+
+  cancelExecution(executionId: string) {
+    const row = this.store.get('executions', executionId);
+    if (!row) throw new NotFoundException('Execution not found');
+    if (!canCancel(String(row.status))) {
+      throw new BadRequestException(`Cannot cancel execution in status ${row.status}`);
+    }
+    const runner = this.runners.get(executionId);
+    if (runner) {
+      runner.cancel();
+    } else {
+      this.store.update('executions', executionId, {
+        status: 'CANCELLED',
+        completedAt: new Date().toISOString(),
+      });
+    }
+    this.log(
+      executionId,
+      String(row.integrationId),
+      String(row.correlationId || ''),
+      'WARN',
+      'cancel',
+      'Execution cancelled by user',
+    );
+    return this.getExecution(executionId);
+  }
+
+  async retryFailedRecords(executionId: string, opts?: { awaitCompletion?: boolean }) {
+    const row = this.store.get('executions', executionId);
+    if (!row) throw new NotFoundException('Execution not found');
+    const integrationId = String(row.integrationId);
+    const hydrated = this.getIntegration(integrationId);
+    const direction = (hydrated.directions || [])[0] as DirectionConfig | undefined;
+    if (!hydrated.design || !direction) {
+      throw new BadRequestException('Integration design missing');
+    }
+
+    const dead = this.store
+      .list('deadLetters')
+      .filter((d) => d.executionId === executionId && !d.ignored) as unknown as DeadLetterRecord[];
+    if (!dead.length) {
+      throw new BadRequestException('No failed records to retry');
+    }
+
+    const correlationId = String(row.correlationId || buildCorrelationId('INT-VUL'));
+    const retryExec = this.store.create('executions', {
+      integrationId,
+      versionId: row.versionId,
+      status: 'QUEUED',
+      parentExecutionId: executionId,
       startedAt: null,
       completedAt: null,
       recordsRead: 0,
@@ -857,16 +1074,97 @@ export class VisService {
       errorMessage: null,
       correlationId,
       createdAt: new Date().toISOString(),
+      mode: 'RETRY_FAILED',
     });
-    this.log(execution.id, integrationId, correlationId, 'INFO', 'enqueue', 'Execution queued (Phase 1 — no production runner)');
-    // Phase 1 stub: mark as SUCCESS with zero records (foundation only)
-    this.store.update('executions', execution.id, {
-      status: 'SUCCESS',
-      startedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
+
+    const plan = buildExecutionPlan({
+      integrationId,
+      versionId: hydrated.version?.id || null,
+      design: hydrated.design,
+      direction,
+      correlationId,
     });
-    this.log(execution.id, integrationId, correlationId, 'INFO', 'complete', 'Stub execution completed — advanced runtime deferred');
-    return this.store.get('executions', execution.id);
+    const formId = direction.selectedFormId || 'form-vulnerability';
+    const target = createStoreTargetAdapter(this.store, formId, plan.matchingStrategy.targetFields);
+    const keys = this.processedKeys.get(integrationId) || new Set<string>();
+    // Allow retry of previously failed — remove only those keys that failed
+    for (const d of dead) {
+      const sid = String(d.sourceRecord?.id || d.sourceRecord?.vulnerability_id || '');
+      keys.delete(`${integrationId}::REST_API::${sid}`);
+      keys.delete(`${integrationId}::${plan.source.kind}::${sid}`);
+    }
+
+    const runner = new ExecutionRunner({
+      plan,
+      executionId: retryExec.id,
+      integrationId,
+      source: createArraySourceReader([]),
+      target,
+      processedKeys: keys,
+      logger: {
+        log: (input) => {
+          this.store.create('logs', {
+            executionId: input.executionId,
+            integrationId: input.integrationId,
+            correlationId: input.correlationId,
+            level: input.level,
+            step: input.step,
+            message: input.message,
+            recordId: input.recordId || null,
+            errorCode: input.errorCode || null,
+            metadata: input.metadata ? maskSecrets(input.metadata) : null,
+            timestamp: new Date().toISOString(),
+          });
+        },
+      },
+      callbacks: {
+        updateExecution: (id, patch) => this.store.update('executions', id, patch),
+        saveDeadLetter: (r) => this.store.create('deadLetters', { ...r, ignored: false }),
+        loadDeadLetters: (execId) =>
+          this.store.list('deadLetters').filter((d) => d.executionId === execId) as any,
+        updateDeadLetter: (id, patch) => this.store.update('deadLetters', id, patch),
+      },
+    });
+    this.runners.set(retryExec.id, runner);
+
+    // Mark original dead letters as retried (not ignored)
+    for (const d of this.store.list('deadLetters').filter((x) => x.executionId === executionId && !x.ignored)) {
+      this.store.update('deadLetters', d.id, { retriedIn: retryExec.id });
+    }
+
+    const runPromise = runner.retryFailed(dead).finally(() => this.runners.delete(retryExec.id));
+    if (opts?.awaitCompletion !== false) await runPromise;
+    else void runPromise;
+    return this.getExecution(retryExec.id);
+  }
+
+  listDeadLetters(filters?: { executionId?: string; integrationId?: string }) {
+    let rows = this.store.list('deadLetters');
+    if (filters?.executionId) rows = rows.filter((d) => d.executionId === filters.executionId);
+    if (filters?.integrationId) rows = rows.filter((d) => d.integrationId === filters.integrationId);
+    return rows.slice().reverse();
+  }
+
+  ignoreDeadLetter(id: string) {
+    const row = this.store.get('deadLetters', id);
+    if (!row) throw new NotFoundException('Dead letter not found');
+    return this.store.update('deadLetters', id, { ignored: true });
+  }
+
+  getRecordTrace(executionId: string, recordId: string) {
+    const row = this.store.get('executions', executionId);
+    if (!row) throw new NotFoundException('Execution not found');
+    const traces = (row.traces as Record<string, unknown>) || {};
+    const runner = this.runners.get(executionId);
+    const live = runner?.getTraces(recordId);
+    return {
+      executionId,
+      recordId,
+      timeline: live || traces[recordId] || [],
+      logs: this.store
+        .list('logs')
+        .filter((l) => l.executionId === executionId && l.recordId === recordId),
+    };
   }
 
   listExecutions(integrationId?: string) {
@@ -877,9 +1175,20 @@ export class VisService {
   getExecution(id: string) {
     const row = this.store.get('executions', id);
     if (!row) throw new NotFoundException('Execution not found');
+    const runner = this.runners.get(id);
+    const liveMetrics = runner?.getMetrics();
     return {
       ...row,
+      metrics: liveMetrics || row.metrics || null,
       logs: this.store.list('logs').filter((l) => l.executionId === id),
+      deadLetters: this.store.list('deadLetters').filter((d) => d.executionId === id),
+      actions: {
+        canCancel: canCancel(String(row.status)),
+        canRetryFailed: this.store.list('deadLetters').some((d) => d.executionId === id && !d.ignored),
+        // Designed for later
+        canPause: false,
+        canResume: false,
+      },
     };
   }
 
@@ -888,6 +1197,16 @@ export class VisService {
     if (filters?.executionId) logs = logs.filter((l) => l.executionId === filters.executionId);
     if (filters?.level) logs = logs.filter((l) => l.level === filters.level);
     return logs.slice().reverse();
+  }
+
+  /** Default demo source dataset (mock vulnerability API). */
+  private defaultMockSourceRecords(): Record<string, unknown>[] {
+    return [
+      { id: 'VUL-1001', severity: 'Critical', description: 'Apache vulnerability', team: 'Infrastructure', status: 'Open' },
+      { id: 'VUL-1002', severity: 'High', description: 'Outdated OpenSSL library', team: 'Platform', status: 'Open' },
+      { id: 'VUL-1003', severity: 'Medium', description: 'Missing security headers', team: 'Application', status: 'Open' },
+      { id: 'VUL-1004', severity: 'Low', description: 'Informational cookie flag', team: 'Application', status: 'Closed' },
+    ];
   }
 
   listAudit(integrationId?: string) {

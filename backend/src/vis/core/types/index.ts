@@ -63,13 +63,111 @@ export type VersionStatus = (typeof VERSION_STATUSES)[number];
 
 export const EXECUTION_STATUSES = [
   'QUEUED',
+  'STARTING',
   'RUNNING',
+  'PAUSING',
+  'PAUSED',
+  'COMPLETING',
   'SUCCESS',
   'PARTIAL_SUCCESS',
   'FAILED',
   'CANCELLED',
 ] as const;
 export type ExecutionStatus = (typeof EXECUTION_STATUSES)[number];
+
+export const EXECUTION_ERROR_CODES = [
+  'AUTHENTICATION_ERROR',
+  'AUTHORIZATION_ERROR',
+  'RATE_LIMIT_ERROR',
+  'NETWORK_ERROR',
+  'TIMEOUT_ERROR',
+  'VALIDATION_ERROR',
+  'MAPPING_ERROR',
+  'TRANSFORMATION_ERROR',
+  'SOURCE_ERROR',
+  'TARGET_ERROR',
+  'CONFIGURATION_ERROR',
+  'UNKNOWN_ERROR',
+] as const;
+export type ExecutionErrorCode = (typeof EXECUTION_ERROR_CODES)[number];
+
+export const PAGINATION_STYLES = [
+  'PAGE',
+  'OFFSET',
+  'LIMIT',
+  'CURSOR',
+  'NEXT_URL',
+  'LINK_HEADER',
+  'NONE',
+] as const;
+export type PaginationStyle = (typeof PAGINATION_STYLES)[number];
+
+/** Validated plan derived from an approved IntegrationDesign + DirectionConfig. */
+export interface ExecutionPlan {
+  integrationId: string;
+  versionId: string | null;
+  versionNumber?: number | null;
+  correlationId: string;
+  source: {
+    kind: ConnectorKind;
+    connectionId: string | null;
+    listPath?: string | null;
+    pagination?: PaginationStyle;
+    pageSize?: number;
+  };
+  target: {
+    kind: ConnectorKind;
+    connectionId: string | null;
+    formId: string | null;
+  };
+  direction: IntegrationDirectionKind;
+  operations: CrudOperation[];
+  mappings: FieldMappingSpec[];
+  matchingStrategy: MatchingStrategy;
+  authentication: { authType: AuthType; credentialRefId: string | null };
+  batching: { batchSize: number; preferBulk: boolean };
+  workers: { count: number; concurrencyPerWorker: number };
+  retryPolicy: {
+    type: RetryPolicy;
+    maxAttempts: number;
+    initialDelayMs: number;
+    maxDelayMs: number;
+  };
+  rateLimit: { perMinute: number | null; maxConcurrent: number };
+  idempotency: { strategy: string };
+  timeouts: { connectionMs: number; readMs: number; totalMs: number };
+  language: ProgrammingLanguage;
+}
+
+export interface ExecutionMetrics {
+  recordsRead: number;
+  recordsProcessed: number;
+  recordsCreated: number;
+  recordsUpdated: number;
+  recordsFailed: number;
+  recordsRetried: number;
+  recordsSkipped: number;
+  requests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  rateLimitResponses: number;
+  authenticationRefreshes: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  recordsPerSecond?: number;
+  averageLatencyMs?: number;
+}
+
+export interface ExecutionError {
+  code: ExecutionErrorCode;
+  message: string;
+  retryable: boolean;
+  source?: string;
+  target?: string;
+  httpStatus?: number;
+  correlationId?: string;
+  recordId?: string;
+}
 
 export const ENVIRONMENTS = ['DEV', 'TEST', 'UAT', 'PROD'] as const;
 export type EnvironmentName = (typeof ENVIRONMENTS)[number];
