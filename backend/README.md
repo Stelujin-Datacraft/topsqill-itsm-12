@@ -78,6 +78,21 @@ All endpoints are prefixed with `/api`.
 
 The React frontend automatically routes database and edge function calls through this API when `VITE_USE_BACKEND_API=true` (default). See `src/integrations/supabase/client.ts` for the proxy implementation.
 
+### Versatile Integration Studio (Phase 1)
+
+Mounted at `/api/vis/*` (`VisModule`). Prompt-first orchestration foundation:
+
+- `POST /api/vis/integrations` + `/analyze` — NL → Zod-validated design
+- Connections, schema discovery, mappings, executions, logs, audit
+- Demo mocks: `/api/vis/mocks/vulnerabilities`, `/api/vis/mocks/forms`
+
+UI: `/vis` in the React app. Architecture: `docs/vis/ARCHITECTURE.md`.
+
+```bash
+npm run test:vis
+```
+
+
 ## Migrated Edge Functions
 
 All 36 Supabase Edge Functions have been migrated to NestJS modules:

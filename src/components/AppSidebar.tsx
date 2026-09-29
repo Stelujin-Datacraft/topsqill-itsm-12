@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -112,6 +112,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: RefreshCw,
         isDisabled: !currentProject,
         iconColor: "text-module-feeds",
+      },
+      {
+        title: "Integration Studio",
+        url: "/vis",
+        icon: Cable,
+        iconColor: "text-module-api",
       },
       {
         title: t('nav.knowledgeBase'),
