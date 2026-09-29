@@ -85,13 +85,19 @@ export async function insertAiGeneratedFormFields(
   rawFields: unknown,
   rawPages?: unknown,
 ): Promise<{ fieldCount: number; pageCount: number }> {
-  let fields = rawFields;
-  if (typeof fields === 'string') {
-    try { fields = JSON.parse(fields); } catch { fields = []; }
+  let fields: unknown[] = [];
+  if (typeof rawFields === 'string') {
+    try {
+      const parsed = JSON.parse(rawFields);
+      fields = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      fields = [];
+    }
+  } else if (Array.isArray(rawFields)) {
+    fields = rawFields;
   }
-  if (!Array.isArray(fields)) fields = [];
 
-  let pages = rawPages;
+  let pages: unknown = rawPages;
   if (typeof pages === 'string') {
     try { pages = JSON.parse(pages); } catch { pages = null; }
   }

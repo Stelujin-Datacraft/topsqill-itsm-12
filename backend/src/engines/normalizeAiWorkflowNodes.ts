@@ -97,7 +97,7 @@ export function inferDesignerActionType(
 }
 
 function ensureNotificationConfig(config: Record<string, any>, label?: string): Record<string, any> {
-  const next = { ...config, actionType: 'send_notification' };
+  const next: Record<string, any> = { ...config, actionType: 'send_notification' };
   if (!next.notificationConfig) {
     next.notificationConfig = {
       type: next.notificationType || next.type || 'in_app',
@@ -119,7 +119,7 @@ function normalizeChangeFieldValueConfig(
   triggerFormId?: string,
   triggerFormName?: string,
 ): Record<string, any> {
-  const next = { ...config, actionType: 'change_field_value' };
+  const next: Record<string, any> = { ...config, actionType: 'change_field_value' };
 
   const firstUpdate = Array.isArray(next.fieldUpdates) ? next.fieldUpdates[0] : undefined;
   if (!next.targetFieldId) {
@@ -164,7 +164,7 @@ function normalizeChangeFieldValueConfig(
 }
 
 function normalizeConditionConfig(config: Record<string, any>, triggerFormId?: string): Record<string, any> {
-  const next = { ...config };
+  const next: Record<string, any> = { ...config };
   const formId = next.formId || triggerFormId || '';
 
   const ensureFlc = (raw: any) => {
@@ -254,7 +254,7 @@ function normalizeConditionConfig(config: Record<string, any>, triggerFormId?: s
 }
 
 function normalizeStartConfig(config: Record<string, any>, options?: NormalizeAiWorkflowNodesOptions) {
-  const next = { ...config };
+  const next: Record<string, any> = { ...config };
   const triggerFormId = options?.triggerFormId || next.triggerFormId || next.formId || '';
   const triggerFormName = options?.triggerFormName || next.triggerFormName || next.formName || '';
   if (triggerFormId) {
