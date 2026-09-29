@@ -52,8 +52,16 @@ export class VisController {
   }
 
   @Post('integrations/:id/analyze')
-  analyze(@Param('id') id: string, @Body() body: { promptText?: string }) {
-    return this.vis.analyzeIntegration(id, body?.promptText);
+  analyze(
+    @Param('id') id: string,
+    @Body() body: { promptText?: string; answers?: Record<string, string> },
+  ) {
+    return this.vis.analyzeIntegration(id, body?.promptText, body?.answers);
+  }
+
+  @Post('integrations/:id/clarify')
+  clarify(@Param('id') id: string, @Body() body: { promptText?: string }) {
+    return this.vis.clarifyIntegration(id, body?.promptText);
   }
 
   @Post('integrations/:id/language')
@@ -66,6 +74,34 @@ export class VisController {
     return this.vis.validateIntegration(id);
   }
 
+  @Post('integrations/:id/approve')
+  approve(@Param('id') id: string) {
+    return this.vis.approveIntegration(id);
+  }
+
+  @Post('integrations/:id/save-draft')
+  saveDraft(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.vis.saveDraft(id, body || {});
+  }
+
+  @Post('integrations/:id/connections')
+  bindConnections(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      sourceConnectionId?: string;
+      targetConnectionId?: string;
+      selectedFormId?: string;
+    },
+  ) {
+    return this.vis.setDirectionConnections(id, body || {});
+  }
+
+  @Post('integrations/:id/matching-strategy')
+  matchingStrategy(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+    return this.vis.setMatchingStrategy(id, body as any);
+  }
+
   @Post('integrations/:id/discover-schema')
   discoverSchema(
     @Param('id') id: string,
@@ -74,9 +110,20 @@ export class VisController {
     return this.vis.discoverSchema(id, body);
   }
 
+  @Post('integrations/:id/refresh-schema')
+  refreshSchema(
+    @Param('id') id: string,
+    @Body() body: { connectionId: string; formId: string },
+  ) {
+    return this.vis.refreshSchema(id, body);
+  }
+
   @Get('integrations/:id/mappings')
-  getMappings(@Param('id') id: string) {
-    return this.vis.getMappings(id);
+  getMappings(
+    @Param('id') id: string,
+    @Query('filter') filter?: 'ALL' | 'HIGH' | 'NEEDS_REVIEW',
+  ) {
+    return filter ? this.vis.filterMappings(id, filter) : this.vis.getMappings(id);
   }
 
   @Put('integrations/:id/mappings')
@@ -87,6 +134,34 @@ export class VisController {
   @Post('integrations/:id/suggest-mappings')
   suggestMappings(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return this.vis.suggestMappings(id, body as any);
+  }
+
+  @Post('integrations/:id/nl-mapping')
+  nlMapping(@Param('id') id: string, @Body() body: { instruction: string }) {
+    return this.vis.applyNaturalLanguageMapping(id, body.instruction);
+  }
+
+  @Post('integrations/:id/sample-source')
+  sampleSource(@Param('id') id: string, @Body() body: { sample: unknown }) {
+    return this.vis.setSampleSourceData(id, body.sample as any);
+  }
+
+  @Post('integrations/:id/openapi')
+  openApi(@Param('id') id: string, @Body() body: { document?: unknown; url?: string }) {
+    return this.vis.discoverOpenApi(id, body || {});
+  }
+
+  @Post('integrations/:id/openapi/select')
+  selectEndpoint(
+    @Param('id') id: string,
+    @Body() body: { path: string; method: string },
+  ) {
+    return this.vis.selectOpenApiEndpoint(id, body);
+  }
+
+  @Post('integrations/:id/dry-run')
+  dryRun(@Param('id') id: string, @Body() body: { sample?: Record<string, unknown>[] }) {
+    return this.vis.dryRun(id, body);
   }
 
   @Post('integrations/:id/executions')

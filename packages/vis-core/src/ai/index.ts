@@ -1,4 +1,12 @@
-import type { IntegrationDesign, FieldMappingSpec, DiscoveredField } from '../types/index';
+import type {
+  ClarificationAnswers,
+  ClarificationResult,
+  DesignValidationReport,
+  DiscoveredField,
+  DryRunResult,
+  FieldMappingSpec,
+  IntegrationDesign,
+} from '../types/index';
 
 export interface IAIProvider {
   generate(prompt: string, options?: Record<string, unknown>): Promise<string>;
@@ -12,6 +20,15 @@ export interface IAIProvider {
 
 export interface IAssistant {
   analyzeRequirement(naturalLanguage: string): Promise<IntegrationDesign>;
+  /** Phase 2 — ask only when critical details are missing. */
+  clarifyRequirement?(
+    naturalLanguage: string,
+  ): Promise<ClarificationResult | { needsClarification: false }>;
+  /** Phase 2 — merge answers then analyze. */
+  analyzeWithClarifications?(
+    naturalLanguage: string,
+    answers: ClarificationAnswers,
+  ): Promise<IntegrationDesign>;
   recommendArchitecture(design: IntegrationDesign): Promise<IntegrationDesign>;
   recommendLanguage(design: IntegrationDesign): Promise<{
     language: IntegrationDesign['language'];
@@ -23,10 +40,32 @@ export interface IAssistant {
     design?: IntegrationDesign;
   }): Promise<FieldMappingSpec[]>;
   suggestTransformations(mappings: FieldMappingSpec[]): Promise<FieldMappingSpec[]>;
+  applyNaturalLanguageMappingChange?(
+    mappings: FieldMappingSpec[],
+    instruction: string,
+    context?: {
+      sourceFields?: Array<{ name: string }>;
+      targetFields?: DiscoveredField[];
+    },
+  ): Promise<FieldMappingSpec[]>;
   validateIntegration(design: IntegrationDesign): Promise<{
     ok: boolean;
     issues: Array<{ severity: 'error' | 'warning'; code: string; message: string }>;
   }>;
+  validateDesignComplete?(input: {
+    design: IntegrationDesign;
+    mappings: FieldMappingSpec[];
+    sourceFields: Array<{ name: string }>;
+    targetFields: DiscoveredField[];
+    hasSourceConnection?: boolean;
+    hasTargetConnection?: boolean;
+    hasMatchingStrategy?: boolean;
+  }): Promise<DesignValidationReport>;
+  dryRun?(input: {
+    sourceRecords: Record<string, unknown>[];
+    mappings: FieldMappingSpec[];
+    targetFields?: DiscoveredField[];
+  }): Promise<DryRunResult>;
   reviewIntegration(design: IntegrationDesign): Promise<{
     summary: string;
     recommendations: string[];
