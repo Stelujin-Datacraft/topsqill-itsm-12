@@ -27,6 +27,9 @@ function splitFullName(fullName: string): { first_name: string; last_name: strin
 /** Temporarily hide Google SSO on Auth (sign-in + sign-up). Flip to true to restore. */
 const ENABLE_GOOGLE_AUTH = false;
 
+/** After sign-in, land on the marketing home (username in SiteHeader) unless returnTo is set. */
+const DEFAULT_POST_AUTH_PATH = '/';
+
 const Auth = () => {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -35,6 +38,7 @@ const Auth = () => {
   const { signIn, signInWithGoogle, registerOrganization, requestSignInOtp, verifySignInOtp, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
+  const postAuthPath = returnTo || DEFAULT_POST_AUTH_PATH;
   // Skip auto-redirect when returning from email verification (or during post-signup).
   const skipAuthRedirectRef = useRef(
     typeof window !== 'undefined'
@@ -66,10 +70,9 @@ const Auth = () => {
   // Redirect authenticated users (unless we just finished signup / email verification)
   useEffect(() => {
     if (user && !isLoading && !skipAuthRedirectRef.current) {
-      const destination = returnTo || '/build';
-      navigate(destination, { replace: true });
+      navigate(postAuthPath, { replace: true });
     }
-  }, [user, isLoading, navigate, returnTo]);
+  }, [user, isLoading, navigate, postAuthPath]);
 
   // Check if LDAP is available for the entered email domain
   const checkLdapAvailability = async (email: string) => {
@@ -291,8 +294,7 @@ const Auth = () => {
         title: "Welcome back!",
         description: "You have been successfully signed in.",
       });
-      const redirectPath = returnTo || '/build';
-      navigate(redirectPath, { replace: true });
+      navigate(postAuthPath, { replace: true });
     }
   };
 
@@ -356,8 +358,7 @@ const Auth = () => {
         title: 'Welcome back!',
         description: 'You have been successfully signed in.',
       });
-      const redirectPath = returnTo || '/build';
-      navigate(redirectPath, { replace: true });
+      navigate(postAuthPath, { replace: true });
     } finally {
       setSigninOtpVerifying(false);
     }
@@ -369,8 +370,7 @@ const Auth = () => {
       title: "Welcome back!",
       description: "You have been successfully signed in.",
     });
-    const redirectPath = returnTo || '/build';
-    navigate(redirectPath, { replace: true });
+    navigate(postAuthPath, { replace: true });
   };
 
   const handleMfaCancel = () => {
@@ -740,8 +740,7 @@ const Auth = () => {
                   organizationDomain={ldapDomain}
                   loginHint={signInData.email}
                   onSuccess={(user) => {
-                    const redirectPath = returnTo || '/build';
-                    navigate(redirectPath, { replace: true });
+                    navigate(postAuthPath, { replace: true });
                   }}
                   onFallbackToLocal={() => setShowLdapLogin(false)}
                 />
