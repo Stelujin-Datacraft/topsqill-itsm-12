@@ -73,7 +73,7 @@ sudo pg_ctlcluster 16 main start
 redis-server --daemonize yes
 # user/db: vis / vis_platform, vis_mock_dev, vis_mock_uat
 
-export VIS_DATABASE_URL=postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform
+export VIS_DATABASE_URL   # required — never commit credentials
 export PATH="$HOME/.dotnet:$PATH"
 cd backend
 npm i
