@@ -23,6 +23,15 @@ const TABLE_PROBE_KEY = 'topsqill_blog_table_ok';
 const BUCKET_CACHE_KEY = 'topsqill_blog_bucket';
 const MAX_DATA_URL_BYTES = 1_500_000;
 
+/** List/card fields — omit heavy content_html from public feed queries. */
+export const BLOG_LIST_COLUMNS =
+  'id,slug,title,description,cover_image_url,author_name,author_title,tags,faqs,published,published_at,created_by,created_at,updated_at';
+
+export type PublishedBlogFeed = {
+  posts: BlogPostRecord[];
+  deletedSlugs: string[];
+};
+
 export function isMissingRelationError(error: { message?: string; code?: string } | null | undefined): boolean {
   if (!error) return false;
   const msg = String(error.message || '').toLowerCase();
@@ -224,12 +233,26 @@ async function uploadDeletedSlugsJson(bucket: string, slugs: string[]): Promise<
 
 export async function loadDeletedSlugs(): Promise<Set<string>> {
   const set = new Set<string>(loadLocalDeletedSlugs());
-  for (const bucket of bucketAttemptOrder()) {
+  const order = bucketAttemptOrder();
+
+  const tryBucket = async (bucket: string): Promise<string[] | null> => {
     try {
-      const remote = await downloadDeletedSlugsJson(bucket);
-      if (remote) remote.forEach((s) => set.add(s));
+      return await downloadDeletedSlugsJson(bucket);
     } catch (err) {
       console.warn(`[blog] read deleted-slugs via ${bucket} failed:`, (err as Error)?.message);
+      return null;
+    }
+  };
+
+  // Cached bucket first; fan out only when that bucket has no tombstone file.
+  const primary = await tryBucket(order[0]);
+  if (primary !== null) {
+    primary.forEach((s) => set.add(s));
+    rememberBucket(order[0]);
+  } else {
+    const remotes = await Promise.all(order.slice(1).map(tryBucket));
+    for (const remote of remotes) {
+      if (remote) remote.forEach((s) => set.add(s));
     }
   }
   return set;
@@ -399,53 +422,81 @@ async function uploadCmsJson(bucket: string, posts: BlogPostRecord[]): Promise<v
 /** Load CMS posts from every reachable bucket + localStorage (do not stop on empty). */
 export async function listStorageBlogPosts(): Promise<BlogPostRecord[]> {
   const lists: BlogPostRecord[][] = [loadLocalCmsPosts()];
-  for (const bucket of bucketAttemptOrder()) {
-    try {
-      const rows = await downloadCmsJson(bucket);
-      if (rows && rows.length > 0) {
-        rememberBucket(bucket);
-        lists.push(rows);
-      } else if (rows) {
-        // empty file exists — still a valid bucket
-        rememberBucket(bucket);
+  const remotes = await Promise.all(
+    bucketAttemptOrder().map(async (bucket) => {
+      try {
+        const rows = await downloadCmsJson(bucket);
+        if (rows) rememberBucket(bucket);
+        return rows && rows.length > 0 ? rows : null;
+      } catch (err) {
+        console.warn(`[blog] storage list via ${bucket} failed:`, (err as Error)?.message);
+        return null;
       }
-    } catch (err) {
-      console.warn(`[blog] storage list via ${bucket} failed:`, (err as Error)?.message);
-    }
+    }),
+  );
+  for (const rows of remotes) {
+    if (rows) lists.push(rows);
   }
   return mergePostMaps(...lists);
 }
 
-/** Public published posts: scan all buckets (empty file ≠ stop) + localStorage. */
-export async function listPublishedStorageBlogPosts(): Promise<BlogPostRecord[]> {
-  const lists: BlogPostRecord[][] = [];
+async function fetchPublishedCmsFromPublicUrls(): Promise<BlogPostRecord[]> {
+  const order = bucketAttemptOrder();
 
-  for (const bucket of bucketAttemptOrder()) {
-    const url = `${publicObjectUrl(bucket, BLOG_CMS_FILE)}?t=${Date.now()}`;
+  const fetchBucket = async (bucket: string): Promise<BlogPostRecord[] | null> => {
+    const url = publicObjectUrl(bucket, BLOG_CMS_FILE);
     try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (res.status === 404) continue;
-      if (!res.ok) continue;
+      const res = await fetch(url, { cache: 'default' });
+      if (res.status === 404 || !res.ok) return null;
       const parsed = await res.json();
       const rows = Array.isArray(parsed) ? (parsed as BlogPostRecord[]) : [];
       if (rows.length > 0) {
         rememberBucket(bucket);
-        lists.push(rows);
+        return rows;
       }
+      return null;
     } catch {
-      /* try next bucket */
+      return null;
     }
-  }
+  };
 
-  // Authenticated download path (same browser / admin session)
+  // Prefer last-known-good bucket first (avoids 3–4 parallel 404s on every visit).
+  const primary = await fetchBucket(order[0]);
+  if (primary?.length) return primary;
+
+  const rest = await Promise.all(order.slice(1).map(fetchBucket));
+  const lists = rest.filter((r): r is BlogPostRecord[] => Boolean(r?.length));
+  return lists.length ? mergePostMaps(...lists) : [];
+}
+
+/** Public published posts: parallel public fetches; authed path only if public found nothing. */
+export async function listPublishedStorageBlogPosts(): Promise<BlogPostRecord[]> {
+  const lists: BlogPostRecord[][] = [];
+
   try {
-    const authed = await listStorageBlogPosts();
-    if (authed.length) lists.push(authed);
+    const publicRows = await fetchPublishedCmsFromPublicUrls();
+    if (publicRows.length) lists.push(publicRows);
   } catch {
-    /* ignore */
+    /* fall through to authed */
   }
 
-  lists.push(loadLocalCmsPosts());
+  // Authenticated download only when public URLs returned nothing (avoids a second full scan).
+  if (lists.length === 0) {
+    try {
+      const authed = await listStorageBlogPosts();
+      if (authed.length) lists.push(authed);
+    } catch {
+      /* ignore */
+    }
+  } else {
+    const local = loadLocalCmsPosts();
+    if (local.length) lists.push(local);
+  }
+
+  if (lists.length === 0) {
+    lists.push(loadLocalCmsPosts());
+  }
+
   return mergePostMaps(...lists).filter((p) => Boolean(p.published));
 }
 
@@ -454,48 +505,58 @@ export async function getPublishedStorageBlogPost(slug: string): Promise<BlogPos
   return rows.find((p) => p.slug === slug) || null;
 }
 
-/**
- * Public landing feed: merge DB table + storage + localStorage.
- * Never rely on a single source — table RLS or empty seed files used to hide posts.
- */
-export async function loadAllPublishedBlogPosts(): Promise<BlogPostRecord[]> {
-  const lists: BlogPostRecord[][] = [];
-
+async function loadPublishedTablePostsList(): Promise<BlogPostRecord[]> {
   const tableOk = await probeBlogTable();
-  if (tableOk) {
-    const { data, error } = await rawSupabase
-      .from('blog_posts')
-      .select('*')
-      .eq('published', true)
-      .order('published_at', { ascending: false });
-    if (!error && data?.length) {
-      lists.push(data as BlogPostRecord[]);
-    } else if (error && isMissingRelationError(error)) {
-      invalidateBlogTableProbe();
-    } else if (error) {
-      console.warn('[blog] published table fetch failed:', error.message);
+  if (!tableOk) return [];
+  const { data, error } = await rawSupabase
+    .from('blog_posts')
+    .select(BLOG_LIST_COLUMNS)
+    .eq('published', true)
+    .order('published_at', { ascending: false });
+  if (!error && data?.length) return data as BlogPostRecord[];
+  if (error && isMissingRelationError(error)) {
+    invalidateBlogTableProbe();
+  } else if (error) {
+    console.warn('[blog] published table fetch failed:', error.message);
+  }
+  return [];
+}
+
+/**
+ * Public landing feed: prefer DB (slim columns) + tombstones in parallel.
+ * Multi-bucket storage is only scanned when the table has nothing to show.
+ */
+export async function loadAllPublishedBlogPosts(): Promise<PublishedBlogFeed> {
+  const [tableRows, deleted] = await Promise.all([
+    loadPublishedTablePostsList(),
+    loadDeletedSlugs(),
+  ]);
+
+  let storageRows: BlogPostRecord[] = loadLocalCmsPosts().filter((p) => Boolean(p.published));
+  if (tableRows.length === 0) {
+    try {
+      storageRows = await listPublishedStorageBlogPosts();
+    } catch (err) {
+      console.warn('[blog] storage published fetch failed:', (err as Error)?.message);
     }
   }
 
-  try {
-    lists.push(await listPublishedStorageBlogPosts());
-  } catch (err) {
-    console.warn('[blog] storage published fetch failed:', (err as Error)?.message);
-  }
-
-  const deleted = await loadDeletedSlugs();
-  return filterOutDeletedSlugs(
-    mergePostMaps(...lists).filter((p) => Boolean(p.published)),
+  const posts = filterOutDeletedSlugs(
+    mergePostMaps(tableRows, storageRows).filter((p) => Boolean(p.published)),
     deleted,
   );
+  return { posts, deletedSlugs: [...deleted] };
 }
 
-export async function loadPublishedBlogPostBySlug(slug: string): Promise<BlogPostRecord | null> {
-  const deleted = await loadDeletedSlugs();
-  if (deleted.has(slug)) return null;
+export async function loadPublishedBlogPostBySlug(slug: string): Promise<{
+  post: BlogPostRecord | null;
+  deletedSlugs: string[];
+}> {
+  const deletedPromise = loadDeletedSlugs();
 
-  const tableOk = await probeBlogTable();
-  if (tableOk) {
+  const tableLookup = (async (): Promise<BlogPostRecord | null> => {
+    const tableOk = await probeBlogTable();
+    if (!tableOk) return null;
     const { data, error } = await rawSupabase
       .from('blog_posts')
       .select('*')
@@ -504,8 +565,19 @@ export async function loadPublishedBlogPostBySlug(slug: string): Promise<BlogPos
       .maybeSingle();
     if (!error && data) return data as BlogPostRecord;
     if (error && isMissingRelationError(error)) invalidateBlogTableProbe();
+    return null;
+  })();
+
+  let post = await tableLookup;
+  if (!post) {
+    post = await getPublishedStorageBlogPost(slug);
   }
-  return getPublishedStorageBlogPost(slug);
+
+  const deleted = await deletedPromise;
+  if (deleted.has(slug) && !post) {
+    return { post: null, deletedSlugs: [...deleted] };
+  }
+  return { post, deletedSlugs: [...deleted] };
 }
 
 function newId(): string {
