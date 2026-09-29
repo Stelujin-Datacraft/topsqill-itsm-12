@@ -46,6 +46,14 @@ export function createTypeNeedsForm(type: CopilotCreateType | null | undefined):
   return type === 'workflow' || type === 'report' || type === 'doc';
 }
 
+/** Workflow / Report / Knowledge Base stay locked until at least one form exists. */
+export function isCreateTypeFormFirstLocked(
+  type: CopilotCreateType | null | undefined,
+  hasForm: boolean,
+): boolean {
+  return !hasForm && createTypeNeedsForm(type);
+}
+
 /** Actions the backend ai-copilot-action engine actually implements. */
 export const SUPPORTED_COPILOT_ACTIONS = new Set([
   'create_form',
