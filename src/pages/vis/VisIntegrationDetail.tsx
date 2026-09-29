@@ -376,10 +376,11 @@ export default function VisIntegrationDetail() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
+    <div className="w-full min-h-full overflow-y-auto">
+      <div className="w-full max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 h-8 px-2 text-muted-foreground">
             <Link to="/vis/integrations">
               <ArrowLeft className="h-4 w-4 mr-1" /> Integrations
             </Link>
@@ -391,7 +392,7 @@ export default function VisIntegrationDetail() {
             {integration.__clientMode && <Badge variant="outline">Local studio</Badge>}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 shrink-0">
           <Button variant="outline" size="sm" disabled={busy || step === 0} onClick={() => setStep((s) => s - 1)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
@@ -405,14 +406,14 @@ export default function VisIntegrationDetail() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1">
         {STEPS.map((label, idx) => (
           <Button
             key={label}
             type="button"
             size="sm"
             variant={idx === step ? 'default' : 'outline'}
-            className="rounded-full"
+            className="rounded-full h-8 text-xs shrink-0"
             onClick={() => setStep(idx)}
           >
             {idx + 1}. {label}
@@ -1031,6 +1032,7 @@ export default function VisIntegrationDetail() {
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…
         </p>
       )}
+      </div>
     </div>
   );
 }
