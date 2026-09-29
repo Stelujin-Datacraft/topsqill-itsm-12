@@ -1,0 +1,182 @@
+// Versatile Integration Studio — Prisma data model (Phase 1 foundation).
+// Tables are prefixed vis_ / live in schema "vis" when applied.
+// Phase 1 runtime may use the file-backed VisStore; Prisma is the SoR contract.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("VIS_DATABASE_URL")
+}
+
+model VisUserRef {
+  id        String   @id @default(uuid())
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("vis_user_refs")
+}
+
+model VisCredentialReference {
+  id             String   @id @default(uuid())
+  organizationId String?  @map("organization_id")
+  name           String
+  type           String
+  /// Opaque handle — never plaintext secret in this table
+  secretHandle   String   @map("secret_handle")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  connections VisConnection[]
+
+  @@map("vis_credential_references")
+}
+
+model VisConnection {
+  id               String   @id @default(uuid())
+  organizationId   String?  @map("organization_id")
+  name             String
+  kind             String
+  environment      String   @default("DEV")
+  baseUrl          String?  @map("base_url")
+  authType         String   @map("auth_type")
+  credentialRefId  String?  @map("credential_ref_id")
+  config           Json?
+  allowPrivateNet  Boolean  @default(false) @map("allow_private_network")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  credentialRef VisCredentialReference? @relation(fields: [credentialRefId], references: [id])
+
+  @@index([organizationId])
+  @@map("vis_connections")
+}
+
+model VisIntegration {
+  id               String   @id @default(uuid())
+  organizationId   String?  @map("organization_id")
+  name             String
+  description      String?
+  status           String   @default("DRAFT")
+  environment      String   @default("DEV")
+  promptText       String?  @map("prompt_text")
+  currentVersionId String?  @map("current_version_id")
+  createdBy        String?  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  versions   VisIntegrationVersion[]
+  executions VisExecution[]
+  audits     VisAuditLog[]
+
+  @@index([organizationId, status])
+  @@map("vis_integrations")
+}
+
+model VisIntegrationVersion {
+  id            String   @id @default(uuid())
+  integrationId String   @map("integration_id")
+  version       Int
+  status        String   @default("DRAFT")
+  design        Json
+  directions    Json
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  integration VisIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, version])
+  @@map("vis_integration_versions")
+}
+
+model VisSchemaCache {
+  id              String   @id @default(uuid())
+  connectionId    String   @map("connection_id")
+  applicationKey  String?  @map("application_key")
+  formId          String   @map("form_id")
+  formName        String?  @map("form_name")
+  fields          Json
+  apiVersion      String?  @map("api_version")
+  schemaVersion   String?  @map("schema_version")
+  schemaHash      String?  @map("schema_hash")
+  retrievedAt     DateTime @default(now()) @map("retrieved_at")
+
+  @@unique([connectionId, formId])
+  @@map("vis_schema_cache")
+}
+
+model VisExecution {
+  id              String    @id @default(uuid())
+  integrationId   String    @map("integration_id")
+  versionId       String?   @map("version_id")
+  status          String    @default("QUEUED")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  recordsRead     Int       @default(0) @map("records_read")
+  recordsCreated  Int       @default(0) @map("records_created")
+  recordsUpdated  Int       @default(0) @map("records_updated")
+  recordsFailed   Int       @default(0) @map("records_failed")
+  retryCount      Int       @default(0) @map("retry_count")
+  errorMessage    String?   @map("error_message")
+  correlationId   String    @map("correlation_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  integration VisIntegration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  logs        VisExecutionLog[]
+
+  @@index([integrationId, status])
+  @@index([correlationId])
+  @@map("vis_executions")
+}
+
+model VisExecutionLog {
+  id            String   @id @default(uuid())
+  executionId   String   @map("execution_id")
+  integrationId String?  @map("integration_id")
+  correlationId String   @map("correlation_id")
+  level         String
+  step          String?
+  message       String
+  recordId      String?  @map("record_id")
+  errorCode     String?  @map("error_code")
+  metadata      Json?
+  timestamp     DateTime @default(now())
+
+  execution VisExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@index([correlationId])
+  @@map("vis_execution_logs")
+}
+
+model VisAuditLog {
+  id            String   @id @default(uuid())
+  organizationId String? @map("organization_id")
+  integrationId String?  @map("integration_id")
+  versionId     String?  @map("version_id")
+  actorId       String?  @map("actor_id")
+  action        String
+  detail        Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  integration VisIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+
+  @@index([integrationId])
+  @@map("vis_audit_logs")
+}
+
+model VisDeadLetterItem {
+  id            String   @id @default(uuid())
+  integrationId String   @map("integration_id")
+  executionId   String   @map("execution_id")
+  sourceRecord  Json     @map("source_record")
+  error         String
+  retryCount    Int      @default(0) @map("retry_count")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([integrationId])
+  @@map("vis_dead_letter_items")
+}

@@ -112,6 +112,12 @@ const RelationshipMap = lazyWithRetry(() => import("./pages/RelationshipMap"));
 const Users = lazyWithRetry(() => import("./pages/Users"));
 const ApiIntegration = lazyWithRetry(() => import("./pages/ApiIntegration"));
 const Integrations = lazyWithRetry(() => import("./pages/Integrations"));
+const VisDashboard = lazyWithRetry(() => import("./pages/vis/VisDashboard"));
+const VisDescribe = lazyWithRetry(() => import("./pages/vis/VisDescribe"));
+const VisIntegrationsList = lazyWithRetry(() => import("./pages/vis/VisIntegrationsList"));
+const VisIntegrationDetail = lazyWithRetry(() => import("./pages/vis/VisIntegrationDetail"));
+const VisConnections = lazyWithRetry(() => import("./pages/vis/VisConnections"));
+const VisExecutions = lazyWithRetry(() => import("./pages/vis/VisExecutions"));
 const ApiDocs = lazyWithRetry(() => import("./pages/ApiDocs"));
 const RolesAndAccess = lazyWithRetry(() => import("./pages/RolesAndAccess"));
 const Projects = lazyWithRetry(() => import("./pages/Projects"));
@@ -400,6 +406,13 @@ const App = () => (
                         <Route path="/record-delegations" element={<RecordDelegations />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
                         <Route path="/integrations" element={<Integrations />} />
+                        <Route path="/vis" element={<VisDashboard />} />
+                        <Route path="/vis/new" element={<VisDescribe />} />
+                        <Route path="/vis/integrations" element={<VisIntegrationsList />} />
+                        <Route path="/vis/integrations/:id" element={<VisIntegrationDetail />} />
+                        <Route path="/vis/connections" element={<VisConnections />} />
+                        <Route path="/vis/executions" element={<VisExecutions />} />
+                        <Route path="/vis/executions/:id" element={<VisExecutions />} />
                         <Route path="/blog-admin" element={
                           <Suspense fallback={<RouteLoader />}>
                             <BlogAdmin />
