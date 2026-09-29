@@ -282,7 +282,11 @@ function mapRow(r: any) {
 }
 
 export async function createDevUatMockPair() {
-  const base = process.env.VIS_MOCK_PG_BASE || 'postgresql://vis:vis_dev_password@127.0.0.1:5432';
+  const fromVisUrl = process.env.VIS_DATABASE_URL?.replace(/\/[^/?]+(\?.*)?$/, '') || '';
+  const base = process.env.VIS_MOCK_PG_BASE || fromVisUrl;
+  if (!base) {
+    throw new Error('VIS_MOCK_PG_BASE or VIS_DATABASE_URL is required for PG mock apps (no embedded passwords)');
+  }
   const dev = new PgMockEnterpriseApp({ databaseUrl: `${base}/vis_mock_dev`, envName: 'ENV-DEV' });
   const uat = new PgMockEnterpriseApp({ databaseUrl: `${base}/vis_mock_uat`, envName: 'ENV-UAT' });
   await dev.init();

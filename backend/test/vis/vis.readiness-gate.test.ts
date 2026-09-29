@@ -14,7 +14,7 @@
  * unavailable (documented in PRODUCTION_READINESS.md).
  *
  * Run:
- *   export VIS_DATABASE_URL=postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform
+ *   export VIS_DATABASE_URL   # required — never commit real credentials
  *   export VIS_PERSISTENCE=prisma
  *   npx tsx backend/test/vis/vis.readiness-gate.test.ts
  */
@@ -214,14 +214,11 @@ async function main() {
   } finally {
     process.env.NODE_ENV = prevNode || 'development';
     process.env.VIS_PERSISTENCE = 'prisma';
-    process.env.VIS_DATABASE_URL =
-      process.env.VIS_DATABASE_URL
-      || 'postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform';
+    if (!process.env.VIS_DATABASE_URL) {
+      throw new Error('VIS_DATABASE_URL must be restored from the environment (no embedded password fallback)');
+    }
   }
-  // Re-set URL after test
-  process.env.VIS_DATABASE_URL =
-    process.env.VIS_DATABASE_URL
-    || 'postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform';
+  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required after production-guard test');
   EVIDENCE.productionFileStoreBlocked = blocked || true; // constructor may not re-read if already loaded — document intent
 
   const liveProbe = await probeLiveFormApi();

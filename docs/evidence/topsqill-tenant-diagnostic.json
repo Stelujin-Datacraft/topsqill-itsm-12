@@ -1,0 +1,109 @@
+{
+  "startedAt": "2026-09-29T11:22:59.344Z",
+  "environment": "TEST",
+  "authenticationIdentity": {
+    "keyEnvVar": "SUPABASE_SERVICE_ROLE_KEY",
+    "jwtRole": "anon",
+    "keyFingerprint": "3958ed9b3c95",
+    "expectedRoleForWrites": "service_role",
+    "roleMatchesServiceRole": false,
+    "anonSameAsServiceEnv": true,
+    "authUserPresent": false,
+    "authUserId": null
+  },
+  "tenantContext": {
+    "supabaseHost": "fnmkczsvwpzpxyklztkt.supabase.co",
+    "organizationsVisible": 9,
+    "organizationNamesSample": [
+      "DataCraftPro",
+      "TopSqill Org",
+      "Demo_Organization",
+      "Demo_Organization",
+      "New_Org_4"
+    ]
+  },
+  "applicationContext": {
+    "formsVisible": 0,
+    "formsExactCount": 0,
+    "configuredFormName": "VIS Integration Test Form"
+  },
+  "environmentContext": {
+    "pilotEnv": "TEST",
+    "baseUrlRedacted": "https://fnmkczsvwpzpxyklztkt.supabase.co/rest/v1"
+  },
+  "requiredPermissions": [
+    "SELECT on public.forms (org/project scoped or service_role)",
+    "INSERT on public.forms for bootstrap of VIS Integration Test Form (admin/service_role)",
+    "INSERT/UPDATE/SELECT on public.form_submissions for test form records",
+    "SELECT on public.form_fields for schema discovery"
+  ],
+  "requiredRoles": [
+    "JWT role service_role for platform FormApiService (bypasses RLS)",
+    "OR authenticated user with org admin / project member roles satisfying forms_insert / submission policies"
+  ],
+  "requiredApiScopes": [
+    "forms:read",
+    "forms:write",
+    "submissions:read",
+    "submissions:write"
+  ],
+  "rlsRequirements": [
+    "Do NOT disable RLS",
+    "forms_insert requires auth.uid() in user_profiles org or project_users — anon without user fails",
+    "service_role JWT bypasses RLS when correctly configured in Supabase",
+    "Authenticated org member can create forms/submissions within their organization"
+  ],
+  "endpoints": [
+    {
+      "name": "list_organizations",
+      "method": "GET",
+      "tableOrPath": "organizations",
+      "httpStatus": 200,
+      "ok": true,
+      "errorCode": null,
+      "errorMessage": null
+    },
+    {
+      "name": "list_forms",
+      "method": "GET",
+      "tableOrPath": "forms",
+      "httpStatus": 200,
+      "ok": true,
+      "errorCode": null,
+      "errorMessage": null
+    },
+    {
+      "name": "count_forms",
+      "method": "HEAD",
+      "tableOrPath": "forms",
+      "httpStatus": 200,
+      "ok": true,
+      "errorCode": null,
+      "errorMessage": null
+    },
+    {
+      "name": "probe_form_insert",
+      "method": "POST",
+      "tableOrPath": "forms",
+      "httpStatus": 401,
+      "ok": false,
+      "errorCode": "42501",
+      "errorMessage": "new row violates row-level security policy for table \"forms\""
+    }
+  ],
+  "writeCapability": "READ_ONLY_TEST",
+  "blockers": [
+    "SUPABASE_SERVICE_ROLE_KEY JWT role is \"anon\" — expected \"service_role\". Current env appears to use the anon key (writes subject to RLS; auth.uid() is null).",
+    "forms table has 0 rows visible to this identity — no target form exists for pilot",
+    "Form insert blocked: new row violates row-level security policy for table \"forms\""
+  ],
+  "prerequisitesToUnlockWrites": [
+    "From Supabase Dashboard → Project Settings → API, copy the service_role secret into SUPABASE_SERVICE_ROLE_KEY (never commit it)",
+    "Keep SUPABASE_ANON_KEY as the anon/publishable key",
+    "Restart backend after rotating env",
+    "Create dedicated form \"VIS Integration Test Form\" in a non-production TEST/UAT org",
+    "Fields: externalId, title, description, severity, owner, sourceSystem, sourceEnvironment, lastSyncedAt",
+    "Set VIS_PILOT_TOPSQILL_FORM_ID and VIS_PILOT_TOPSQILL_ORG_ID"
+  ],
+  "finishedAt": "2026-09-29T11:23:00.539Z"
+}

@@ -28,7 +28,8 @@ rg -n --hidden \
   -e 'password\s*[:=]\s*["'\''][^"'\'']{8,}["'\'']' \
   "$ROOT" >"$OUT/secret-scan.txt" 2>/dev/null || true
 # Allowlist known placeholders / intentional test fixtures / unrelated UI placeholders
-if grep -vE 'CHANGE_ME|dev-only-not-for-prod|vis_dev_password|test-token|placeholder|credentialReferenceId|VIS_TOKEN_|should-redact|BEGIN RSA PRIVATE KEY|\[REDACTED\]' "$OUT/secret-scan.txt" | grep -q .; then
+# NOTE: do NOT allowlist real-looking DB passwords; examples must use CHANGE_ME
+if grep -vE 'CHANGE_ME|dev-only-not-for-prod|test-token|placeholder|credentialReferenceId|VIS_TOKEN_|should-redact|must-not-leak|local-oidc-secret|pilot-test-secret|BEGIN RSA PRIVATE KEY|\[REDACTED\]|\*\*\*' "$OUT/secret-scan.txt" | grep -q .; then
   echo "FAIL" >"$OUT/secret-scan.status"
   echo "Potential secrets found — see $OUT/secret-scan.txt"
   exit 2

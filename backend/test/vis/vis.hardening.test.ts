@@ -3,7 +3,7 @@
  * Uses real PostgreSQL (VIS_DATABASE_URL) — not in-memory substitutes for PG tests.
  *
  * Run:
- *   export VIS_DATABASE_URL=postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform
+ *   export VIS_DATABASE_URL   # required — no embedded passwords
  *   export VIS_PERSISTENCE=prisma
  *   export PATH="$HOME/.dotnet:$PATH"
  *   npx tsx backend/test/vis/vis.hardening.test.ts

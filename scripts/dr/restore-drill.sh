@@ -2,8 +2,19 @@
 # Disaster recovery drill — backup PostgreSQL, restore into fresh DB, verify marker.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-export VIS_DATABASE_URL="${VIS_DATABASE_URL:-postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform}"
-export PGPASSWORD="${PGPASSWORD:-vis_dev_password}"
+if [[ -z "${VIS_DATABASE_URL:-}" ]]; then
+  echo "VIS_DATABASE_URL is required (do not embed passwords in this script)" >&2
+  exit 1
+fi
+if [[ -z "${PGPASSWORD:-}" ]]; then
+  # Derive from URL userinfo when possible without printing it
+  export PGPASSWORD="$(python3 - <<'PY'
+import os, urllib.parse
+u=urllib.parse.urlparse(os.environ['VIS_DATABASE_URL'])
+print(urllib.parse.unquote(u.password or ''))
+PY
+)"
+fi
 BACKUP_DIR="${VIS_DR_BACKUP_DIR:-/tmp/vis-dr-backup}"
 mkdir -p "$BACKUP_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -38,7 +49,15 @@ RESTORE_START=$(date +%s)
 psql -h 127.0.0.1 -U vis -d vis_platform_restore -v ON_ERROR_STOP=1 -f "$BACKUP_FILE" >/tmp/vis-dr-restore.log 2>&1
 RESTORE_END=$(date +%s)
 
-VIS_DATABASE_URL="postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform_restore" npx tsx -e "
+# Build restore URL from VIS_DATABASE_URL host/user, swapping DB name only
+RESTORE_URL="$(python3 - <<'PY'
+import os, urllib.parse
+u=urllib.parse.urlparse(os.environ['VIS_DATABASE_URL'])
+path='/vis_platform_restore'
+print(urllib.parse.urlunparse((u.scheme,u.netloc,path,u.params,u.query,u.fragment)))
+PY
+)"
+VIS_DATABASE_URL="$RESTORE_URL" npx tsx -e "
 const { PrismaClient } = require('./src/vis/generated/prisma');
 const p = new PrismaClient({ datasources: { db: { url: process.env.VIS_DATABASE_URL } } });
 (async () => {

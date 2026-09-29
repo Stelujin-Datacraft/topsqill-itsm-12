@@ -86,7 +86,7 @@ Evidence artifacts:
 Audit + recon + drift + RBAC + Prisma restart  
 
 ```bash
-export VIS_DATABASE_URL=postgresql://vis:vis_dev_password@127.0.0.1:5432/vis_platform
+export VIS_DATABASE_URL   # required — do not embed passwords in docs/source
 export VIS_PERSISTENCE=prisma
 cd backend && npx tsx test/vis/vis.readiness-gate.test.ts
 ```
@@ -100,8 +100,9 @@ Scanned `backend/src/vis`, `backend/test/vis`, and `docs` for literal secret ass
 | Finding | Classification |
 |---------|----------------|
 | Test fixtures using `'must-not-leak'` / `'should-redact'` | Intentional — assert redaction |
-| `vis_dev_password` in local Docker/`VIS_DATABASE_URL` examples | Local-only mock DB — not a customer secret |
+| Example env placeholders (`CHANGE_ME`) | Local/docs only — not customer secrets |
 | Real `sk_live_` / AWS `AKIA…` / committed OAuth client secrets | **None found** |
+| Prior `vis_dev_password` literals | Removed from source defaults; supply via `VIS_DATABASE_URL` / `VIS_MOCK_PG_BASE` |
 
 ## What was not tested (explicit)
 

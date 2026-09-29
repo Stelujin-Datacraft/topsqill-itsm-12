@@ -28,6 +28,20 @@ export class SupabaseService {
     const serviceKey = this.configService.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
     this.anonKey = this.configService.get<string>('SUPABASE_ANON_KEY', serviceKey);
 
+    // Fail-closed warning: Form API writes require a true service_role JWT.
+    // Do not bypass RLS; operators must supply the correct key.
+    try {
+      const payload = JSON.parse(Buffer.from(serviceKey.split('.')[1], 'base64url').toString('utf8'));
+      if (payload?.role && payload.role !== 'service_role') {
+        console.warn(
+          `[SupabaseService] SUPABASE_SERVICE_ROLE_KEY JWT role is "${payload.role}" (expected service_role). `
+            + 'TopSqill Form API writes will be subject to RLS and likely fail. Environment is READ_ONLY_TEST until corrected.',
+        );
+      }
+    } catch {
+      /* non-JWT keys left as-is */
+    }
+
     this.serviceClient = createClient(this.supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
