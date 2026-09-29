@@ -15,6 +15,7 @@
     "test:vis:phase4": "VIS_STORE_MEMORY=1 VIS_EVENT_LOAD=1000 npx tsx test/vis/vis.phase4.test.ts",
     "test:vis:hardening": "VIS_PERSISTENCE=prisma npx tsx test/vis/vis.hardening.test.ts",
     "test:vis:hardening:100k": "VIS_PERSISTENCE=prisma VIS_LOAD_100K=1 npx tsx test/vis/vis.hardening.test.ts",
+    "test:vis:readiness": "VIS_PERSISTENCE=prisma npx tsx test/vis/vis.readiness-gate.test.ts",
     "prisma:vis:generate": "prisma generate --schema=src/vis/prisma/schema.prisma",
     "prisma:vis:push": "prisma db push --schema=src/vis/prisma/schema.prisma",
     "security:scan": "bash ../scripts/security/scan.sh",

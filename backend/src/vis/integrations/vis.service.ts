@@ -25,6 +25,7 @@ import {
   ExecutionRunner,
   createArraySourceReader,
   createStoreTargetAdapter,
+  createHttpInternalAppTargetAdapter,
   failExecutionForPlanError,
   canCancel,
 } from '../executions/index';
@@ -978,7 +979,27 @@ export class VisService {
 
     const formId = direction.selectedFormId || 'form-vulnerability';
     const matchFields = plan.matchingStrategy.targetFields;
-    const target = createStoreTargetAdapter(this.store, formId, matchFields);
+    const targetConn = direction.targetConnectionId
+      ? this.store.get('connections', String(direction.targetConnectionId))
+      : null;
+    const target =
+      targetConn?.baseUrl
+      && (targetConn.kind === 'INTERNAL_APPLICATION_API' || targetConn.kind === 'REST_API')
+        ? createHttpInternalAppTargetAdapter({
+          baseUrl: String(targetConn.baseUrl),
+          formId,
+          matchFields,
+          allowPrivateNetwork: Boolean(targetConn.allowPrivateNetwork || targetConn.allowPrivateNet),
+          paths: targetConn.kind === 'INTERNAL_APPLICATION_API'
+            ? {
+              formsPath: '/api/forms',
+              formFieldsPath: '/api/forms/{formId}/fields',
+              recordsPath: '/api/forms/{formId}/records',
+              recordByIdPath: '/api/forms/{formId}/records/{recordId}',
+            }
+            : undefined,
+        })
+        : createStoreTargetAdapter(this.store, formId, matchFields);
     const sourceRecords =
       opts?.sourceRecords
       || this.defaultMockSourceRecords();

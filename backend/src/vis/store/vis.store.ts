@@ -96,10 +96,26 @@ function defaultPath(): string {
 }
 
 function usePrisma(): boolean {
-  if (process.env.VIS_PERSISTENCE === 'file' || process.env.VIS_PERSISTENCE === 'memory') return false;
-  if (process.env.VIS_STORE_MEMORY === '1' && process.env.VIS_PERSISTENCE !== 'prisma') return false;
+  if (process.env.VIS_PERSISTENCE === 'file' || process.env.VIS_PERSISTENCE === 'memory') {
+    if (process.env.NODE_ENV === 'production' && process.env.VIS_ALLOW_FILE_STORE !== '1') {
+      throw new Error(
+        'File/memory VisStore is forbidden in production. Set VIS_DATABASE_URL and VIS_PERSISTENCE=prisma.',
+      );
+    }
+    return false;
+  }
+  if (process.env.VIS_STORE_MEMORY === '1' && process.env.VIS_PERSISTENCE !== 'prisma') {
+    if (process.env.NODE_ENV === 'production' && process.env.VIS_ALLOW_FILE_STORE !== '1') {
+      throw new Error('VIS_STORE_MEMORY is forbidden in production without VIS_ALLOW_FILE_STORE=1');
+    }
+    return false;
+  }
   if (process.env.VIS_PERSISTENCE === 'prisma') return true;
-  return Boolean(process.env.VIS_DATABASE_URL);
+  if (process.env.VIS_DATABASE_URL) return true;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('VIS_DATABASE_URL is required in production for Prisma persistence');
+  }
+  return false;
 }
 
 export class VisStore {

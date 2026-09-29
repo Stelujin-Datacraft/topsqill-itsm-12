@@ -593,6 +593,100 @@ export function createStoreTargetAdapter(
   };
 }
 
+/**
+ * HTTP target adapter — writes through Internal Application REST API.
+ * Production path: never touches the target application's database.
+ */
+export function createHttpInternalAppTargetAdapter(opts: {
+  baseUrl: string;
+  formId: string;
+  matchFields: string[];
+  paths?: {
+    formsPath?: string;
+    formFieldsPath?: string;
+    recordsPath?: string;
+    recordByIdPath?: string;
+    searchPath?: string;
+  };
+  allowPrivateNetwork?: boolean;
+  auth?: { type: string; extra?: Record<string, string> };
+}): TargetAdapter {
+  // Lazy require to avoid circular imports with connectors
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { InternalApplicationConnector } = require('../connectors/internal-app.connector') as typeof import('../connectors/internal-app.connector');
+  const connector = new InternalApplicationConnector(
+    {
+      baseUrl: opts.baseUrl,
+      paths: {
+        formsPath: opts.paths?.formsPath || '/api/forms',
+        formFieldsPath: opts.paths?.formFieldsPath || '/api/forms/{formId}/fields',
+        recordsPath: opts.paths?.recordsPath || '/api/forms/{formId}/records',
+        recordByIdPath: opts.paths?.recordByIdPath || '/api/forms/{formId}/records/{recordId}',
+        searchPath: opts.paths?.searchPath,
+      },
+      timeoutMs: 15000,
+    },
+    { allowPrivateNetwork: opts.allowPrivateNetwork },
+  );
+  const ctx = { correlationId: `target-${Date.now()}` };
+  let authed = false;
+  const ensureAuth = async () => {
+    if (authed) return;
+    await connector.connect(ctx);
+    if (opts.auth) await connector.authenticate(opts.auth as any, ctx);
+    authed = true;
+  };
+
+  return {
+    async findByKeys(keys) {
+      await ensureAuth();
+      const primary = opts.matchFields[0];
+      const value = primary ? keys[primary] : undefined;
+      if (value == null || value === '') return null;
+      const query: Record<string, unknown> = { [primary]: String(value) };
+      const res = await connector.searchRecords(opts.formId, query, ctx);
+      if (!res.ok) return null;
+      const items = Array.isArray((res.data as any)?.items)
+        ? (res.data as any).items
+        : Array.isArray(res.data)
+          ? (res.data as any[])
+          : [];
+      const hit = items.find((row: any) =>
+        opts.matchFields.every((f) => String(row[f] ?? '') === String(keys[f] ?? '')),
+      );
+      if (!hit) return null;
+      return { id: String(hit.id || hit.vulnerability_id || hit.external_id) };
+    },
+    async create(payload) {
+      await ensureAuth();
+      const res = await connector.createRecord(opts.formId, payload, ctx);
+      if (!res.ok) {
+        throw Object.assign(new Error(res.error || `Target create failed ${res.status}`), {
+          code: 'TARGET_ERROR',
+          httpStatus: res.status,
+        });
+      }
+      const id = String((res.data as any)?.id || (res.data as any)?.vulnerability_id || '');
+      return { id, status: res.status || 201 };
+    },
+    async update(id, payload) {
+      await ensureAuth();
+      const res = await connector.updateRecord(opts.formId, id, payload, ctx);
+      if (!res.ok) {
+        throw Object.assign(new Error(res.error || `Target update failed ${res.status}`), {
+          code: 'TARGET_ERROR',
+          httpStatus: res.status,
+        });
+      }
+      return { id, status: res.status || 200 };
+    },
+    async lookupReference(_hint, matchBy, value) {
+      if (!value) return null;
+      return `REF-${matchBy}-${value}`.replace(/\s+/g, '_');
+    },
+  };
+}
+
 /** In-memory source reader from a fixed array (supports PAGE pagination). */
 export function createArraySourceReader(
   records: Record<string, unknown>[],

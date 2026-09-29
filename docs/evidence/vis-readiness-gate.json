@@ -1,0 +1,172 @@
+{
+  "startedAt": "2026-09-29T11:10:08.154Z",
+  "testEnvironment": {
+    "visDatabase": "postgresql://vis:***@127.0.0.1:5432/vis_platform",
+    "mockPg": "vis_mock_dev / vis_mock_uat",
+    "note": "No production third-party tenant used"
+  },
+  "productionFileStoreBlocked": true,
+  "liveFormApiProbe": {
+    "status": "PROBED",
+    "reachable": true,
+    "formsCount": 0,
+    "readError": null,
+    "writeAllowed": false,
+    "writeError": "new row violates row-level security policy for table \"forms\"",
+    "note": "Live TopSqill forms table reachable via Supabase service client; VIS FormApi uses this backend."
+  },
+  "httpFacadeBase": "http://127.0.0.1:38715",
+  "step1_nlRequirement": {
+    "integrationId": "eebb4fca-60a9-4cca-b2a2-6d514057b636",
+    "prompt": "Whenever a vulnerability is created in DEV, create it in the Vulnerability form in UAT immediately. Map severity to priority Critical→1 High→2 Medium→3 Low→4."
+  },
+  "step2_aiAnalyze": {
+    "executionMode": "REAL_TIME",
+    "eventEnabled": true,
+    "status": "DESIGN_READY"
+  },
+  "step3_sourceApiDiscovery": {
+    "ok": true,
+    "status": 200,
+    "path": "/vulnerabilities"
+  },
+  "step4_5_6_formDiscovery": {
+    "forms": {
+      "items": [
+        {
+          "id": "form-vulnerability",
+          "name": "Vulnerability"
+        }
+      ]
+    },
+    "fieldNames": [
+      "vulnerability_id",
+      "priority",
+      "description",
+      "status",
+      "external_id"
+    ]
+  },
+  "step7_aiMapping": {
+    "mappings": 4,
+    "validated": true
+  },
+  "step8_humanApproval": {
+    "status": "APPROVED",
+    "versionId": "53c24f19-253a-432d-aa8c-8ccf639cac48",
+    "auditActions": [
+      "INTEGRATION_CREATED",
+      "INTEGRATION_ANALYZED",
+      "MAPPING_CHANGED",
+      "CONNECTIONS_BOUND",
+      "MATCHING_STRATEGY_CHANGED",
+      "INTEGRATION_VALIDATED",
+      "INTEGRATION_APPROVED"
+    ]
+  },
+  "step9_sourceRecord": {
+    "id": "VUL-READY-1",
+    "vulnerability_id": "VUL-READY-1",
+    "priority": "1",
+    "description": "Readiness gate critical finding",
+    "status": "Open",
+    "external_id": "VUL-READY-1",
+    "risk_level": null,
+    "created_at": "2026-09-29T11:10:09.401Z",
+    "updated_at": "2026-09-29T11:10:09.401Z"
+  },
+  "step10_14_execution": {
+    "executionId": "7a15c80f-3681-420b-825a-735bb43f07d4",
+    "status": "SUCCESS",
+    "versionId": "53c24f19-253a-432d-aa8c-8ccf639cac48",
+    "correlationId": "INT-VUL-20260929-FE1DA",
+    "recordsCreated": 1,
+    "recordsUpdated": 0,
+    "latencyMs": 71
+  },
+  "step15_17_targetVerifiedViaApi": {
+    "count": 1,
+    "record": {
+      "id": "990206fd-81cf-4c91-92f3-6c07b615ee5b",
+      "vulnerability_id": "VUL-READY-1",
+      "priority": "1",
+      "description": "Readiness gate critical finding",
+      "status": "Open",
+      "external_id": "VUL-READY-1",
+      "risk_level": null,
+      "created_at": "2026-09-29T11:10:09.415Z",
+      "updated_at": "2026-09-29T11:10:09.415Z"
+    },
+    "verifiedBy": "HTTP GET /api/forms/.../records?external_id="
+  },
+  "step10_update": {
+    "targetCount": 1,
+    "priority": "1",
+    "description": "Readiness gate critical finding",
+    "executionId": "5eee5c12-ad8d-4bef-adfa-7e8a1efca3c6"
+  },
+  "duplicateProtection": {
+    "targetCount": 1
+  },
+  "realtime": {
+    "tested": true,
+    "latencyMs": 0,
+    "result": {},
+    "note": "Full webhook suite covered in vis.phase4.test.ts"
+  },
+  "observability": {
+    "auditCount": 10,
+    "auditActions": [
+      "INTEGRATION_CREATED",
+      "INTEGRATION_ANALYZED",
+      "MAPPING_CHANGED",
+      "CONNECTIONS_BOUND",
+      "MATCHING_STRATEGY_CHANGED",
+      "INTEGRATION_VALIDATED",
+      "INTEGRATION_APPROVED",
+      "CONNECTIONS_BOUND",
+      "EVENT_CONFIG_UPDATED",
+      "INTEGRATION_ACTIVATED"
+    ],
+    "executionLogs": 3,
+    "correlationId": "INT-VUL-20260929-FE1DA",
+    "secretsInAudits": false
+  },
+  "reconciliation": {
+    "diffCount": 1,
+    "summary": {
+      "FIELD_MISMATCH": 1
+    }
+  },
+  "schemaDrift": {
+    "maxSeverity": "BREAKING",
+    "affected": [
+      "eebb4fca-60a9-4cca-b2a2-6d514057b636"
+    ],
+    "productionAutoModified": false
+  },
+  "security": {
+    "developerActivateDenied": true,
+    "crossTenantDenied": true,
+    "secretRedacted": true
+  },
+  "persistenceRestart": {
+    "ok": true,
+    "integrationStatus": "ACTIVE",
+    "prismaBacked": true
+  },
+  "codegen": {
+    "language": "PYTHON",
+    "support": "SUPPORTED",
+    "buildOk": true
+  },
+  "finalDecisionFactors": {
+    "liveThirdPartyApi": "NOT_TESTED — no external tenant credentials provided",
+    "liveTopSqillFormWrites": "NOT_TESTED — forms_count=0 and/or RLS blocked writes",
+    "httpContractE2E": "PASS",
+    "prismaPersistence": "PASS",
+    "multiProcessHA": "NOT_TESTED in this gate (see hardening multi_instance_sim)",
+    "realOidcIdp": "NOT_TESTED — LocalTestIdp only in hardening suite"
+  },
+  "finishedAt": "2026-09-29T11:10:09.765Z"
+}
