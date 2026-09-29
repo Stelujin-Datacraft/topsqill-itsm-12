@@ -12,7 +12,7 @@ import {
   normalizeRelativeDateCondition,
 } from '@/utils/conditionOperators';
 import { normalizeAiWorkflowNodeConfig } from '@/lib/normalizeAiWorkflowNodes';
-import { isLikelyUuid, isUnusableFieldLabel } from '@/lib/changeFieldValueDisplay';
+import { isLikelyUuid, isUnusableFieldLabel, isStructuredFieldValue, formatChangeFieldStaticLabel } from '@/lib/changeFieldValueDisplay';
 import {
   resolvePreferredOptionValue,
   sanitizeConditionValueHint,
@@ -171,8 +171,18 @@ function expandOptionQuery(raw: string): string[] {
 export function matchOptionValueByHint(
   field: InferFormField | undefined,
   requested: unknown,
-): string {
+): unknown {
   if (requested === undefined || requested === null) return '';
+  // Preserve SAC / multi-select / other structured payloads — never String(object).
+  if (isStructuredFieldValue(requested)) return requested;
+  const fieldType = String(field?.type || '').toLowerCase().replace(/[_\s]+/g, '-');
+  if (
+    fieldType.includes('submission-access')
+    || fieldType.includes('user-picker')
+    || fieldType.includes('group-picker')
+  ) {
+    return requested;
+  }
   // Always sanitize so "Closed, Set Priority To High" binds to existing Closed
   const preferred = resolvePreferredOptionValue(field, requested);
   if (preferred) return preferred;
@@ -648,7 +658,14 @@ function hydrateChangeFieldValueTypes(
         ? matched.options.map((o) => ({ label: o.label, value: o.value }))
         : undefined),
       valueType: u.valueType || next.valueType || 'static',
-      staticValue: matchOptionValueByHint(matched, u.staticValue ?? u.value ?? next.staticValue),
+      staticValue: (() => {
+        const vt = String(u.valueType || next.valueType || 'static').toLowerCase();
+        if (vt === 'dynamic') return u.staticValue;
+        const raw = u.staticValue ?? u.value ?? next.staticValue;
+        if (isStructuredFieldValue(raw)) return raw;
+        return matchOptionValueByHint(matched, raw);
+      })(),
+      dynamicValuePath: u.dynamicValuePath || u.sourceFieldId || next.dynamicValuePath,
     };
   };
 
@@ -827,10 +844,16 @@ export function enrichWorkflowNodesFromPrompt(
       if (
         String(config.actionType || '').toLowerCase() === 'change_field_value'
         && config.targetFieldName
-        && config.staticValue !== undefined
-        && String(config.staticValue).trim() !== ''
+        && (
+          (config.valueType === 'dynamic' && config.dynamicValuePath)
+          || (config.staticValue !== undefined
+            && config.staticValue !== null
+            && (isStructuredFieldValue(config.staticValue) || String(config.staticValue).trim() !== ''))
+        )
       ) {
-        label = `Set ${config.targetFieldName} to ${config.staticValue}`;
+        label = config.valueType === 'dynamic' && config.dynamicValuePath
+          ? `Set ${config.targetFieldName} from field`
+          : `Set ${config.targetFieldName} to ${formatChangeFieldStaticLabel(config.staticValue)}`;
       }
     }
 

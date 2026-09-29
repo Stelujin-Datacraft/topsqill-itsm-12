@@ -248,6 +248,8 @@ export function resolvePreferredOptionValue(
   field: { type?: string; options?: DecisionFieldOption[] } | undefined,
   requested: unknown,
 ): string {
+  // Structured values (SAC objects, arrays) must not become "[object Object]"
+  if (requested !== null && typeof requested === 'object') return '';
   const sanitized = sanitizeConditionValueHint(String(requested ?? ''));
   if (!sanitized) return '';
   if (!field) return sanitized;

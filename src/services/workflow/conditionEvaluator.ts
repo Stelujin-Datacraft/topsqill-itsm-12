@@ -286,6 +286,21 @@ export class ConditionEvaluator {
       }
     }
 
+    // AI Suggest "map from form field" — compare against another field on the submission
+    if (
+      parsedExpectedValue
+      && typeof parsedExpectedValue === 'object'
+      && !Array.isArray(parsedExpectedValue)
+      && (parsedExpectedValue as { __formFieldRef?: string }).__formFieldRef
+    ) {
+      const refId = String((parsedExpectedValue as { __formFieldRef: string }).__formFieldRef);
+      parsedExpectedValue = context.formData[refId];
+      if (!this.shouldBypassWaiting(condition.operator) && this.isEmptyValue(parsedExpectedValue)) {
+        console.log(`⏳ Mapped compare field "${refId}" is empty; waiting`);
+        return { result: false, waiting: true, waitingField: refId };
+      }
+    }
+
     // Status default Draft + expected Closed/etc. → wait (do not Skipped End)
     if (
       !this.shouldBypassWaiting(condition.operator)

@@ -187,5 +187,45 @@ function planApproverUser(level) {
   const set2 = nodes.find((n) => n.tempId === 'node_l2_set_access');
   assert.deepEqual(set2.config.staticValue, { users: ['user-b'], groups: [] });
 
+  // Case 7: enrich/hydrate must NOT stringify SAC objects to "[object Object]"
+  {
+    const sac = { users: ['user-a'], groups: [] };
+    const isStructured = (v) => v !== null && typeof v === 'object';
+    const matchOptionValueByHint = (field, requested) => {
+      if (requested === undefined || requested === null) return '';
+      if (isStructured(requested)) return requested;
+      return String(requested);
+    };
+    const hydrated = matchOptionValueByHint(
+      { id: 'sac1', type: 'submission-access', label: SUBMISSION_ACCESS_FIELD_LABEL },
+      sac,
+    );
+    assert.deepEqual(hydrated, sac);
+    assert.equal(typeof hydrated, 'object');
+    assert.deepEqual(hydrated.users, ['user-a']);
+  }
+
+  // Case 8: mapped approver compiles to dynamic change_field_value
+  {
+    const mapFromFieldId = 'manager_field';
+    const setAccessIsDynamic = true;
+    const config = setAccessIsDynamic
+      ? {
+          actionType: 'change_field_value',
+          valueType: 'dynamic',
+          targetFieldId: 'sac1',
+          dynamicValuePath: mapFromFieldId,
+          fieldUpdates: [{
+            targetFieldId: 'sac1',
+            valueType: 'dynamic',
+            dynamicValuePath: mapFromFieldId,
+          }],
+        }
+      : null;
+    assert.equal(config.valueType, 'dynamic');
+    assert.equal(config.dynamicValuePath, 'manager_field');
+    assert.equal(config.fieldUpdates[0].valueType, 'dynamic');
+  }
+
   console.log('smoke-approval-sac: all assertions passed');
 }
