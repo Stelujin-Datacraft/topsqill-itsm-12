@@ -111,10 +111,19 @@ export const visApi = {
         throw new Error('Client update not supported for this field while Nest is offline');
       },
     ),
-  analyze: (id: string, promptText?: string) =>
+  analyze: (id: string, promptText?: string, answers?: Record<string, string>) =>
     withFallback(
-      () => nestVis(`/integrations/${id}/analyze`, { method: 'POST', body: { promptText } }),
-      () => visClientEngine.analyze(id, promptText),
+      () =>
+        nestVis(`/integrations/${id}/analyze`, {
+          method: 'POST',
+          body: { promptText, answers },
+        }),
+      () => visClientEngine.analyze(id, promptText, answers),
+    ),
+  clarify: (id: string, promptText?: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/clarify`, { method: 'POST', body: { promptText } }),
+      () => visClientEngine.clarify(id, promptText),
     ),
   setLanguage: (id: string, language: string) =>
     withFallback(
@@ -125,6 +134,64 @@ export const visApi = {
     withFallback(
       () => nestVis(`/integrations/${id}/validate`, { method: 'POST', body: {} }),
       () => visClientEngine.validate(id),
+    ),
+  approve: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/approve`, { method: 'POST', body: {} }),
+      () => visClientEngine.approve(id),
+    ),
+  saveDraft: (id: string, body: Record<string, unknown> = {}) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/save-draft`, { method: 'POST', body }),
+      () => visClientEngine.saveDraft(id, body),
+    ),
+  bindConnections: (
+    id: string,
+    body: { sourceConnectionId?: string; targetConnectionId?: string; selectedFormId?: string },
+  ) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/connections`, { method: 'POST', body }),
+      () => visClientEngine.bindConnections(id, body),
+    ),
+  setMatchingStrategy: (id: string, strategy: Record<string, unknown>) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/matching-strategy`, { method: 'POST', body: strategy }),
+      () => visClientEngine.setMatchingStrategy(id, strategy),
+    ),
+  dryRun: (id: string, sample?: Record<string, unknown>[]) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/dry-run`, { method: 'POST', body: { sample } }),
+      () => visClientEngine.dryRun(id, sample),
+    ),
+  nlMapping: (id: string, instruction: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/nl-mapping`, { method: 'POST', body: { instruction } }),
+      () => visClientEngine.nlMapping(id, instruction),
+    ),
+  setSampleSource: (id: string, sample: unknown) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/sample-source`, { method: 'POST', body: { sample } }),
+      () => visClientEngine.setSampleSource(id, sample),
+    ),
+  discoverOpenApi: (id: string, body: { document?: unknown; url?: string }) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/openapi`, { method: 'POST', body }),
+      () => visClientEngine.discoverOpenApi(id, body),
+    ),
+  selectOpenApiEndpoint: (id: string, body: { path: string; method: string }) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/openapi/select`, { method: 'POST', body }),
+      () => visClientEngine.selectOpenApiEndpoint(id, body),
+    ),
+  refreshSchema: (id: string, body: { connectionId: string; formId: string }) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/refresh-schema`, { method: 'POST', body }),
+      () => visClientEngine.discoverSchema(id, body),
+    ),
+  listAuditFor: (integrationId?: string) =>
+    withFallback(
+      () => nestVis(`/audit${integrationId ? `?integrationId=${integrationId}` : ''}`),
+      () => visClientEngine.listAudit(integrationId),
     ),
   listConnections: () =>
     withFallback(

@@ -6,13 +6,24 @@ import { VisAssistant, MockAIProvider } from '../ai/vis-assistant';
 import { RestConnector } from '../connectors/rest.connector';
 import { InternalApplicationConnector } from '../connectors/internal-app.connector';
 import { maskSecrets } from '../core/security/index';
-import type { IntegrationDesign, DirectionConfig, FieldMappingSpec, ProgrammingLanguage } from '../core/types/index';
+import type {
+  ClarificationAnswers,
+  DirectionConfig,
+  DiscoveredField,
+  FieldMappingSpec,
+  IntegrationDesign,
+  MatchingStrategy,
+  ProgrammingLanguage,
+} from '../core/types/index';
 import { validateIntegrationDesign } from '../core/schemas/integrationDesign';
+import { OpenApiDiscovery, inferSourceFieldsFromSample, inferSourceFieldsFromOpenApiSchema } from '../core/discovery/openApi';
+import { defaultMatchingStrategy, diffSchemas, filterMappingsByConfidence } from '../core/mapping/index';
 
 @Injectable()
 export class VisService {
   private readonly store: VisStore;
   private readonly assistant: VisAssistant;
+  private readonly openApi = new OpenApiDiscovery();
 
   constructor() {
     this.store = getVisStore();
@@ -106,15 +117,66 @@ export class VisService {
     return { ok: true };
   }
 
-  async analyzeIntegration(id: string, promptText?: string) {
+  async analyzeIntegration(id: string, promptText?: string, answers?: ClarificationAnswers) {
     const integration = this.store.get('integrations', id);
     if (!integration) throw new NotFoundException('Integration not found');
     const prompt = String(promptText || integration.promptText || '').trim();
     if (!prompt) throw new BadRequestException('promptText is required');
-    const design = await this.assistant.analyzeRequirement(prompt);
+
+    this.store.update('integrations', id, {
+      status: 'ANALYZING',
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Clarification gate — do not invent critical missing details
+    if (!answers || Object.keys(answers).length === 0) {
+      const clarify = await this.assistant.clarifyRequirement!(prompt);
+      if (clarify.needsClarification) {
+        this.store.update('integrations', id, {
+          status: 'NEEDS_REVIEW',
+          promptText: prompt,
+          updatedAt: new Date().toISOString(),
+        });
+        this.audit(id, String(integration.currentVersionId || ''), 'CLARIFICATION_REQUIRED', {
+          questions: clarify.questions.map((q) => q.id),
+        });
+        return {
+          needsClarification: true,
+          questions: clarify.questions,
+          integration: this.getIntegration(id),
+        };
+      }
+    }
+
+    let design: IntegrationDesign;
+    try {
+      design = answers && Object.keys(answers).length
+        ? await this.assistant.analyzeWithClarifications!(prompt, answers)
+        : await this.assistant.analyzeRequirement(prompt);
+    } catch (e: any) {
+      this.store.update('integrations', id, {
+        status: 'DRAFT',
+        updatedAt: new Date().toISOString(),
+      });
+      throw new BadRequestException(e?.message || 'AI returned invalid configuration');
+    }
+
     const lang = await this.assistant.recommendLanguage(design);
     design.language = lang.language;
     design.languageReason = lang.reason;
+    design = await this.assistant.recommendArchitecture(design);
+
+    const mappings = (design.suggestedMappings || []).map((m, i) => ({
+      id: `map_${i}`,
+      sourceField: m.sourceField,
+      targetField: m.targetField,
+      confidence: m.confidence,
+      confidencePercent: m.confidence === 'HIGH' ? 95 : m.confidence === 'MEDIUM' ? 81 : 45,
+      transformation: m.transformation,
+      reason: m.reason || null,
+      enabled: m.confidence !== 'LOW',
+    }));
+    const matchingStrategy = defaultMatchingStrategy(mappings);
 
     const direction: DirectionConfig = {
       id: randomUUID(),
@@ -133,18 +195,17 @@ export class VisService {
       retryMaxAttempts: 3,
       rateLimitPerMinute: design.rateLimitPerMinute ?? null,
       idempotencyStrategy: design.idempotencyStrategy || 'EXTERNAL_ID',
-      matchingKeys: ['external_id'],
-      mappings: (design.suggestedMappings || []).map((m, i) => ({
-        id: `map_${i}`,
-        sourceField: m.sourceField,
-        targetField: m.targetField,
-        confidence: m.confidence,
-        transformation: m.transformation,
-        enabled: m.confidence !== 'LOW',
-      })),
+      matchingKeys: matchingStrategy.targetFields,
+      matchingStrategy,
+      mappings,
       schedule: {
         kind: design.scheduleKind || 'MANUAL',
-        intervalMinutes: design.frequency === '15_MINUTES' ? 15 : null,
+        intervalMinutes:
+          design.frequency === '15_MINUTES'
+            ? 15
+            : design.frequency === '5_MINUTES'
+              ? 5
+              : null,
         cron: null,
         allowConcurrent: false,
       },
@@ -169,13 +230,28 @@ export class VisService {
     this.store.update('integrations', id, {
       promptText: prompt,
       name: design.name || integration.name,
+      status: 'DESIGN_READY',
       updatedAt: new Date().toISOString(),
     });
-    this.patchCurrentVersion(id, { design, directions });
+    this.patchCurrentVersion(id, {
+      design,
+      directions,
+      aiProposal: design,
+      userChanges: {},
+    });
     this.audit(id, String(integration.currentVersionId || ''), 'INTEGRATION_ANALYZED', {
       language: design.language,
+      status: 'DESIGN_READY',
     });
     return this.getIntegration(id);
+  }
+
+  async clarifyIntegration(id: string, promptText?: string) {
+    const integration = this.store.get('integrations', id);
+    if (!integration) throw new NotFoundException('Integration not found');
+    const prompt = String(promptText || integration.promptText || '').trim();
+    if (!prompt) throw new BadRequestException('promptText is required');
+    return this.assistant.clarifyRequirement!(prompt);
   }
 
   setLanguage(id: string, language: ProgrammingLanguage) {
@@ -362,6 +438,8 @@ export class VisService {
     const existing = this.store
       .list('schemaCache')
       .find((s) => s.connectionId === body.connectionId && s.formId === body.formId);
+    const previousFields = (existing?.fields as DiscoveredField[]) || [];
+    const schemaDiff = diffSchemas(previousFields, fields);
     const payload = {
       connectionId: body.connectionId,
       applicationKey: 'default',
@@ -373,13 +451,44 @@ export class VisService {
       schemaHash: hash,
       retrievedAt: new Date().toISOString(),
     };
+    // Bind selected form onto direction (does not silently drop mappings)
+    const h = this.getIntegration(integrationId);
+    const directions = (h.directions || []).map((d: DirectionConfig, idx: number) =>
+      idx === 0
+        ? {
+            ...d,
+            targetConnectionId: body.connectionId,
+            selectedFormId: body.formId,
+          }
+        : d,
+    );
+    this.patchCurrentVersion(integrationId, { directions });
+
     if (existing) {
       const changed = existing.schemaHash !== hash;
       this.store.update('schemaCache', existing.id, payload);
-      return { ...payload, id: existing.id, changed };
+      this.audit(integrationId, String(integration.currentVersionId || ''), 'SCHEMA_REFRESHED', {
+        formId: body.formId,
+        changed,
+        diff: schemaDiff,
+      });
+      return {
+        ...payload,
+        id: existing.id,
+        changed,
+        schemaDiff: changed ? schemaDiff : { ...schemaDiff, changed: false },
+        message: changed ? 'Target form schema has changed.' : undefined,
+      };
     }
     const row = this.store.create('schemaCache', payload);
-    return { ...payload, id: row.id, changed: false };
+    this.audit(integrationId, String(integration.currentVersionId || ''), 'SCHEMA_DISCOVERED', {
+      formId: body.formId,
+    });
+    return { ...payload, id: row.id, changed: false, schemaDiff };
+  }
+
+  async refreshSchema(integrationId: string, body: { connectionId: string; formId: string }) {
+    return this.discoverSchema(integrationId, body);
   }
 
   getSchemaCache(connectionId?: string) {
@@ -433,12 +542,300 @@ export class VisService {
   async validateIntegration(id: string) {
     const h = this.getIntegration(id);
     if (!h.design) throw new BadRequestException('Analyze the requirement first');
-    const result = await this.assistant.validateIntegration(h.design);
-    if (result.ok) {
-      this.store.update('integrations', id, { status: 'VALIDATED', updatedAt: new Date().toISOString() });
-      this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_VALIDATED', {});
+    const direction = (h.directions || [])[0];
+    const mappings = direction?.mappings || [];
+    const formId = direction?.selectedFormId;
+    const targetConnectionId = direction?.targetConnectionId;
+    let targetFields: DiscoveredField[] = [];
+    if (targetConnectionId && formId) {
+      const cached = this.store
+        .list('schemaCache')
+        .find((s) => s.connectionId === targetConnectionId && s.formId === formId);
+      targetFields = (cached?.fields as DiscoveredField[]) || [];
     }
-    return { ...result, integration: this.getIntegration(id) };
+    const sourceFields = ((h as any).sourceFields as Array<{ name: string }>)
+      || (h.design.suggestedMappings || []).map((m) => ({ name: m.sourceField }));
+
+    const report = await this.assistant.validateDesignComplete!({
+      design: h.design,
+      mappings,
+      sourceFields: [...new Map(sourceFields.map((s) => [s.name, s])).values()],
+      targetFields,
+      hasSourceConnection: Boolean(direction?.sourceConnectionId),
+      hasTargetConnection: Boolean(direction?.targetConnectionId),
+      hasMatchingStrategy: Boolean(direction?.matchingStrategy),
+    });
+
+    if (report.ok) {
+      this.store.update('integrations', id, {
+        status: 'VALIDATED',
+        updatedAt: new Date().toISOString(),
+      });
+      this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_VALIDATED', {
+        issueCount: report.issues.length,
+      });
+    } else {
+      this.store.update('integrations', id, {
+        status: 'NEEDS_REVIEW',
+        updatedAt: new Date().toISOString(),
+      });
+      this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_VALIDATION_FAILED', {
+        errors: report.issues.filter((i) => i.severity === 'ERROR'),
+      });
+    }
+    return { ...report, integration: this.getIntegration(id) };
+  }
+
+  approveIntegration(id: string) {
+    const h = this.getIntegration(id);
+    if (!h.design) throw new BadRequestException('Analyze the requirement first');
+    if (h.status !== 'VALIDATED' && h.status !== 'APPROVED') {
+      throw new BadRequestException('Validate the design before approval');
+    }
+    this.store.update('integrations', id, {
+      status: 'APPROVED',
+      updatedAt: new Date().toISOString(),
+    });
+    // Freeze AI proposal vs final configuration for audit
+    const version = h.currentVersionId
+      ? this.store.get('versions', String(h.currentVersionId))
+      : null;
+    const aiProposal = version?.aiProposal || version?.design || h.design;
+    this.patchCurrentVersion(id, {
+      finalConfiguration: h.design,
+      aiProposal,
+      userChanges: {
+        language:
+          h.design.language !== (aiProposal as any)?.language
+            ? { from: (aiProposal as any)?.language, to: h.design.language }
+            : undefined,
+        workers:
+          h.design.workers !== (aiProposal as any)?.workers
+            ? { from: (aiProposal as any)?.workers, to: h.design.workers }
+            : undefined,
+      },
+    });
+    this.audit(id, String(h.currentVersionId || ''), 'INTEGRATION_APPROVED', {
+      language: h.design.language,
+    });
+    return this.getIntegration(id);
+  }
+
+  saveDraft(id: string, body: Record<string, unknown> = {}) {
+    const h = this.getIntegration(id);
+    const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    if (body.name !== undefined) patch.name = body.name;
+    if (body.promptText !== undefined) patch.promptText = body.promptText;
+    if (h.status === 'APPROVED' || h.status === 'ACTIVE') {
+      // keep status
+    } else if (body.status === 'DRAFT' || !body.status) {
+      patch.status = h.status === 'DESIGN_READY' ? 'DESIGN_READY' : 'DRAFT';
+    }
+    this.store.update('integrations', id, patch);
+    this.audit(id, String(h.currentVersionId || ''), 'DRAFT_SAVED', maskSecrets(patch));
+    return this.getIntegration(id);
+  }
+
+  setDirectionConnections(
+    id: string,
+    body: { sourceConnectionId?: string; targetConnectionId?: string; selectedFormId?: string },
+  ) {
+    const h = this.getIntegration(id);
+    const directions = (h.directions || []).map((d: DirectionConfig, idx: number) => {
+      if (idx !== 0) return d;
+      return {
+        ...d,
+        sourceConnectionId: body.sourceConnectionId ?? d.sourceConnectionId,
+        targetConnectionId: body.targetConnectionId ?? d.targetConnectionId,
+        selectedFormId: body.selectedFormId ?? d.selectedFormId,
+      };
+    });
+    this.patchCurrentVersion(id, { directions });
+    this.audit(id, String(h.currentVersionId || ''), 'CONNECTIONS_BOUND', {
+      sourceConnectionId: body.sourceConnectionId,
+      targetConnectionId: body.targetConnectionId,
+      selectedFormId: body.selectedFormId,
+    });
+    return this.getIntegration(id);
+  }
+
+  setMatchingStrategy(id: string, strategy: MatchingStrategy) {
+    if (!strategy?.sourceFields?.length || !strategy?.targetFields?.length) {
+      throw new BadRequestException('matching strategy requires sourceFields and targetFields');
+    }
+    const h = this.getIntegration(id);
+    const directions = (h.directions || []).map((d: DirectionConfig, idx: number) =>
+      idx === 0
+        ? {
+            ...d,
+            matchingStrategy: strategy,
+            matchingKeys: strategy.targetFields,
+            idempotencyStrategy:
+              strategy.mode === 'COMPOSITE' ? 'COMPOSITE_KEY' : d.idempotencyStrategy,
+          }
+        : d,
+    );
+    this.patchCurrentVersion(id, { directions });
+    // Track user change vs AI proposal
+    this.recordUserChange(id, 'matchingStrategy', strategy);
+    this.audit(id, String(h.currentVersionId || ''), 'MATCHING_STRATEGY_CHANGED', strategy);
+    return this.getIntegration(id);
+  }
+
+  async applyNaturalLanguageMapping(id: string, instruction: string) {
+    const h = this.getIntegration(id);
+    const direction = (h.directions || [])[0];
+    if (!direction) throw new BadRequestException('Analyze the requirement first');
+    const formId = direction.selectedFormId;
+    const targetConnectionId = direction.targetConnectionId;
+    let targetFields: DiscoveredField[] = [];
+    if (targetConnectionId && formId) {
+      const cached = this.store
+        .list('schemaCache')
+        .find((s) => s.connectionId === targetConnectionId && s.formId === formId);
+      targetFields = (cached?.fields as DiscoveredField[]) || [];
+    }
+    const sourceFields =
+      ((h as any).sourceFields as Array<{ name: string }>)
+      || direction.mappings.map((m) => ({ name: m.sourceField }));
+
+    const next = await this.assistant.applyNaturalLanguageMappingChange!(
+      direction.mappings || [],
+      instruction,
+      { sourceFields, targetFields },
+    );
+    this.saveMappings(id, next);
+    this.audit(id, String(h.currentVersionId || ''), 'MAPPING_NL_CHANGED', {
+      instruction,
+      count: next.length,
+    });
+    return next;
+  }
+
+  setSampleSourceData(id: string, sample: Record<string, unknown> | Record<string, unknown>[]) {
+    const fields = inferSourceFieldsFromSample(sample);
+    const h = this.getIntegration(id);
+    this.patchCurrentVersion(id, {
+      sourceSample: sample,
+      sourceFields: fields,
+    });
+    this.audit(id, String(h.currentVersionId || ''), 'SOURCE_SAMPLE_SET', {
+      fieldCount: fields.length,
+    });
+    return { sourceFields: fields, sample };
+  }
+
+  async discoverOpenApi(id: string, body: { document?: unknown; url?: string }) {
+    let document = body.document;
+    if (!document && body.url) {
+      // Fetch is allowed only for non-secret OpenAPI docs
+      const res = await fetch(body.url);
+      if (!res.ok) throw new BadRequestException(`Failed to fetch OpenAPI: ${res.status}`);
+      document = await res.json();
+    }
+    if (!document) throw new BadRequestException('Provide OpenAPI document or url');
+    const discovered = await this.openApi.fromOpenApi(document);
+    const h = this.getIntegration(id);
+    this.patchCurrentVersion(id, {
+      openApiDiscovery: {
+        endpoints: discovered.endpoints,
+        auth: discovered.auth ? maskSecrets(discovered.auth) : undefined,
+        retrievedAt: new Date().toISOString(),
+      },
+    });
+    this.audit(id, String(h.currentVersionId || ''), 'OPENAPI_DISCOVERED', {
+      endpointCount: discovered.endpoints.length,
+    });
+    return discovered;
+  }
+
+  selectOpenApiEndpoint(id: string, body: { path: string; method: string }) {
+    const h = this.getIntegration(id);
+    const version = h.currentVersionId
+      ? this.store.get('versions', String(h.currentVersionId))
+      : null;
+    const discovery = version?.openApiDiscovery as any;
+    const endpoint = (discovery?.endpoints || []).find(
+      (e: any) => e.path === body.path && e.method === body.method,
+    );
+    if (!endpoint) throw new BadRequestException('Endpoint not found in discovered OpenAPI');
+    const sourceFields = inferSourceFieldsFromOpenApiSchema(endpoint.responseSchema);
+    const directions = (h.directions || []).map((d: DirectionConfig, idx: number) =>
+      idx === 0
+        ? {
+            ...d,
+            endpointConfig: {
+              ...(d.endpointConfig || {}),
+              path: body.path,
+              method: body.method,
+              summary: endpoint.summary,
+            },
+          }
+        : d,
+    );
+    this.patchCurrentVersion(id, {
+      directions,
+      sourceFields: sourceFields.length ? sourceFields : version?.sourceFields,
+      selectedEndpoint: endpoint,
+    });
+    this.audit(id, String(h.currentVersionId || ''), 'OPENAPI_ENDPOINT_SELECTED', {
+      path: body.path,
+      method: body.method,
+    });
+    return { endpoint, sourceFields, integration: this.getIntegration(id) };
+  }
+
+  async dryRun(id: string, body?: { sample?: Record<string, unknown>[] }) {
+    const h = this.getIntegration(id);
+    const direction = (h.directions || [])[0];
+    if (!direction) throw new BadRequestException('Analyze the requirement first');
+    const version = h.currentVersionId
+      ? this.store.get('versions', String(h.currentVersionId))
+      : null;
+    const sample =
+      body?.sample
+      || (Array.isArray(version?.sourceSample)
+        ? (version?.sourceSample as Record<string, unknown>[])
+        : version?.sourceSample
+          ? [version.sourceSample as Record<string, unknown>]
+          : [
+              {
+                id: 'VUL-1001',
+                severity: 'Critical',
+                description: 'Apache vulnerability',
+                team: 'Infrastructure',
+                status: 'Open',
+              },
+            ]);
+
+    let targetFields: DiscoveredField[] = [];
+    if (direction.targetConnectionId && direction.selectedFormId) {
+      const cached = this.store
+        .list('schemaCache')
+        .find(
+          (s) =>
+            s.connectionId === direction.targetConnectionId
+            && s.formId === direction.selectedFormId,
+        );
+      targetFields = (cached?.fields as DiscoveredField[]) || [];
+    }
+
+    const result = await this.assistant.dryRun!({
+      sourceRecords: sample,
+      mappings: direction.mappings || [],
+      targetFields,
+    });
+    this.audit(id, String(h.currentVersionId || ''), 'DRY_RUN_EXECUTED', {
+      sampleSize: result.sampleSize,
+      // Never write records — dry run only
+      wroteRecords: false,
+    });
+    return result;
+  }
+
+  filterMappings(id: string, filter: 'ALL' | 'HIGH' | 'NEEDS_REVIEW' = 'ALL') {
+    const mappings = this.getMappings(id);
+    return filterMappingsByConfidence(mappings, filter);
   }
 
   // ── Executions / logs ──────────────────────────────────────────────────
@@ -504,9 +901,23 @@ export class VisService {
       ? this.store.get('versions', String(row.currentVersionId))
       : this.store.list('versions').filter((v) => v.integrationId === row.id).sort((a, b) => Number(b.version) - Number(a.version))[0];
     return {
-      ...row,
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      status: String(row.status || 'DRAFT'),
+      environment: row.environment,
+      promptText: row.promptText,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
       design: (version?.design as IntegrationDesign) || null,
       directions: (version?.directions as DirectionConfig[]) || [],
+      aiProposal: version?.aiProposal || null,
+      userChanges: version?.userChanges || {},
+      finalConfiguration: version?.finalConfiguration || null,
+      sourceFields: version?.sourceFields || null,
+      sourceSample: version?.sourceSample || null,
+      openApiDiscovery: version?.openApiDiscovery || null,
+      selectedEndpoint: version?.selectedEndpoint || null,
       version: version
         ? { id: version.id, version: version.version, status: version.status }
         : null,
@@ -527,6 +938,8 @@ export class VisService {
         status: 'DRAFT',
         design: null,
         directions: [],
+        aiProposal: null,
+        userChanges: {},
         createdAt: new Date().toISOString(),
       });
       this.store.update('integrations', integrationId, { currentVersionId: version.id });
@@ -540,6 +953,8 @@ export class VisService {
         status: 'DRAFT',
         design: version.design,
         directions: version.directions,
+        aiProposal: version.aiProposal,
+        userChanges: version.userChanges || {},
         createdAt: new Date().toISOString(),
       });
       this.store.update('integrations', integrationId, { currentVersionId: version.id });
@@ -549,7 +964,25 @@ export class VisService {
       patch.design = body.design ? validateIntegrationDesign(body.design) : null;
     }
     if (body.directions !== undefined) patch.directions = body.directions;
+    if (body.aiProposal !== undefined) patch.aiProposal = body.aiProposal;
+    if (body.userChanges !== undefined) patch.userChanges = body.userChanges;
+    if (body.finalConfiguration !== undefined) patch.finalConfiguration = body.finalConfiguration;
+    if (body.sourceFields !== undefined) patch.sourceFields = body.sourceFields;
+    if (body.sourceSample !== undefined) patch.sourceSample = body.sourceSample;
+    if (body.openApiDiscovery !== undefined) patch.openApiDiscovery = body.openApiDiscovery;
+    if (body.selectedEndpoint !== undefined) patch.selectedEndpoint = body.selectedEndpoint;
     this.store.update('versions', version.id, patch);
+  }
+
+  private recordUserChange(integrationId: string, key: string, value: unknown) {
+    const integration = this.store.get('integrations', integrationId);
+    if (!integration?.currentVersionId) return;
+    const version = this.store.get('versions', String(integration.currentVersionId));
+    if (!version) return;
+    const prev = (version.userChanges as Record<string, unknown>) || {};
+    this.store.update('versions', version.id, {
+      userChanges: { ...prev, [key]: value },
+    });
   }
 
   private maskConnection(conn: VisRecord) {

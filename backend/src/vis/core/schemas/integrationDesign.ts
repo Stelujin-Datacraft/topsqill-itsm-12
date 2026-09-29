@@ -44,6 +44,17 @@ export const IntegrationDesignSchema = z.object({
         targetField: z.string(),
         confidence: z.enum(MAPPING_CONFIDENCE),
         transformation: z.string().nullable().optional(),
+        reason: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
+  recommendations: z
+    .array(
+      z.object({
+        area: z.string(),
+        recommendation: z.string(),
+        reason: z.string(),
+        confidence: z.enum(MAPPING_CONFIDENCE),
       }),
     )
     .optional(),
