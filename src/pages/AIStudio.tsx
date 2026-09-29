@@ -13,12 +13,12 @@ import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
 import { CopilotFormPreviewPanel, type PreviewSizeMode } from '@/components/ai/CopilotFormPreviewPanel';
-import { FORM_CREATE_ACTIONS, promptNeedsExistingForm, promptUpdatesExistingForm, createTypeNeedsForm, COPILOT_CREATE_TYPES, type CopilotCreateType } from '@/lib/copilotUtils';
+import { FORM_CREATE_ACTIONS, promptNeedsExistingForm, promptUpdatesExistingForm, createTypeNeedsForm, isCreateTypeFormFirstLocked, COPILOT_CREATE_TYPES, type CopilotCreateType } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
-  Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw, Eye, EyeOff,
+  Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw, Eye, EyeOff, Lock,
 } from 'lucide-react';
 
 const PREVIEW_SIZES: Record<PreviewSizeMode, number> = {
@@ -93,6 +93,16 @@ export default function AIStudio() {
 
   const activeCreateMeta = COPILOT_CREATE_TYPES.find((t) => t.id === createType)!;
   const needsFormForType = createTypeNeedsForm(createType);
+  const hasProjectForm = availableForms.length > 0;
+  const formFirstLocked = !hasProjectForm;
+
+  // Keep Form selected while Workflow / Report / KB are locked.
+  useEffect(() => {
+    if (formFirstLocked && createTypeNeedsForm(createType)) {
+      setCreateType('form');
+      setSelectedFormId('');
+    }
+  }, [formFirstLocked, createType]);
 
   const viewFormsList = () => {
     unlockWorkspace();
@@ -233,6 +243,7 @@ export default function AIStudio() {
     const value = (text ?? input).trim();
     if (!value || isLoading) return;
     const type = typeOverride || createType;
+    if (isCreateTypeFormFirstLocked(type, hasProjectForm)) return;
     const isUpdate = type === 'form' && promptUpdatesExistingForm(value);
     const dependsOnForm = createTypeNeedsForm(type) || promptNeedsExistingForm(value, type);
     const targetFormId = selectedFormId || activeFormId || previewFormId || '';
@@ -284,23 +295,31 @@ export default function AIStudio() {
         {COPILOT_CREATE_TYPES.map((asset) => {
           const meta = CREATE_TYPE_ICONS[asset.id];
           const Icon = meta.icon;
+          const locked = isCreateTypeFormFirstLocked(asset.id, hasProjectForm);
           return (
             <button
               key={asset.id}
               type="button"
+              disabled={locked}
+              title={locked ? 'Create a form first — then unlock Workflow, Report, and Knowledge Base' : undefined}
+              aria-disabled={locked}
               onClick={() => {
+                if (locked) return;
                 setCreateType(asset.id);
                 if (!createTypeNeedsForm(asset.id)) setSelectedFormId('');
               }}
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                createType === asset.id
+                locked && 'cursor-not-allowed opacity-50 hover:bg-muted/40',
+                !locked && createType === asset.id
                   ? 'border-primary bg-primary/10 text-foreground'
-                  : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/70',
+                  : !locked && 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/70',
+                locked && 'border-border/60 bg-muted/30 text-muted-foreground',
               )}
             >
-              <Icon className={cn('h-3.5 w-3.5', meta.color)} />
+              <Icon className={cn('h-3.5 w-3.5', locked ? 'text-muted-foreground' : meta.color)} />
               {asset.label}
+              {locked && <Lock className="h-3 w-3 opacity-70" aria-hidden />}
             </button>
           );
         })}
@@ -425,11 +444,16 @@ export default function AIStudio() {
                 const meta = CREATE_TYPE_ICONS[s.type];
                 const Icon = meta.icon;
                 const label = COPILOT_CREATE_TYPES.find((t) => t.id === s.type)?.label || s.type;
+                const locked = isCreateTypeFormFirstLocked(s.type, hasProjectForm);
                 return (
                   <button
                     key={s.type}
                     type="button"
+                    disabled={locked}
+                    title={locked ? 'Create a form first — then unlock Workflow, Report, and Knowledge Base' : undefined}
+                    aria-disabled={locked}
                     onClick={() => {
+                      if (locked) return;
                       setCreateType(s.type);
                       if (createTypeNeedsForm(s.type) && !(selectedFormId || activeFormId)) {
                         setInput(s.prompt);
@@ -438,13 +462,24 @@ export default function AIStudio() {
                       submit(s.prompt, s.type);
                     }}
                     className={cn(
-                      'flex items-start gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-muted/50',
-                      createType === s.type ? 'border-primary bg-primary/5' : 'border-border/70 bg-card/60',
+                      'flex items-start gap-3 rounded-xl border p-3 text-left transition-colors',
+                      locked
+                        ? 'cursor-not-allowed border-border/50 bg-muted/20 opacity-60'
+                        : 'hover:bg-muted/50',
+                      !locked && createType === s.type ? 'border-primary bg-primary/5' : !locked && 'border-border/70 bg-card/60',
                     )}
                   >
-                    <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', meta.color)} />
-                    <span className="min-w-0">
-                      <span className="block text-xs font-medium text-foreground mb-0.5">{label}</span>
+                    <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', locked ? 'text-muted-foreground' : meta.color)} />
+                    <span className="min-w-0 flex-1">
+                      <span className="mb-0.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
+                        {label}
+                        {locked && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            <Lock className="h-2.5 w-2.5" aria-hidden />
+                            Read only
+                          </span>
+                        )}
+                      </span>
                       <span className="text-sm text-muted-foreground line-clamp-2">{s.prompt}</span>
                     </span>
                   </button>
