@@ -597,4 +597,43 @@ export const visClientEngine = {
       count: 2,
     };
   },
+
+  /**
+   * First-visit sample so /vis shows the Phase-1 ServiceNow → Internal Form demo
+   * instead of an empty studio.
+   */
+  ensureSampleStudio() {
+    this.bootstrapDemo();
+    const existing = this.listIntegrations();
+    if (existing.length > 0) {
+      return {
+        created: false,
+        integration: existing[0],
+        dashboard: this.dashboard(),
+        integrations: existing,
+        connections: this.listConnections(),
+        __clientMode: true,
+      };
+    }
+
+    const prompt =
+      'Every 15 minutes, sync open ServiceNow vulnerabilities into our internal Vulnerability form. Create or update by external id. Map severity to priority (Critical→1, High→2, Medium→3, Low→4).';
+    const created = this.createIntegration({
+      name: 'ServiceNow Vulnerabilities → Internal Form',
+      promptText: prompt,
+      description: 'Phase 1 demo — prompt-first orchestration into an internal form API',
+    });
+    this.analyze(created.id, prompt);
+    this.validate(created.id);
+    this.createExecution(created.id);
+
+    return {
+      created: true,
+      integration: this.getIntegration(created.id),
+      dashboard: this.dashboard(),
+      integrations: this.listIntegrations(),
+      connections: this.listConnections(),
+      __clientMode: true,
+    };
+  },
 };
