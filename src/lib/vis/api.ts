@@ -1,123 +1,209 @@
-/** VIS frontend API client — calls Nest /api/vis/* */
-
-import { getApiBaseUrl } from '@/services/api/apiClient';
-
 /**
- * Resolve API base for browser calls.
- * Never force a baked-in localhost URL when the page is served from another host
- * (published / preview) — that causes "Failed to fetch". Prefer same-origin `/api`
- * so Vite proxy (dev) or reverse proxy (prod) can reach Nest.
+ * VIS API client — aligned with TopSqill backend access patterns:
+ * 1) Call Nest `/api/vis/*` via shared `request` + getApiBaseUrl()
+ * 2) If Nest is unreachable (published app / preview / backend down),
+ *    fall back to the browser client engine — same resilience idea as
+ *    databaseClient falling back to Supabase.
  */
-export function getVisApiBase(): string {
-  const configured = String(getApiBaseUrl() || import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    const pageIsLocal = host === 'localhost' || host === '127.0.0.1';
-    const configuredIsLocal =
-      !configured || /localhost|127\.0\.0\.1/.test(configured);
-    if (!pageIsLocal && configuredIsLocal) {
-      return '/api';
-    }
-    // Dev: prefer same-origin /api so Vite proxy forwards to Nest (avoids CORS / wrong host)
-    if (pageIsLocal && configuredIsLocal) {
-      return '/api';
-    }
-  }
-  return configured || '/api';
+
+import { request } from '@/services/api/apiClient';
+import { visClientEngine } from './clientEngine';
+
+/** Sticky switch: once Nest /vis is unreachable this session, stay on client engine. */
+let backendUnavailable = false;
+
+function isNetworkError(message?: string | null): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes('failed to fetch')
+    || m.includes('network error')
+    || m.includes('load failed')
+    || m.includes('networkerror')
+    || m.includes('econnrefused')
+    || m.includes('request timed out')
+    || m.includes('invalid response from server')
+    // VIS module may not be deployed yet — treat gateway / missing route as unreachable
+    || m.includes('request failed (404)')
+    || m.includes('request failed (502)')
+    || m.includes('request failed (503)')
+    || m.includes('request failed (504)')
+  );
 }
 
-async function visFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-  const base = getVisApiBase();
-  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      ...init,
-      headers: {
-        'content-type': 'application/json',
-        ...(init?.headers || {}),
-      },
-    });
-  } catch (err: any) {
-    const hint =
-      'Cannot reach the Integration Studio API. Start the Nest backend with `npm run dev:backend` (Vite proxies `/api` → port 3001).';
-    throw new Error(err?.message === 'Failed to fetch' ? hint : err?.message || hint);
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+async function nestVis<T>(
+  path: string,
+  options: { method?: Method; body?: unknown } = {},
+): Promise<{ data: T | null; error: string | null }> {
+  const method = options.method || 'GET';
+  const visPath = path.startsWith('/vis') ? path : `/vis${path.startsWith('/') ? path : `/${path}`}`;
+  const result = await request<T>(
+    visPath,
+    {
+      method,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    },
+    true,
+  );
+  return {
+    data: result.data,
+    error: result.error?.message || null,
+  };
+}
+
+async function withFallback<T>(
+  nestCall: () => Promise<{ data: T | null; error: string | null }>,
+  clientCall: () => T | Promise<T>,
+): Promise<T> {
+  if (backendUnavailable) {
+    return clientCall();
   }
-  if (!res.ok) {
-    const text = await res.text();
-    let message = text;
-    try {
-      const parsed = JSON.parse(text);
-      message = parsed?.message || parsed?.error || text;
-    } catch {
-      /* keep */
-    }
-    if (res.status === 404) {
-      throw new Error(
-        'Integration Studio API not found (404). Redeploy/restart the Nest backend so `/api/vis` is registered.',
-      );
-    }
-    throw new Error(Array.isArray(message) ? message.join(', ') : String(message || res.statusText));
+
+  const nest = await nestCall();
+
+  if (isNetworkError(nest.error)) {
+    backendUnavailable = true;
+    return clientCall();
   }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+
+  if (nest.error) {
+    throw new Error(nest.error);
+  }
+
+  // Successful Nest response (including empty arrays / zeroed dashboards)
+  if (nest.data !== null && nest.data !== undefined) {
+    return nest.data;
+  }
+
+  // 204 / empty — still prefer Nest success over inventing client data for mutations
+  return clientCall();
 }
 
 export const visApi = {
-  dashboard: () => visFetch('/vis/dashboard'),
-  listIntegrations: () => visFetch<any[]>('/vis/integrations'),
-  getIntegration: (id: string) => visFetch<any>(`/vis/integrations/${id}`),
+  dashboard: () =>
+    withFallback(
+      () => nestVis('/dashboard'),
+      () => visClientEngine.dashboard(),
+    ),
+  listIntegrations: () =>
+    withFallback(
+      () => nestVis('/integrations'),
+      () => visClientEngine.listIntegrations(),
+    ),
+  getIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}`),
+      () => visClientEngine.getIntegration(id),
+    ),
   createIntegration: (body: { name?: string; promptText?: string }) =>
-    visFetch<any>('/vis/integrations', { method: 'POST', body: JSON.stringify(body) }),
+    withFallback(
+      () => nestVis('/integrations', { method: 'POST', body }),
+      () => visClientEngine.createIntegration(body),
+    ),
   updateIntegration: (id: string, body: Record<string, unknown>) =>
-    visFetch<any>(`/vis/integrations/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    withFallback(
+      () => nestVis(`/integrations/${id}`, { method: 'PUT', body }),
+      async () => {
+        throw new Error('Client update not supported for this field while Nest is offline');
+      },
+    ),
   analyze: (id: string, promptText?: string) =>
-    visFetch<any>(`/vis/integrations/${id}/analyze`, {
-      method: 'POST',
-      body: JSON.stringify({ promptText }),
-    }),
+    withFallback(
+      () => nestVis(`/integrations/${id}/analyze`, { method: 'POST', body: { promptText } }),
+      () => visClientEngine.analyze(id, promptText),
+    ),
   setLanguage: (id: string, language: string) =>
-    visFetch<any>(`/vis/integrations/${id}/language`, {
-      method: 'POST',
-      body: JSON.stringify({ language }),
-    }),
+    withFallback(
+      () => nestVis(`/integrations/${id}/language`, { method: 'POST', body: { language } }),
+      () => visClientEngine.setLanguage(id, language),
+    ),
   validate: (id: string) =>
-    visFetch<any>(`/vis/integrations/${id}/validate`, { method: 'POST', body: '{}' }),
-  listConnections: () => visFetch<any[]>('/vis/connections'),
+    withFallback(
+      () => nestVis(`/integrations/${id}/validate`, { method: 'POST', body: {} }),
+      () => visClientEngine.validate(id),
+    ),
+  listConnections: () =>
+    withFallback(
+      () => nestVis('/connections'),
+      () => visClientEngine.listConnections(),
+    ),
   createConnection: (body: Record<string, unknown>) =>
-    visFetch<any>('/vis/connections', { method: 'POST', body: JSON.stringify(body) }),
+    withFallback(
+      () => nestVis('/connections', { method: 'POST', body }),
+      () => visClientEngine.createConnection(body),
+    ),
   bootstrapDemo: () =>
-    visFetch<{ connections: any[] }>('/vis/demo/bootstrap', { method: 'POST', body: '{}' }),
+    withFallback(
+      () => nestVis('/demo/bootstrap', { method: 'POST', body: {} }),
+      () => visClientEngine.bootstrapDemo(),
+    ),
   testConnection: (id: string) =>
-    visFetch<any>(`/vis/connections/${id}/test`, { method: 'POST', body: '{}' }),
+    withFallback(
+      () => nestVis(`/connections/${id}/test`, { method: 'POST', body: {} }),
+      () => visClientEngine.testConnection(id),
+    ),
   discoverForms: (connectionId: string) =>
-    visFetch<any>(`/vis/connections/${connectionId}/forms`),
+    withFallback(
+      () => nestVis(`/connections/${connectionId}/forms`),
+      () => visClientEngine.discoverForms(connectionId),
+    ),
   discoverSchema: (integrationId: string, body: { connectionId: string; formId: string }) =>
-    visFetch<any>(`/vis/integrations/${integrationId}/discover-schema`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
-  getMappings: (id: string) => visFetch<any[]>(`/vis/integrations/${id}/mappings`),
+    withFallback(
+      () => nestVis(`/integrations/${integrationId}/discover-schema`, { method: 'POST', body }),
+      () => visClientEngine.discoverSchema(integrationId, body),
+    ),
+  getMappings: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/mappings`),
+      () => visClientEngine.getMappings(id),
+    ),
   saveMappings: (id: string, mappings: unknown[]) =>
-    visFetch<any[]>(`/vis/integrations/${id}/mappings`, {
-      method: 'PUT',
-      body: JSON.stringify({ mappings }),
-    }),
+    withFallback(
+      () => nestVis(`/integrations/${id}/mappings`, { method: 'PUT', body: { mappings } }),
+      () => visClientEngine.saveMappings(id, mappings),
+    ),
   suggestMappings: (id: string, body: Record<string, unknown>) =>
-    visFetch<any[]>(`/vis/integrations/${id}/suggest-mappings`, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }),
+    withFallback(
+      () => nestVis(`/integrations/${id}/suggest-mappings`, { method: 'POST', body }),
+      () => visClientEngine.suggestMappings(id),
+    ),
   createExecution: (id: string) =>
-    visFetch<any>(`/vis/integrations/${id}/executions`, { method: 'POST', body: '{}' }),
+    withFallback(
+      () => nestVis(`/integrations/${id}/executions`, { method: 'POST', body: {} }),
+      () => visClientEngine.createExecution(id),
+    ),
   listExecutions: (integrationId?: string) =>
-    visFetch<any[]>(`/vis/executions${integrationId ? `?integrationId=${integrationId}` : ''}`),
-  getExecution: (id: string) => visFetch<any>(`/vis/executions/${id}`),
+    withFallback(
+      () => nestVis(`/executions${integrationId ? `?integrationId=${integrationId}` : ''}`),
+      () => visClientEngine.listExecutions(integrationId),
+    ),
+  getExecution: (id: string) =>
+    withFallback(
+      () => nestVis(`/executions/${id}`),
+      () => visClientEngine.getExecution(id),
+    ),
   listLogs: (executionId?: string) =>
-    visFetch<any[]>(`/vis/logs${executionId ? `?executionId=${executionId}` : ''}`),
-  listAudit: () => visFetch<any[]>('/vis/audit'),
-  mockForms: () => visFetch<any>('/vis/mocks/forms'),
-  mockVulnerabilities: () => visFetch<any>('/vis/mocks/vulnerabilities?status=Open'),
+    withFallback(
+      () => nestVis(`/logs${executionId ? `?executionId=${executionId}` : ''}`),
+      () => visClientEngine.listLogs(executionId),
+    ),
+  listAudit: () =>
+    withFallback(
+      () => nestVis('/audit'),
+      () => visClientEngine.listAudit(),
+    ),
+  mockForms: () =>
+    withFallback(
+      () => nestVis('/mocks/forms'),
+      () => visClientEngine.mockForms(),
+    ),
+  mockVulnerabilities: () =>
+    withFallback(
+      () => nestVis('/mocks/vulnerabilities?status=Open'),
+      () => visClientEngine.mockVulnerabilities(),
+    ),
 };
 
 export const LANGUAGES = [

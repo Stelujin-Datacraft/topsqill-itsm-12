@@ -30,11 +30,6 @@ export default function VisDashboard() {
     return (
       <div className="p-8 max-w-xl space-y-4">
         <p className="text-destructive font-medium">{error}</p>
-        <p className="text-sm text-muted-foreground">
-          Integration Studio needs the Nest API (`/api/vis`). In local dev run the backend in a
-          second terminal, then reload this page:
-        </p>
-        <pre className="text-xs bg-muted rounded-md p-3 overflow-x-auto">npm run dev:backend</pre>
         <Button
           variant="outline"
           onClick={() => {
@@ -80,6 +75,13 @@ export default function VisDashboard() {
           </Link>
         </Button>
       </div>
+
+      {data?.__clientMode && (
+        <p className="text-xs text-muted-foreground rounded-md border border-border/60 bg-muted/40 px-3 py-2">
+          Running in local studio mode — Nest <code className="font-mono">/api/vis</code> is offline.
+          Data is kept in this browser until the API is available.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {tiles.map((t) => (
