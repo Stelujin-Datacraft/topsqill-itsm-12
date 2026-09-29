@@ -546,35 +546,9 @@ function planGenericActionRequirements(
       ? sanitizeConditionValueHint(hints.conditionValueHint)
       : '';
 
-    // Static vs map for condition comparison value
-    if (
-      condition
-      && !condition.valueKind
-      && (condition.value === undefined || condition.value === null || condition.value === '')
-      && !condition.compareFieldId
-    ) {
-      push(req({
-        id: 'condition.value_kind',
-        scope: 'condition',
-        key: 'condition_value_kind',
-        question: [
-          `How should the comparison value for **${condField?.label || condition.fieldLabel}** be set?`,
-          '',
-          '- **Static value** — type or pick a fixed value',
-          '- **Map from form field** — compare against another field on the same submission',
-          hintedConditionValue
-            ? `\n_(Your prompt suggested: **${hintedConditionValue}** — confirm or change after picking Static.)_`
-            : '',
-        ].filter(Boolean).join('\n'),
-        inputKind: 'choice',
-        options: [
-          { value: '__static_value__', label: 'Static value' },
-          { value: '__map_from_field__', label: 'Map from form field' },
-        ],
-      }));
-      return mergeUnansweredFirst(out);
-    }
-
+    // Comparison value: ask the value directly (static by default).
+    // Do NOT force a separate Static vs Map question — that felt like asking for both.
+    // Map remains available as an explicit option on the value step.
     if (condition?.valueKind === 'dynamic' && !condition.compareFieldId) {
       const mapOpts = fieldChoices(hydratedForm).filter((o) => o.value !== condition.fieldId);
       push(req({
@@ -588,13 +562,19 @@ function planGenericActionRequirements(
       return mergeUnansweredFirst(out);
     }
 
-    // ── Condition value (static) ────────────────────────────────────────────
+    // ── Condition value (static, default) ───────────────────────────────────
     if (
       condition
       && condition.valueKind !== 'dynamic'
       && (condition.value === undefined || condition.value === null || condition.value === '')
+      && !condition.compareFieldId
     ) {
+      if (!condition.valueKind) condition.valueKind = 'static';
       const opts = fieldOptionChoices(condField);
+      const mapEscape = fieldChoices(hydratedForm)
+        .some((o) => o.value !== condition.fieldId)
+        ? [{ value: '__map_from_field__', label: 'Map from another form field instead' }]
+        : [];
       const hintLine = hintedConditionValue
         ? `\n_(Suggested from your prompt: **${hintedConditionValue}** — pick it or type another.)_`
         : '';
@@ -608,7 +588,10 @@ function planGenericActionRequirements(
             hintLine,
           ].filter(Boolean).join('\n'),
           inputKind: 'choice',
-          options: opts,
+          options: [
+            ...opts,
+            ...mapEscape,
+          ],
         }));
       } else {
         push(req({
@@ -618,6 +601,9 @@ function planGenericActionRequirements(
           question: [
             `What **value** should **${condField?.label || condition.fieldLabel}** ${condition.operator || 'equal'} to run the action?`,
             hintLine,
+            mapEscape.length
+              ? '\n_(Reply **map** if you want to compare against another form field instead.)_'
+              : '',
           ].filter(Boolean).join('\n'),
           inputKind: 'text',
         }));
@@ -1896,33 +1882,8 @@ function planGenericActionRequirements(
     action.pendingOptionCreate = false;
   }
 
-  // Static vs map for change_field_value
-  if (
-    needsActionField
-    && (action.targetFieldId || action.targetFieldLabel)
-    && !action.valueKindAsked
-    && action.valueType !== 'dynamic'
-    && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
-  ) {
-    push(req({
-      id: 'action.value_kind',
-      scope: 'workflow',
-      key: 'action_value_kind',
-      question: [
-        `How should **${action.targetFieldLabel || 'this field'}** be set?`,
-        '',
-        '- **Static value** — type or pick a fixed value',
-        '- **Map from form field** — copy from another field on the submission',
-      ].join('\n'),
-      inputKind: 'choice',
-      options: [
-        { value: '__static_value__', label: 'Static value' },
-        { value: '__map_from_field__', label: 'Map from form field' },
-      ],
-    }));
-    return mergeUnansweredFirst(out);
-  }
-
+  // Action value: ask directly (static by default). Map is an option on the value step —
+  // do not force a separate Static vs Map question.
   if (
     needsActionField
     && action.valueType === 'dynamic'
@@ -1946,6 +1907,8 @@ function planGenericActionRequirements(
     && action.valueType !== 'dynamic'
     && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
   ) {
+    action.valueKindAsked = true;
+    if (!action.valueType) action.valueType = 'static';
     const linkedForm = action.targetFormId
       ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
@@ -1958,6 +1921,10 @@ function planGenericActionRequirements(
         && f.label.toLowerCase() === String(action.targetFieldLabel).toLowerCase()),
     );
     const opts = fieldOptionChoices(actionField);
+    const mapEscape = fieldChoices(hydratedForm)
+      .some((o) => o.value !== action.targetFieldId)
+      ? [{ value: '__map_from_field__', label: 'Map from another form field instead' }]
+      : [];
     if (opts.length) {
       push(req({
         id: 'action.value',
@@ -1965,14 +1932,22 @@ function planGenericActionRequirements(
         key: 'action_value',
         question: `What **value** should **${actionField?.label || action.targetFieldLabel}** be set to?`,
         inputKind: 'choice',
-        options: opts,
+        options: [
+          ...opts,
+          ...mapEscape,
+        ],
       }));
     } else {
       push(req({
         id: 'action.value',
         scope: 'workflow',
         key: 'action_value',
-        question: `What **value** should **${actionField?.label || action.targetFieldLabel || 'the field'}** be set to?`,
+        question: [
+          `What **value** should **${actionField?.label || action.targetFieldLabel || 'the field'}** be set to?`,
+          mapEscape.length
+            ? '\n_(Reply **map** if you want to copy from another form field instead.)_'
+            : '',
+        ].filter(Boolean).join('\n'),
         inputKind: 'text',
       }));
     }
@@ -2850,6 +2825,17 @@ export function applyAnswerToDefinition(
   if (requirement.key === 'condition_value') {
     const cond = next.conditions[0];
     if (cond) {
+      // Escape hatch: switch to map-from-field without a separate value_kind ask
+      if (value === '__map_from_field__' || /^map(\s+from(\s+(a\s+|another\s+|form\s+)?field)?)?$/i.test(value)) {
+        cond.valueKind = 'dynamic';
+        cond.value = '';
+        cond.compareFieldId = undefined;
+        cond.compareFieldLabel = undefined;
+        cond.pendingOptionCreate = false;
+        cond.pendingOptionLabel = undefined;
+        cond.resolved = false;
+        return next;
+      }
       const field = hydrateDiscoveredForm(form)?.fields.find((f) => f.id === cond.fieldId);
       cond.valueKind = cond.valueKind || 'static';
       cond.resolved = Boolean(cond.fieldId);
@@ -3530,6 +3516,18 @@ export function applyAnswerToDefinition(
   }
 
   if (requirement.key === 'action_value' && next.action) {
+    // Escape hatch: switch to map-from-field without a separate value_kind ask
+    if (value === '__map_from_field__' || /^map(\s+from(\s+(a\s+|another\s+|form\s+)?field)?)?$/i.test(value)) {
+      next.action.valueKindAsked = true;
+      next.action.valueType = 'dynamic';
+      next.action.staticValue = undefined;
+      next.action.dynamicValuePath = undefined;
+      next.action.dynamicFieldLabel = undefined;
+      next.action.pendingOptionCreate = false;
+      next.action.pendingOptionLabel = undefined;
+      next.action.configured = actionConfigured(next.action);
+      return next;
+    }
     const linkedForm = next.action.targetFormId
       ? hydrateDiscoveredForm(formsCatalog.find((f) => f.id === next.action!.targetFormId))
       : undefined;
