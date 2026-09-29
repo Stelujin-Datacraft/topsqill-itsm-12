@@ -70,6 +70,8 @@ export interface WorkflowConditionSpec {
   fieldLabel: string;
   fieldType?: string;
   operator: string;
+  /** User confirmed the comparison operator in chat (avoids silent == default). */
+  operatorConfirmed?: boolean;
   value: unknown;
   resolved: boolean;
   /** static literal vs map/compare from another form field */
@@ -245,6 +247,17 @@ export interface WorkflowLevelSpec {
   /** Choice/status field that records approval decision */
   approvalFieldId?: string;
   approvalFieldLabel?: string;
+  /**
+   * Value on the decision field that means "Approved" for the condition
+   * (Level N Status / Status fields with Approved synonym can skip asking).
+   */
+  approvedValue?: string;
+  /** Value that means "Rejected" (informational; reject path is condition false). */
+  rejectedValue?: string;
+  /** Comparison operator for decision field vs approvedValue (default ==). */
+  decisionOperator?: string;
+  /** User confirmed decision values / operator for this level */
+  decisionValuesConfirmed?: boolean;
   /** Optional dedicated rejection field */
   rejectionFieldId?: string;
   rejectionFieldLabel?: string;

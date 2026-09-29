@@ -1298,8 +1298,18 @@ function buildAck(
     if (answer === '__create_level_status__' || answer === '__create__' || named) {
       return `Okay — I'll create **${named || `Level ${req.level} Status`}** (Pending / Approved / Rejected) when we publish.`;
     }
-    if (field) return `I'll use **${field.label}** for Level ${req.level} decisions (Approved / Rejected).`;
+    if (field) return `I'll use **${field.label}** for Level ${req.level} decisions. Next I'll confirm the comparison and values.`;
     return `Noted for Level ${req.level} decision field.`;
+  }
+  if (req.key === 'decision_operator') {
+    const opLabel = optionLabel || answer || '==';
+    return `Level ${req.level} will use **${opLabel}** to compare the decision field.`;
+  }
+  if (req.key === 'decision_approved_value') {
+    return `Level ${req.level} **Approved** value set to **${optionLabel || answer}**.`;
+  }
+  if (req.key === 'decision_rejected_value') {
+    return `Level ${req.level} **Rejected** value set to **${optionLabel || answer}**.`;
   }
   if (req.key === 'rejection_field' || req.key === 'rejection_field_create') {
     if (answer === '__same_as_approval__') {
@@ -1341,6 +1351,9 @@ function buildAck(
   if (req.key === 'condition_field') {
     if (field) return `Condition will use **${field.label}**.`;
     return 'Condition field noted.';
+  }
+  if (req.key === 'condition_operator') {
+    return `Condition will use **${optionLabel || answer}**.`;
   }
   if (req.key === 'condition_value') {
     return `Condition value set to **${answer}**.`;
