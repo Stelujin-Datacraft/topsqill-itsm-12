@@ -1356,6 +1356,9 @@ function buildAck(
     return `Condition will use **${optionLabel || answer}**.`;
   }
   if (req.key === 'condition_value') {
+    if (answer === '__map_from_field__' || /^map(\s+from(\s+(a\s+|another\s+|form\s+)?field)?)?$/i.test(answer)) {
+      return 'Okay — we\'ll compare against another form field. Pick that field next.';
+    }
     return `Condition value set to **${answer}**.`;
   }
   if (req.key === 'condition_value_create') {
@@ -1455,6 +1458,9 @@ function buildAck(
     return 'FROM field for mapping noted.';
   }
   if (req.key === 'action_value') {
+    if (answer === '__map_from_field__' || /^map(\s+from(\s+(a\s+|another\s+|form\s+)?field)?)?$/i.test(answer)) {
+      return 'Okay — we\'ll map the value from another form field. Pick the source field next.';
+    }
     return `Action value set to **${answer}**.`;
   }
   if (req.key === 'action_value_kind') {
