@@ -1,10 +1,7 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import PublicPageLayout from '@/components/layout/PublicPageLayout';
 import { mergeBlogPosts } from '@/content/blog/posts';
 import { usePublishedBlogPosts } from '@/hooks/useBlogPosts';
-import { loadDeletedSlugs } from '@/lib/blogCms';
 import { stripMarketPrefix } from '@/lib/seo';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import { ArrowRight } from 'lucide-react';
@@ -13,14 +10,8 @@ export default function Blog() {
   const { pathname } = useLocation();
   const { market } = stripMarketPrefix(pathname);
   const base = market ? `/${market}` : '';
-  const { data: dbPosts, isLoading, isFetching, refetch } = usePublishedBlogPosts();
-  const { data: deletedSlugs = [] } = useQuery({
-    queryKey: ['blog_deleted_slugs'],
-    queryFn: async () => [...(await loadDeletedSlugs())],
-    staleTime: 5_000,
-    refetchOnMount: 'always',
-  });
-  const posts = mergeBlogPosts(dbPosts, deletedSlugs);
+  const { data, isLoading, isFetching, refetch } = usePublishedBlogPosts();
+  const posts = mergeBlogPosts(data?.posts, data?.deletedSlugs);
 
   return (
     <PublicPageLayout

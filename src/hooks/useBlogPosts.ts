@@ -40,9 +40,9 @@ export function usePublishedBlogPosts() {
   return useQuery({
     queryKey: PUBLIC_KEY,
     queryFn: () => loadAllPublishedBlogPosts(),
-    staleTime: 5_000,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 5 * 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -51,11 +51,12 @@ export function usePublishedBlogPost(slug: string | undefined) {
     queryKey: [...PUBLIC_KEY, slug],
     enabled: Boolean(slug),
     queryFn: async () => {
-      if (!slug) return null;
+      if (!slug) return { post: null, deletedSlugs: [] as string[] };
       return loadPublishedBlogPostBySlug(slug);
     },
-    staleTime: 5_000,
-    refetchOnMount: 'always',
+    staleTime: 5 * 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
