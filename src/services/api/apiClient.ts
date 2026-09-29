@@ -2,7 +2,21 @@
  * NestJS API client — replaces direct Supabase Edge Function invocations.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+function resolveNestApiBase(): string {
+  const configured = String(import.meta.env?.VITE_API_URL || '').replace(/\/$/, '');
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const pageIsLocal = host === 'localhost' || host === '127.0.0.1';
+    const configuredIsLocal = !configured || /localhost|127\.0\.0\.1/.test(configured);
+    // Published/preview must never call a developer's localhost Nest URL
+    if (!pageIsLocal && configuredIsLocal) return '/api';
+    // Local Vite: prefer same-origin /api so the proxy forwards to Nest
+    if (pageIsLocal && configuredIsLocal) return '/api';
+  }
+  return configured || 'http://localhost:3001/api';
+}
+
+const API_BASE_URL = resolveNestApiBase();
 
 let cachedAuthToken: string | null = null;
 let authTokenExpiresAt = 0;
@@ -59,7 +73,7 @@ async function request<T = unknown>(
     const timeoutMs = 60000;
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       ...options,
       headers,
       signal: controller.signal,
@@ -296,19 +310,20 @@ export const api = {
 };
 
 export function getApiBaseUrl(): string {
-  return API_BASE_URL;
+  // Re-resolve at call time so published hosts don't keep a stale localhost bake-in
+  return resolveNestApiBase();
 }
 
 export function getPublicApiUrl(): string {
-  return `${API_BASE_URL}/public-api`;
+  return `${getApiBaseUrl()}/public-api`;
 }
 
 export function getFormApiUrl(): string {
-  return `${API_BASE_URL}/form-api`;
+  return `${getApiBaseUrl()}/form-api`;
 }
 
 export function getPolicyPreviewUrl(policyId: string): string {
-  return `${API_BASE_URL}/policies/preview?id=${policyId}`;
+  return `${getApiBaseUrl()}/policies/preview?id=${policyId}`;
 }
 
 export { request };
