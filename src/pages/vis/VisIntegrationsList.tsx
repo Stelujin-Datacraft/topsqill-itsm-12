@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { visApi } from '@/lib/vis/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, Plus, ArrowRight } from 'lucide-react';
+import { VisPageHeader, VisPageShell, VisSubnav } from '@/components/vis/VisPageShell';
 
 export default function VisIntegrationsList() {
   const [rows, setRows] = useState<any[]>([]);
@@ -20,43 +22,75 @@ export default function VisIntegrationsList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-16 gap-2 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" /> Loading…
-      </div>
+      <VisPageShell>
+        <div className="flex items-center justify-center py-24 gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+        </div>
+      </VisPageShell>
     );
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Integrations</h1>
-        <Button asChild>
-          <Link to="/vis/new">
-            <Plus className="h-4 w-4 mr-2" /> New
-          </Link>
-        </Button>
-      </div>
+    <VisPageShell>
+      <VisPageHeader
+        title="Integrations"
+        description="All integration designs in this studio."
+        actions={
+          <Button asChild>
+            <Link to="/vis/new">
+              <Plus className="h-4 w-4 mr-1.5" />
+              New Integration
+            </Link>
+          </Button>
+        }
+      />
+      <VisSubnav active="integrations" />
       {error && <p className="text-destructive text-sm">{error}</p>}
-      <div className="space-y-2">
-        {rows.length === 0 && (
-          <p className="text-muted-foreground text-sm">No integrations yet.</p>
-        )}
-        {rows.map((r) => (
-          <Link
-            key={r.id}
-            to={`/vis/integrations/${r.id}`}
-            className="flex items-center justify-between border rounded-lg px-4 py-3 hover:bg-muted/40"
-          >
-            <div>
-              <div className="font-medium">{r.name}</div>
-              <div className="text-xs text-muted-foreground line-clamp-1">
-                {r.promptText || r.description || r.id}
-              </div>
+
+      <Card className="border-border/70 shadow-none">
+        <CardContent className="p-0">
+          {rows.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <p className="text-sm text-muted-foreground mb-3">No integrations yet.</p>
+              <Button size="sm" asChild>
+                <Link to="/vis/new">
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Create one
+                </Link>
+              </Button>
             </div>
-            <Badge variant="secondary">{r.status}</Badge>
-          </Link>
-        ))}
-      </div>
-    </div>
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {rows.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    to={`/vis/integrations/${r.id}`}
+                    className="flex items-start gap-4 px-5 py-4 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="font-medium text-sm">{r.name}</div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                        {r.promptText || r.description || r.design?.summary || r.id}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {r.design?.language && (
+                        <Badge variant="secondary" className="font-normal text-[10px]">
+                          {r.design.language}
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="font-normal text-[10px]">
+                        {r.status}
+                      </Badge>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </VisPageShell>
   );
 }
