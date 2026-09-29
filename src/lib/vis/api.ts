@@ -23,8 +23,10 @@ function isNetworkError(message?: string | null): boolean {
     || m.includes('econnrefused')
     || m.includes('request timed out')
     || m.includes('invalid response from server')
+    || m.includes('internal server error')
     // VIS module may not be deployed yet — treat gateway / missing route as unreachable
     || m.includes('request failed (404)')
+    || m.includes('request failed (500)')
     || m.includes('request failed (502)')
     || m.includes('request failed (503)')
     || m.includes('request failed (504)')
@@ -203,6 +205,65 @@ export const visApi = {
     withFallback(
       () => nestVis('/mocks/vulnerabilities?status=Open'),
       () => visClientEngine.mockVulnerabilities(),
+    ),
+
+  /** Seed the Phase-1 ServiceNow demo when the studio is empty. */
+  ensureSampleStudio: () =>
+    withFallback(
+      async () => {
+        const listed = await nestVis<any[]>('/integrations');
+        if (listed.error) return listed;
+        const items = Array.isArray(listed.data) ? listed.data : [];
+        if (items.length > 0) {
+          const dash = await nestVis('/dashboard');
+          if (dash.error) return dash;
+          return {
+            data: {
+              created: false,
+              integration: items[0],
+              dashboard: dash.data,
+              integrations: items,
+            },
+            error: null,
+          };
+        }
+
+        await nestVis('/demo/bootstrap', { method: 'POST', body: {} });
+        const prompt =
+          'Every 15 minutes, sync open ServiceNow vulnerabilities into our internal Vulnerability form. Create or update by external id. Map severity to priority (Critical→1, High→2, Medium→3, Low→4).';
+        const created = await nestVis<any>('/integrations', {
+          method: 'POST',
+          body: {
+            name: 'ServiceNow Vulnerabilities → Internal Form',
+            promptText: prompt,
+            description: 'Phase 1 demo — prompt-first orchestration into an internal form API',
+          },
+        });
+        if (created.error || !created.data?.id) {
+          return { data: null, error: created.error || 'Failed to create sample integration' };
+        }
+        const analyzed = await nestVis(`/integrations/${created.data.id}/analyze`, {
+          method: 'POST',
+          body: { promptText: prompt },
+        });
+        if (analyzed.error) return analyzed;
+        await nestVis(`/integrations/${created.data.id}/validate`, { method: 'POST', body: {} });
+        await nestVis(`/integrations/${created.data.id}/executions`, { method: 'POST', body: {} });
+        const integrations = await nestVis<any[]>('/integrations');
+        const dash = await nestVis('/dashboard');
+        if (integrations.error) return integrations;
+        if (dash.error) return dash;
+        return {
+          data: {
+            created: true,
+            integration: analyzed.data,
+            dashboard: dash.data,
+            integrations: integrations.data,
+          },
+          error: null,
+        };
+      },
+      () => visClientEngine.ensureSampleStudio(),
     ),
 };
 

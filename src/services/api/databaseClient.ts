@@ -29,9 +29,9 @@ type QueryResult = { data: unknown; error: { message: string } | null; count?: n
  * Direct-Supabase fallback.
  * The NestJS API (VITE_API_URL, e.g. http://localhost:3001/api) is not reachable from
  * every environment (published app, preview, machines without the backend running).
- * When a call fails with a network error we permanently switch to talking to
- * Supabase/PostgREST directly so the app keeps working instead of showing
- * "Connection Issue / Failed to fetch".
+ * When a call fails with a network / gateway / server error we permanently switch to
+ * talking to Supabase/PostgREST directly so the app keeps working instead of showing
+ * "Connection Issue / Failed to fetch / Request failed (500)".
  */
 let backendUnavailable = false;
 
@@ -43,7 +43,17 @@ function isNetworkError(error: { message: string } | null): boolean {
     m.includes('network error') ||
     m.includes('load failed') ||
     m.includes('request timed out') ||
-    m.includes('networkerror')
+    m.includes('networkerror') ||
+    m.includes('econnrefused') ||
+    m.includes('invalid response from server') ||
+    m.includes('internal server error') ||
+    // Same-origin /api on published hosts often returns gateway/server errors
+    // instead of a browser network failure — still treat as Nest unavailable.
+    m.includes('request failed (404)') ||
+    m.includes('request failed (500)') ||
+    m.includes('request failed (502)') ||
+    m.includes('request failed (503)') ||
+    m.includes('request failed (504)')
   );
 }
 

@@ -3,7 +3,20 @@ import { Link } from 'react-router-dom';
 import { visApi } from '@/lib/vis/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Plus, Activity, FileText, CheckCircle2, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Plus, Activity, FileText, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+
+async function loadStudio() {
+  const sample = await visApi.ensureSampleStudio();
+  const dashboard = sample?.dashboard || (await visApi.dashboard());
+  const integrations = sample?.integrations || (await visApi.listIntegrations());
+  return {
+    ...dashboard,
+    integrations,
+    sampleIntegrationId: sample?.integration?.id || integrations?.[0]?.id || null,
+    __clientMode: Boolean(dashboard?.__clientMode || sample?.__clientMode),
+  };
+}
 
 export default function VisDashboard() {
   const [data, setData] = useState<any>(null);
@@ -11,10 +24,9 @@ export default function VisDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    visApi
-      .dashboard()
+    loadStudio()
       .then(setData)
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(e.message || 'Failed to load Integration Studio'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -35,10 +47,9 @@ export default function VisDashboard() {
           onClick={() => {
             setError(null);
             setLoading(true);
-            visApi
-              .dashboard()
+            loadStudio()
               .then(setData)
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(e.message || 'Failed to load Integration Studio'))
               .finally(() => setLoading(false));
           }}
         >
@@ -56,6 +67,8 @@ export default function VisDashboard() {
     { label: 'Successful', value: data.successful, icon: CheckCircle2 },
     { label: 'Failed', value: data.failed, icon: XCircle },
   ];
+
+  const integrations = Array.isArray(data.integrations) ? data.integrations : [];
 
   return (
     <div className="p-6 md:p-8 space-y-8 max-w-6xl mx-auto">
@@ -93,11 +106,51 @@ export default function VisDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-2xl font-semibold tabular-nums">{t.value}</div>
+              <div className="text-2xl font-semibold tabular-nums">{t.value ?? 0}</div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle className="text-base">Integrations</CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/vis/integrations">
+              View all <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {integrations.length === 0 && (
+            <p className="text-sm text-muted-foreground">No integrations yet.</p>
+          )}
+          {integrations.map((row: any) => (
+            <Link
+              key={row.id}
+              to={`/vis/integrations/${row.id}`}
+              className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 py-3 px-1 rounded hover:bg-muted/40"
+            >
+              <div className="min-w-0">
+                <div className="font-medium truncate">{row.name}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {row.design?.summary || row.promptText || 'No design yet'}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {row.design?.language && (
+                  <Badge variant="secondary" className="font-normal">
+                    {row.design.language}
+                  </Badge>
+                )}
+                <Badge variant="outline" className="font-normal">
+                  {row.status || 'DRAFT'}
+                </Badge>
+              </div>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
@@ -148,6 +201,11 @@ export default function VisDashboard() {
         <Button variant="outline" asChild>
           <Link to="/vis/executions">Executions</Link>
         </Button>
+        {data.sampleIntegrationId && (
+          <Button asChild>
+            <Link to={`/vis/integrations/${data.sampleIntegrationId}`}>Open demo integration</Link>
+          </Button>
+        )}
       </div>
     </div>
   );

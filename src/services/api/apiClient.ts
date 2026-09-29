@@ -125,7 +125,11 @@ function isNetworkFailure(message?: string | null): boolean {
     m.includes('networkerror') ||
     m.includes('econnrefused') ||
     m.includes('unknown function') ||
+    m.includes('request timed out') ||
+    m.includes('invalid response from server') ||
+    m.includes('internal server error') ||
     m.includes('request failed (404)') ||
+    m.includes('request failed (500)') ||
     m.includes('request failed (502)') ||
     m.includes('request failed (503)') ||
     m.includes('request failed (504)')
