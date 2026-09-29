@@ -326,10 +326,12 @@ export function useCopilotEngine() {
       throw new Error(`You don't have permission to ${perm.action} ${perm.entity} in this project.`);
     }
 
+    const { __reportConfirmed: _confirmed, ...safeParams } = params || {};
+
     const { data, error } = await supabase.functions.invoke('ai-copilot-action', {
       body: {
         action,
-        params,
+        params: safeParams,
         userId: authUser.id,
         projectId: activeProject.id,
         organizationId: activeProject.organization_id,
