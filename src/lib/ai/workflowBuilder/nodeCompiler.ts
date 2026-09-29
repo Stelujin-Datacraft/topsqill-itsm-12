@@ -778,13 +778,22 @@ export function compileWorkflowDefinition(
       level.approvalFieldId,
       level.approvalFieldLabel,
     );
-    const approvedVal = resolveDecisionOptionValue(
+    const resolvedApproved = resolveDecisionOptionValue(
       decisionField || (level.approvalFieldLabel
         ? { id: level.approvalFieldId || '', label: level.approvalFieldLabel, type: 'select' }
         : undefined),
       'approved',
       level.level,
     );
+    // Prefer user-confirmed decision values/operator from the conversational flow
+    const approvedVal = (
+      level.approvedValue !== undefined
+      && level.approvedValue !== null
+      && String(level.approvedValue) !== ''
+    )
+      ? String(level.approvedValue)
+      : resolvedApproved;
+    const decisionOperator = (level.decisionOperator || '==').trim() || '==';
     const fieldType = decisionField?.type || 'select';
     const fieldId = decisionField?.id || level.approvalFieldId || '';
     const fieldLabel = decisionField?.label || level.approvalFieldLabel || '';
@@ -917,13 +926,13 @@ export function compileWorkflowDefinition(
       tempId: conditionId,
       type: 'condition',
       label: `Level ${level.level} Decision`,
-      description: `${fieldLabel || 'Decision'} == ${approvedVal}`,
+      description: `${fieldLabel || 'Decision'} ${decisionOperator} ${approvedVal}`,
       config: {
         formId,
         fieldId,
         fieldLabel,
         fieldType,
-        operator: '==',
+        operator: decisionOperator,
         value: approvedVal,
         enhancedCondition: {
           systemType: 'field_level',
@@ -936,7 +945,7 @@ export function compileWorkflowDefinition(
               fieldId,
               fieldLabel,
               fieldType,
-              operator: '==',
+              operator: decisionOperator,
               value: approvedVal,
             },
           }],

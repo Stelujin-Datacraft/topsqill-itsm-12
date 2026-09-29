@@ -37,11 +37,11 @@ import {
   type OrgUserChoice,
 } from './metadataDiscovery';
 import { describeActionType, inferActionTypeFromPrompt } from './actionTypeInferrer';
-import { isOptionBasedFieldType } from '@/utils/conditionOperators';
+import { getOperatorsForFieldType, isOptionBasedFieldType } from '@/utils/conditionOperators';
 import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint, inferCombinationModeFromPrompt, inferNotificationChannelFromPrompt } from './promptHints';
 import type { ExistingWorkflowGraphSummary, WorkflowApplyMode } from './analyzeExistingWorkflow';
 import { matchFormFieldByHint } from '@/lib/ai/inferWorkflowIntent';
-import { sanitizeConditionValueHint } from './decisionOptionResolver';
+import { sanitizeConditionValueHint, hasExistingDecisionOption, findExistingDecisionOption } from './decisionOptionResolver';
 import {
   areTypesCompatible,
   filterCompatibleFields,
@@ -72,7 +72,12 @@ function levelConfigured(level: WorkflowLevelSpec): boolean {
   );
   // Explicit rejection field (including "same as approval") — never implied
   const hasRejectionField = Boolean(level.rejectionFieldId || level.rejectionFieldLabel);
-  return hasApprover && hasApprovalField && hasRejectionField && Boolean(level.onRejection);
+  const hasDecisionValues = Boolean(
+    level.pendingDecisionFieldCreate
+    || level.decisionValuesConfirmed
+    || (level.approvedValue !== undefined && level.approvedValue !== null && String(level.approvedValue) !== ''),
+  );
+  return hasApprover && hasApprovalField && hasRejectionField && hasDecisionValues && Boolean(level.onRejection);
 }
 
 function mergeUnansweredFirst(items: MissingRequirement[]): MissingRequirement[] {
@@ -413,6 +418,7 @@ function planGenericActionRequirements(
         fieldId: '__keep_existing__',
         fieldLabel: 'Keep existing condition',
         operator: '==',
+        operatorConfirmed: true,
         value: true,
         resolved: true,
         pendingOptionCreate: false,
@@ -420,6 +426,7 @@ function planGenericActionRequirements(
       condition = definition.conditions[0];
     } else if (condition) {
       condition.resolved = true;
+      condition.operatorConfirmed = true;
     }
   }
 
@@ -444,7 +451,7 @@ function planGenericActionRequirements(
   // Combination: Condition is configured on the Condition node in the designer.
   // Do not ask for condition field/value during AI Suggest — leave empty for later.
   if (!isCombination && !skipConditionQuestions) {
-    // Auto-bind condition field (+ value) from prompt hints before asking
+    // Auto-bind condition field from prompt hints before asking (value still asked)
     if (!condition?.fieldId && !condition?.fieldLabel && hints.conditionFieldHint && hydratedForm) {
       const matched = searchFields(hydratedForm, hints.conditionFieldHint).matched
         || matchFormFieldByHint(
@@ -460,9 +467,8 @@ function planGenericActionRequirements(
           fieldLabel: matchedFull.label,
           fieldType: matchedFull.type,
           operator: '==',
-          value: hints.conditionValueHint
-            ? sanitizeConditionValueHint(hints.conditionValueHint)
-            : '',
+          operatorConfirmed: false,
+          value: '',
           resolved: true,
           pendingOptionLabel: hints.conditionValueHint
             ? sanitizeConditionValueHint(hints.conditionValueHint)
@@ -498,8 +504,35 @@ function planGenericActionRequirements(
         && f.label.toLowerCase() === String(condition.fieldLabel).toLowerCase()),
     );
 
+    // Logical operator — always confirm (never silently assume ==)
+    if (condition && !condition.operatorConfirmed) {
+      const opChoices = getOperatorsForFieldType(condField?.type || condition.fieldType || 'text')
+        .map((o) => ({ value: o.value, label: `${o.label} (${o.value})` }));
+      push(req({
+        id: 'condition.operator',
+        scope: 'condition',
+        key: 'condition_operator',
+        question: [
+          `How should **${condField?.label || condition.fieldLabel}** be compared?`,
+          '',
+          'Pick a logical operator (for example **equals**).',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: opChoices.length
+          ? opChoices
+          : [
+              { value: '==', label: 'Equals (==)' },
+              { value: '!=', label: 'Not equals (!=)' },
+              { value: 'contains', label: 'Contains' },
+            ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
     // Auto-fill condition value from prompt when still empty
-    if (
+    // Do NOT silently assign — only seed a pending label for the ask below.
+    // (Previously auto-filling skipped the value question entirely.)
+    const hintedConditionValue = (
       condition
       && (condition.value === undefined || condition.value === null || condition.value === '')
       && !condition.compareFieldId
@@ -509,12 +542,9 @@ function planGenericActionRequirements(
         || fieldMatchesHint(condField, hints.conditionFieldHint)
         || fieldMatchesHint({ label: condition.fieldLabel }, hints.conditionFieldHint)
       )
-    ) {
-      condition.valueKind = condition.valueKind || 'static';
-      condition.value = sanitizeConditionValueHint(hints.conditionValueHint);
-      condition.pendingOptionLabel = sanitizeConditionValueHint(hints.conditionValueHint);
-      condition.pendingOptionCreate = false;
-    }
+    )
+      ? sanitizeConditionValueHint(hints.conditionValueHint)
+      : '';
 
     // Static vs map for condition comparison value
     if (
@@ -528,11 +558,14 @@ function planGenericActionRequirements(
         scope: 'condition',
         key: 'condition_value_kind',
         question: [
-          `How should **${condField?.label || condition.fieldLabel}** be compared?`,
+          `How should the comparison value for **${condField?.label || condition.fieldLabel}** be set?`,
           '',
           '- **Static value** — type or pick a fixed value',
           '- **Map from form field** — compare against another field on the same submission',
-        ].join('\n'),
+          hintedConditionValue
+            ? `\n_(Your prompt suggested: **${hintedConditionValue}** — confirm or change after picking Static.)_`
+            : '',
+        ].filter(Boolean).join('\n'),
         inputKind: 'choice',
         options: [
           { value: '__static_value__', label: 'Static value' },
@@ -562,12 +595,18 @@ function planGenericActionRequirements(
       && (condition.value === undefined || condition.value === null || condition.value === '')
     ) {
       const opts = fieldOptionChoices(condField);
+      const hintLine = hintedConditionValue
+        ? `\n_(Suggested from your prompt: **${hintedConditionValue}** — pick it or type another.)_`
+        : '';
       if (opts.length) {
         push(req({
           id: 'condition.value',
           scope: 'condition',
           key: 'condition_value',
-          question: `What **value** of **${condField?.label || condition.fieldLabel}** should trigger the action?`,
+          question: [
+            `What **value** of **${condField?.label || condition.fieldLabel}** should trigger the action?`,
+            hintLine,
+          ].filter(Boolean).join('\n'),
           inputKind: 'choice',
           options: opts,
         }));
@@ -576,7 +615,10 @@ function planGenericActionRequirements(
           id: 'condition.value',
           scope: 'condition',
           key: 'condition_value',
-          question: `What **value** should **${condField?.label || condition.fieldLabel}** equal to run the action?`,
+          question: [
+            `What **value** should **${condField?.label || condition.fieldLabel}** ${condition.operator || 'equal'} to run the action?`,
+            hintLine,
+          ].filter(Boolean).join('\n'),
           inputKind: 'text',
         }));
       }
@@ -2267,7 +2309,166 @@ function planApprovalRequirements(
       level.rejectionFieldLabel = level.approvalFieldLabel || 'Same as approval field';
     }
 
+    // Decision values + operator (skip when creating Level N Status or field already has A/R)
+    const decisionField = hydratedForm?.fields.find((f) =>
+      f.id === level.approvalFieldId
+      || (level.approvalFieldLabel
+        && f.label.toLowerCase() === String(level.approvalFieldLabel).toLowerCase()),
+    );
+
+    if (
+      !level.pendingDecisionFieldCreate
+      && !level.decisionValuesConfirmed
+      && !(
+        hasExistingDecisionOption(decisionField, 'approved', level.level)
+        && hasExistingDecisionOption(decisionField, 'rejected', level.level)
+      )
+    ) {
+      // Auto-bind known synonyms when present, then only ask what's missing
+      if (
+        (level.approvedValue === undefined || level.approvedValue === null || String(level.approvedValue) === '')
+        && hasExistingDecisionOption(decisionField, 'approved', level.level)
+      ) {
+        const opt = findExistingDecisionOption(decisionField, 'approved', level.level);
+        if (opt) level.approvedValue = String(opt.value);
+      }
+      if (
+        (level.rejectedValue === undefined || level.rejectedValue === null || String(level.rejectedValue) === '')
+        && hasExistingDecisionOption(decisionField, 'rejected', level.level)
+      ) {
+        const opt = findExistingDecisionOption(decisionField, 'rejected', level.level);
+        if (opt) level.rejectedValue = String(opt.value);
+      }
+
+      if (!level.decisionOperator) {
+        const fieldLabel = decisionField?.label || level.approvalFieldLabel || 'decision field';
+        push(req({
+          id: `level.${level.level}.decision_operator`,
+          scope: 'level',
+          level: level.level,
+          key: 'decision_operator',
+          question: [
+            `*Level ${level.level}* — How should **${fieldLabel}** be compared for an approval decision?`,
+            '',
+            'Usually **equals (==)** — the approver sets the field to the Approved value.',
+          ].join('\n'),
+          inputKind: 'choice',
+          options: [
+            { value: '==', label: 'Equals (==) — recommended' },
+            { value: '!=', label: 'Not equals (!=)' },
+            { value: 'contains', label: 'Contains' },
+          ],
+        }));
+        return mergeUnansweredFirst(out);
+      }
+
+      if (level.approvedValue === undefined || level.approvedValue === null || String(level.approvedValue) === '') {
+        const fieldLabel = decisionField?.label || level.approvalFieldLabel || 'decision field';
+        const opts = fieldOptionChoices(decisionField);
+        if (opts.length) {
+          push(req({
+            id: `level.${level.level}.decision_approved_value`,
+            scope: 'level',
+            level: level.level,
+            key: 'decision_approved_value',
+            question: [
+              `*Level ${level.level}* — Which **value** of **${fieldLabel}** means **Approved**?`,
+              '',
+              'The workflow continues to the next level (or completes) when this value is set.',
+            ].join('\n'),
+            inputKind: 'choice',
+            options: opts,
+          }));
+        } else {
+          push(req({
+            id: `level.${level.level}.decision_approved_value`,
+            scope: 'level',
+            level: level.level,
+            key: 'decision_approved_value',
+            question: [
+              `*Level ${level.level}* — **${fieldLabel}** has no dropdown options.`,
+              '',
+              'What **value** should mean **Approved**? (Type the exact text the approver will enter or set.)',
+            ].join('\n'),
+            inputKind: 'text',
+          }));
+        }
+        return mergeUnansweredFirst(out);
+      }
+
+      if (level.rejectedValue === undefined || level.rejectedValue === null || String(level.rejectedValue) === '') {
+        const fieldLabel = decisionField?.label || level.approvalFieldLabel || 'decision field';
+        const opts = fieldOptionChoices(decisionField).filter((o) =>
+          String(o.value) !== String(level.approvedValue)
+          && String(o.label).toLowerCase() !== String(level.approvedValue).toLowerCase(),
+        );
+        if (opts.length) {
+          push(req({
+            id: `level.${level.level}.decision_rejected_value`,
+            scope: 'level',
+            level: level.level,
+            key: 'decision_rejected_value',
+            question: [
+              `*Level ${level.level}* — Which **value** of **${fieldLabel}** means **Rejected**?`,
+              '',
+              `Approved is **${level.approvedValue}**. Reject routing runs when the field is not that approved value.`,
+            ].join('\n'),
+            inputKind: 'choice',
+            options: opts,
+          }));
+        } else {
+          push(req({
+            id: `level.${level.level}.decision_rejected_value`,
+            scope: 'level',
+            level: level.level,
+            key: 'decision_rejected_value',
+            question: [
+              `*Level ${level.level}* — What **value** of **${fieldLabel}** means **Rejected**?`,
+              '',
+              `Approved is **${level.approvedValue}**.`,
+            ].join('\n'),
+            inputKind: 'text',
+          }));
+        }
+        return mergeUnansweredFirst(out);
+      }
+
+      level.decisionValuesConfirmed = true;
+    } else if (
+      !level.decisionValuesConfirmed
+      && (
+        level.pendingDecisionFieldCreate
+        || (
+          hasExistingDecisionOption(decisionField, 'approved', level.level)
+          && hasExistingDecisionOption(decisionField, 'rejected', level.level)
+        )
+      )
+    ) {
+      // Known Status / Level N Status path — bind synonyms and continue
+      if (!level.decisionOperator) level.decisionOperator = '==';
+      if (
+        (level.approvedValue === undefined || level.approvedValue === null || String(level.approvedValue) === '')
+        && !level.pendingDecisionFieldCreate
+      ) {
+        const opt = findExistingDecisionOption(decisionField, 'approved', level.level);
+        if (opt) level.approvedValue = String(opt.value);
+      }
+      if (
+        (level.rejectedValue === undefined || level.rejectedValue === null || String(level.rejectedValue) === '')
+        && !level.pendingDecisionFieldCreate
+      ) {
+        const opt = findExistingDecisionOption(decisionField, 'rejected', level.level);
+        if (opt) level.rejectedValue = String(opt.value);
+      }
+      if (level.pendingDecisionFieldCreate) {
+        level.approvedValue = level.approvedValue || 'Approved';
+        level.rejectedValue = level.rejectedValue || 'Rejected';
+      }
+      level.decisionValuesConfirmed = true;
+    }
+
     if (!level.onRejection) {
+      const approvedLabel = level.approvedValue || 'Approved';
       const loopBackLevels = definition.levels.map((l) => {
         const base = approverLoopLabel(l);
         if (l.level === level.level) {
@@ -2287,7 +2488,7 @@ function planApprovalRequirements(
         level: level.level,
         key: 'rejection_route',
         question: [
-          `*Level ${level.level}* — If **Approver ${level.level} rejects** (decision field is not Approved), where should the workflow go?`,
+          `*Level ${level.level}* — If **Approver ${level.level} rejects** (decision field is not **${approvedLabel}**), where should the workflow go?`,
           '',
           'You can loop back to Approver 1, Approver 2, retry this level, return to the requester, or end.',
           hint,
@@ -2586,9 +2787,24 @@ export function applyAnswerToDefinition(
       fieldLabel: field?.label || value,
       fieldType: field?.type,
       operator: '==',
+      operatorConfirmed: false,
       value: '',
       resolved: Boolean(field),
     }];
+    return next;
+  }
+
+  if (requirement.key === 'condition_operator') {
+    const cond = next.conditions[0];
+    if (cond) {
+      const fromOpt = requirement.options?.find((o) =>
+        o.value === value
+        || o.label.toLowerCase() === value.toLowerCase()
+        || o.label.toLowerCase().includes(value.toLowerCase()),
+      );
+      cond.operator = (fromOpt?.value || value || '==').trim() || '==';
+      cond.operatorConfirmed = true;
+    }
     return next;
   }
 
@@ -3533,6 +3749,10 @@ export function applyAnswerToDefinition(
         level.approvalFieldId = undefined;
         level.approvalFieldLabel = undefined;
         level.pendingDecisionFieldCreate = false;
+        level.approvedValue = undefined;
+        level.rejectedValue = undefined;
+        level.decisionOperator = undefined;
+        level.decisionValuesConfirmed = false;
       } else if (
         value === '__create_level_status__'
         || value === '__create__'
@@ -3546,12 +3766,21 @@ export function applyAnswerToDefinition(
         level.pendingDecisionFieldCreate = true;
         level.rejectionFieldId = undefined;
         level.rejectionFieldLabel = level.approvalFieldLabel;
+        // Level N Status uses Pending / Approved / Rejected — bind later in planner
+        level.approvedValue = undefined;
+        level.rejectedValue = undefined;
+        level.decisionOperator = undefined;
+        level.decisionValuesConfirmed = false;
       } else {
         const field = form?.fields.find((f) => f.id === value);
         if (field && !isDecisionCompatibleFieldType(field.type)) {
           level.approvalFieldId = undefined;
           level.approvalFieldLabel = undefined;
           level.pendingDecisionFieldCreate = false;
+          level.approvedValue = undefined;
+          level.rejectedValue = undefined;
+          level.decisionOperator = undefined;
+          level.decisionValuesConfirmed = false;
         } else if (field) {
           level.approvalFieldId = value;
           level.approvalFieldLabel = field.label;
@@ -3559,7 +3788,77 @@ export function applyAnswerToDefinition(
           // Reject uses the same decision field (Approved / Rejected values)
           level.rejectionFieldId = value;
           level.rejectionFieldLabel = field.label;
+          // Always re-ask operator/values when the decision field changes
+          level.approvedValue = undefined;
+          level.rejectedValue = undefined;
+          level.decisionOperator = undefined;
+          level.decisionValuesConfirmed = false;
         }
+      }
+    }
+
+    if (requirement.key === 'decision_operator') {
+      const fromOpt = requirement.options?.find((o) =>
+        o.value === value
+        || o.label.toLowerCase() === value.toLowerCase()
+        || o.label.toLowerCase().includes(value.toLowerCase()),
+      );
+      const op = (fromOpt?.value || value || '==').trim();
+      level.decisionOperator = op || '==';
+      level.decisionValuesConfirmed = false;
+    }
+
+    if (requirement.key === 'decision_approved_value') {
+      const field = form?.fields.find((f) =>
+        f.id === level.approvalFieldId
+        || (level.approvalFieldLabel
+          && f.label.toLowerCase() === String(level.approvalFieldLabel).toLowerCase()),
+      );
+      const fromOpt = requirement.options?.find((o) =>
+        o.value === value
+        || o.label.toLowerCase() === value.toLowerCase()
+        || o.label.toLowerCase().includes(value.toLowerCase()),
+      );
+      let resolved = fromOpt?.value || value;
+      if (field && fieldHasOption(field, resolved)) {
+        resolved = String(resolveFieldOptionValue(field, resolved));
+      }
+      level.approvedValue = String(resolved || '').trim();
+      level.decisionValuesConfirmed = false;
+      // Changing approved may invalidate a same rejected pick
+      if (
+        level.rejectedValue !== undefined
+        && String(level.rejectedValue).toLowerCase() === String(level.approvedValue).toLowerCase()
+      ) {
+        level.rejectedValue = undefined;
+      }
+    }
+
+    if (requirement.key === 'decision_rejected_value') {
+      const field = form?.fields.find((f) =>
+        f.id === level.approvalFieldId
+        || (level.approvalFieldLabel
+          && f.label.toLowerCase() === String(level.approvalFieldLabel).toLowerCase()),
+      );
+      const fromOpt = requirement.options?.find((o) =>
+        o.value === value
+        || o.label.toLowerCase() === value.toLowerCase()
+        || o.label.toLowerCase().includes(value.toLowerCase()),
+      );
+      let resolved = fromOpt?.value || value;
+      if (field && fieldHasOption(field, resolved)) {
+        resolved = String(resolveFieldOptionValue(field, resolved));
+      }
+      level.rejectedValue = String(resolved || '').trim();
+      // Operator + both values are now set → planner can confirm
+      if (
+        level.decisionOperator
+        && level.approvedValue !== undefined
+        && level.approvedValue !== null
+        && String(level.approvedValue) !== ''
+        && level.rejectedValue !== ''
+      ) {
+        level.decisionValuesConfirmed = true;
       }
     }
 
