@@ -5,11 +5,13 @@ import { ItamDiscoveryService } from './discovery/discovery.service';
 import { ItamDiscoveryController } from './discovery/discovery.controller';
 import { ItamCloudService } from './cloud/cloud.service';
 import { ItamCloudController } from './cloud/cloud.controller';
+import { ItamFormSyncService } from './sync/sync.service';
+import { ItamFormSyncController } from './sync/sync.controller';
 
 @Module({
-  providers: [ItamService, ItamDiscoveryService, ItamCloudService],
-  controllers: [ItamController, ItamDiscoveryController, ItamCloudController],
-  exports: [ItamService, ItamDiscoveryService, ItamCloudService],
+  providers: [ItamService, ItamDiscoveryService, ItamCloudService, ItamFormSyncService],
+  controllers: [ItamController, ItamDiscoveryController, ItamCloudController, ItamFormSyncController],
+  exports: [ItamService, ItamDiscoveryService, ItamCloudService, ItamFormSyncService],
 })
 export class ItamModule implements OnModuleInit {
   private readonly logger = new Logger(ItamModule.name);
@@ -17,6 +19,7 @@ export class ItamModule implements OnModuleInit {
   constructor(
     private readonly discovery: ItamDiscoveryService,
     private readonly cloud: ItamCloudService,
+    private readonly sync: ItamFormSyncService,
   ) {}
 
   async onModuleInit() {
@@ -31,19 +34,20 @@ export class ItamModule implements OnModuleInit {
           applySchema: process.env.ITAM_DISCOVERY_APPLY_SCHEMA !== '0',
         });
         this.cloud.refreshStore();
-        this.logger.log(`ITAM discovery persistence: ${this.discovery.persistenceMode()} (phases B–D enabled)`);
+        this.sync.refreshStore();
+        this.logger.log(`ITAM persistence: ${this.discovery.persistenceMode()} (A–D + form-sync)`);
       } catch (e: any) {
-        if (process.env.NODE_ENV === 'production') {
-          throw e;
-        }
-        this.logger.warn(`ITAM discovery postgres init failed — falling back to memory: ${e?.message || e}`);
+        if (process.env.NODE_ENV === 'production') throw e;
+        this.logger.warn(`ITAM postgres init failed — memory: ${e?.message || e}`);
         await this.discovery.initializePersistence({ mode: 'memory' });
         this.cloud.refreshStore();
+        this.sync.refreshStore();
       }
     } else {
       await this.discovery.initializePersistence({ mode: 'memory' });
       this.cloud.refreshStore();
-      this.logger.log('ITAM discovery persistence: memory (set ITAM_DISCOVERY_DATABASE_URL for postgres)');
+      this.sync.refreshStore();
+      this.logger.log('ITAM persistence: memory');
     }
   }
 }

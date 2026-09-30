@@ -1,0 +1,294 @@
+{
+  "startedAt": "2026-09-30T06:21:10.602Z",
+  "tests": {
+    "seed_discovery": {
+      "status": "PASS"
+    },
+    "target_config": {
+      "status": "PASS"
+    },
+    "schema_discovery": {
+      "status": "PASS",
+      "detail": {
+        "fields": [
+          "device_name",
+          "primary_ip",
+          "mac_address",
+          "serial_number",
+          "machine_guid",
+          "operating_system",
+          "os_version",
+          "manufacturer",
+          "model",
+          "asset_type",
+          "external_id",
+          "cloud_instance_id",
+          "environment"
+        ],
+        "version": "5350091c3e67d313"
+      }
+    },
+    "mapping_preview": {
+      "status": "PASS",
+      "detail": {
+        "mappings": [
+          "primaryIp→primary_ip",
+          "macAddress→mac_address",
+          "serialNumber→serial_number",
+          "machineGuid→machine_guid",
+          "cloudInstanceId→cloud_instance_id",
+          "externalId→external_id",
+          "manufacturer→manufacturer",
+          "model→model",
+          "assetType→asset_type",
+          "environment→environment",
+          "operatingSystem→operating_system",
+          "osVersion→os_version",
+          "hostname→device_name"
+        ]
+      }
+    },
+    "mapping_approve": {
+      "status": "PASS"
+    },
+    "dry_run": {
+      "status": "PASS",
+      "detail": {
+        "items": [
+          {
+            "op": "WOULD_CREATE",
+            "status": "DRY_RUN"
+          }
+        ],
+        "writes": 0
+      }
+    },
+    "execute_create": {
+      "status": "PASS",
+      "detail": {
+        "recordId": "c955d3a6-88cd-4cbc-9e5f-1243e62062dd",
+        "payload": {
+          "primary_ip": "10.50.0.1",
+          "mac_address": "aa:bb:cc:50:00:01",
+          "serial_number": "ABC123",
+          "machine_guid": "GUID-SERVER-01",
+          "external_id": "GUID-SERVER-01",
+          "manufacturer": "Dell",
+          "model": "R740",
+          "asset_type": "server",
+          "device_name": "server-01"
+        },
+        "example": "CREATE"
+      }
+    },
+    "idempotent_no_change": {
+      "status": "PASS",
+      "detail": {
+        "records": 1,
+        "example": "NO_CHANGE"
+      }
+    },
+    "execute_update": {
+      "status": "PASS",
+      "detail": {
+        "changed": [
+          "manufacturer"
+        ],
+        "example": "UPDATE"
+      }
+    },
+    "ip_change_no_duplicate": {
+      "status": "PASS",
+      "detail": {
+        "ip": "10.50.0.2",
+        "recordId": "c955d3a6-88cd-4cbc-9e5f-1243e62062dd"
+      }
+    },
+    "schema_evolution": {
+      "status": "PASS",
+      "detail": {
+        "oldVersion": "5350091c3e67d313",
+        "newVersion": "cf73c769bc1cfaf3",
+        "fields": [
+          "asset_name",
+          "primary_ip",
+          "mac_address",
+          "serial_number",
+          "machine_guid",
+          "operating_system",
+          "os_version",
+          "manufacturer",
+          "model",
+          "asset_type",
+          "external_id",
+          "cloud_instance_id",
+          "environment"
+        ],
+        "remapped": [
+          "primaryIp→primary_ip",
+          "macAddress→mac_address",
+          "serialNumber→serial_number",
+          "machineGuid→machine_guid",
+          "cloudInstanceId→cloud_instance_id",
+          "externalId→external_id",
+          "manufacturer→manufacturer",
+          "model→model",
+          "assetType→asset_type",
+          "environment→environment",
+          "operatingSystem→operating_system",
+          "osVersion→os_version",
+          "hostname→asset_name"
+        ]
+      }
+    },
+    "stale_mapping_blocked": {
+      "status": "PASS",
+      "detail": {
+        "error": "Mapping must be APPROVED before execute"
+      }
+    },
+    "schema_change_resync": {
+      "status": "PASS",
+      "detail": {
+        "status": "COMPLETED",
+        "items": [
+          "UPDATE"
+        ]
+      }
+    },
+    "provenance_history": {
+      "status": "PASS",
+      "detail": {
+        "history": 5,
+        "provenance": 36
+      }
+    },
+    "tenant_isolation": {
+      "status": "PASS"
+    },
+    "secrets_hygiene": {
+      "status": "PASS"
+    },
+    "metrics": {
+      "status": "PASS",
+      "detail": {
+        "sync_success_total": 4,
+        "sync_failure_total": 0,
+        "sync_create_total": 1,
+        "sync_update_total": 3,
+        "sync_no_change_total": 1,
+        "sync_validation_failure_total": 0,
+        "sync_ambiguous_total": 0,
+        "sync_api_error_total": 0,
+        "sync_runs_total": 6
+      }
+    },
+    "validation_engine": {
+      "status": "PASS",
+      "detail": {
+        "note": "validateAgainstSchema covered via successful payloads"
+      }
+    },
+    "real_environment_e2e": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — REAL ENVIRONMENT CREDENTIALS/ENDPOINT REQUIRED (set ITAM_SYNC_REAL=1 + ITAM_SYNC_BASE_URL)"
+      }
+    }
+  },
+  "classification": "PARTIALLY VALIDATED",
+  "examples": {
+    "CREATE": {
+      "externalId": "GUID-SERVER-01",
+      "operation": "CREATE",
+      "status": "SUCCESS",
+      "targetRecordId": "c955d3a6-88cd-4cbc-9e5f-1243e62062dd",
+      "mappedPayload": {
+        "primary_ip": "10.50.0.1",
+        "mac_address": "aa:bb:cc:50:00:01",
+        "serial_number": "ABC123",
+        "machine_guid": "GUID-SERVER-01",
+        "external_id": "GUID-SERVER-01",
+        "manufacturer": "Dell",
+        "model": "R740",
+        "asset_type": "server",
+        "device_name": "server-01"
+      },
+      "changedFields": [
+        "primary_ip",
+        "mac_address",
+        "serial_number",
+        "machine_guid",
+        "external_id",
+        "manufacturer",
+        "model",
+        "asset_type",
+        "device_name"
+      ],
+      "provenance": {
+        "idempotencyKey": "55555555-5555-5555-5555-555555555555::form-itam-asset::GUID-SERVER-01::v1"
+      }
+    },
+    "NO_CHANGE": {
+      "externalId": "GUID-SERVER-01",
+      "operation": "NO_CHANGE",
+      "status": "NO_CHANGE",
+      "targetRecordId": "c955d3a6-88cd-4cbc-9e5f-1243e62062dd",
+      "mappedPayload": {
+        "primary_ip": "10.50.0.1",
+        "mac_address": "aa:bb:cc:50:00:01",
+        "serial_number": "ABC123",
+        "machine_guid": "GUID-SERVER-01",
+        "external_id": "GUID-SERVER-01",
+        "manufacturer": "Dell",
+        "model": "R740",
+        "asset_type": "server",
+        "device_name": "server-01"
+      },
+      "changedFields": []
+    },
+    "UPDATE": {
+      "externalId": "GUID-SERVER-01",
+      "operation": "UPDATE",
+      "status": "SUCCESS",
+      "targetRecordId": "c955d3a6-88cd-4cbc-9e5f-1243e62062dd",
+      "mappedPayload": {
+        "primary_ip": "10.50.0.1",
+        "mac_address": "aa:bb:cc:50:00:01",
+        "serial_number": "ABC123",
+        "machine_guid": "GUID-SERVER-01",
+        "external_id": "GUID-SERVER-01",
+        "manufacturer": "Dell Inc",
+        "model": "R740",
+        "asset_type": "server",
+        "device_name": "server-01"
+      },
+      "changedFields": [
+        "manufacturer"
+      ]
+    },
+    "IP_CHANGE_NO_DUPLICATE": {
+      "recordId": "c955d3a6-88cd-4cbc-9e5f-1243e62062dd",
+      "ip": "10.50.0.2"
+    },
+    "SCHEMA_CHANGE": {
+      "oldVersion": "5350091c3e67d313",
+      "newFields": [
+        "asset_name",
+        "primary_ip",
+        "mac_address",
+        "serial_number",
+        "machine_guid",
+        "operating_system",
+        "os_version",
+        "manufacturer",
+        "model",
+        "asset_type",
+        "external_id",
+        "cloud_instance_id",
+        "environment"
+      ]
+    }
+  },
+  "finishedAt": "2026-09-30T06:21:10.630Z"
+}

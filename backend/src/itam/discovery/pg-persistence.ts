@@ -50,14 +50,20 @@ export async function applyDiscoverySchema(client?: PoolClient | Pool): Promise<
   const db = client || getDiscoveryPool();
   const basePath = resolve(__dirname, 'sql/itam_discovery_pg.sql');
   const extPath = resolve(__dirname, 'sql/itam_phases_b_d.sql');
+  const syncPath = resolve(__dirname, 'sql/itam_form_sync.sql');
   await db.query(readFileSync(basePath, 'utf8'));
   try {
     await db.query(readFileSync(extPath, 'utf8'));
   } catch (e: any) {
-    // Enum ADD VALUE cannot run in a transaction block on some PG versions — retry statements softly
     if (!/already exists|duplicate/i.test(String(e?.message || e))) {
-      // Still attempt file; ignore IF NOT EXISTS noise
       console.warn('ITAM phases B-D schema apply warning:', e?.message || e);
+    }
+  }
+  try {
+    await db.query(readFileSync(syncPath, 'utf8'));
+  } catch (e: any) {
+    if (!/already exists|duplicate/i.test(String(e?.message || e))) {
+      console.warn('ITAM form-sync schema apply warning:', e?.message || e);
     }
   }
 }

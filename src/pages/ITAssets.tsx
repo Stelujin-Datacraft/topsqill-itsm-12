@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Monitor, Cpu, Download, History, BarChart3, ShieldCheck, FileText, Radar, Cloud, Radio, Network } from 'lucide-react';
+import { Monitor, Cpu, Download, History, BarChart3, ShieldCheck, FileText, Radar, Cloud, Radio, Network, Link2 } from 'lucide-react';
 import { AssetDashboard } from '@/components/itam/AssetDashboard';
 import { AssetList } from '@/components/itam/AssetList';
 import { AgentManagement } from '@/components/itam/AgentManagement';
@@ -11,6 +11,7 @@ import { AssetExport } from '@/components/itam/AssetExport';
 import { NetworkDiscoveryPanel } from '@/components/itam/NetworkDiscoveryPanel';
 import { CloudDiscoveryPanel } from '@/components/itam/CloudDiscoveryPanel';
 import { NetworkIntelligencePanel, TopologyPanel } from '@/components/itam/NetworkIntelligencePanel';
+import { FormSyncPanel } from '@/components/itam/FormSyncPanel';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const ITAssets = () => {
@@ -55,6 +56,10 @@ const ITAssets = () => {
               <Network className="icon-md shrink-0" />
               Topology
             </TabsTrigger>
+            <TabsTrigger value="form-sync" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Link2 className="icon-md shrink-0" />
+              Form Sync
+            </TabsTrigger>
             <TabsTrigger value="software" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Cpu className="icon-md shrink-0" />
               Software
@@ -84,6 +89,7 @@ const ITAssets = () => {
         <TabsContent value="cloud"><CloudDiscoveryPanel /></TabsContent>
         <TabsContent value="intelligence"><NetworkIntelligencePanel /></TabsContent>
         <TabsContent value="topology"><TopologyPanel /></TabsContent>
+        <TabsContent value="form-sync"><FormSyncPanel /></TabsContent>
         <TabsContent value="software"><SoftwareInventory /></TabsContent>
         <TabsContent value="warranty"><WarrantyLicenseTracker /></TabsContent>
         <TabsContent value="agents"><AgentManagement /></TabsContent>

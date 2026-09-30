@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-30T06:09:58.256Z",
+  "startedAt": "2026-09-30T06:21:14.771Z",
   "tests": {
     "phase_a_regression": {
       "status": "PASS",
@@ -18,9 +18,9 @@
         "assetsCreated": 0,
         "assetsUpdated": 1,
         "job": {
-          "id": "5d0f045d-deea-4340-8c1a-614deaa3bc8e",
+          "id": "7bdb877d-7dde-476f-91b1-6324c51a4f2a",
           "organizationId": "33333333-3333-3333-3333-333333333333",
-          "providerId": "f520c176-983d-4072-adc8-9502f1c1510c",
+          "providerId": "466b00d6-b9cc-43d8-95ac-8962ca85dd64",
           "name": "aws-discover",
           "status": "COMPLETED",
           "schedule": "ON_DEMAND",
@@ -37,9 +37,9 @@
             "assetsUpdated": 1
           },
           "createdBy": "admin-bd",
-          "createdAt": "2026-09-30T06:09:58.378Z",
-          "updatedAt": "2026-09-30T06:09:58.379Z",
-          "lastRunAt": "2026-09-30T06:09:58.379Z"
+          "createdAt": "2026-09-30T06:21:14.796Z",
+          "updatedAt": "2026-09-30T06:21:14.797Z",
+          "lastRunAt": "2026-09-30T06:21:14.797Z"
         }
       }
     },
@@ -58,9 +58,9 @@
         "assetsCreated": 0,
         "assetsUpdated": 0,
         "job": {
-          "id": "e8004701-e7c0-4b1a-8bd6-6d1189606a6f",
+          "id": "69826f88-7450-4bb7-9683-393a1ec9e64b",
           "organizationId": "33333333-3333-3333-3333-333333333333",
-          "providerId": "f520c176-983d-4072-adc8-9502f1c1510c",
+          "providerId": "466b00d6-b9cc-43d8-95ac-8962ca85dd64",
           "name": "aws-auth-fail",
           "status": "FAILED",
           "schedule": "ON_DEMAND",
@@ -68,8 +68,8 @@
           "progress": {},
           "metrics": {},
           "createdBy": "admin-bd",
-          "createdAt": "2026-09-30T06:09:58.428Z",
-          "updatedAt": "2026-09-30T06:09:58.428Z",
+          "createdAt": "2026-09-30T06:21:14.797Z",
+          "updatedAt": "2026-09-30T06:21:14.797Z",
           "lastError": "AWS authentication failed"
         }
       }
@@ -216,9 +216,7 @@
     "phases_bd_persistence": {
       "status": "PASS",
       "detail": {
-        "cloudResources": 6,
-        "observations": 5,
-        "topoNodes": 16
+        "note": "memory mode — set ITAM_DISCOVERY_DATABASE_URL for PG verify"
       }
     },
     "e2e_synthetic_enterprise": {
@@ -326,5 +324,5 @@
     "correlation_success_total": 4,
     "discovery_errors_total": 1
   },
-  "finishedAt": "2026-09-30T06:09:58.746Z"
+  "finishedAt": "2026-09-30T06:21:14.812Z"
 }

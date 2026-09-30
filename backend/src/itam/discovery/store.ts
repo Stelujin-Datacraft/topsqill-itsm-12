@@ -166,6 +166,15 @@ export class DiscoveryStore {
   topologyEdges: any[] = [];
   topologyHistory: any[] = [];
 
+  // Form sync metadata (NOT a second asset SoR)
+  syncTargets: any[] = [];
+  syncMappings: any[] = [];
+  syncSchemaCache: any[] = [];
+  syncRuns: any[] = [];
+  syncHistory: any[] = [];
+  syncProvenance: any[] = [];
+  syncLinks: any[] = [];
+
   /** Control flags for job runner */
   jobFlags = new Map<string, { cancel?: boolean; pause?: boolean }>();
 
