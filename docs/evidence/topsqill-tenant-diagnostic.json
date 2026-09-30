@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-29T11:22:59.344Z",
+  "startedAt": "2026-09-30T05:23:11.591Z",
   "environment": "TEST",
   "authenticationIdentity": {
     "keyEnvVar": "SUPABASE_SERVICE_ROLE_KEY",
@@ -105,5 +105,5 @@
     "Fields: externalId, title, description, severity, owner, sourceSystem, sourceEnvironment, lastSyncedAt",
     "Set VIS_PILOT_TOPSQILL_FORM_ID and VIS_PILOT_TOPSQILL_ORG_ID"
   ],
-  "finishedAt": "2026-09-29T11:23:00.539Z"
+  "finishedAt": "2026-09-30T05:23:14.782Z"
 }

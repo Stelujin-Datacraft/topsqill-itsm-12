@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-29T11:22:59.324Z",
+  "startedAt": "2026-09-30T05:23:11.561Z",
   "tests": {
     "secret_scan": {
       "status": "PASS",
@@ -72,20 +72,20 @@
       "status": "PASS",
       "detail": {
         "status": "APPROVED",
-        "versionId": "9b686930-541b-4eec-909a-f132c6d037f4"
+        "versionId": "96c03868-7df0-49d3-ba81-56f0254678d3"
       }
     },
     "activation": {
       "status": "PASS",
       "detail": {
-        "integrationId": "33199233-b344-463f-90d5-655cc2df4cd0"
+        "integrationId": "9af03589-0ed5-4b85-a35c-ac4632bd60c3"
       }
     },
     "create_e2e_http_verified": {
       "status": "PASS",
       "detail": {
         "externalId": "VIS-PILOT-001",
-        "targetId": "69596e96-1cab-4b11-b32a-947c4e73f339",
+        "targetId": "9b35cc1e-8a70-45f8-8f4c-72179ec1458c",
         "verifiedBy": "HTTP GET"
       }
     },
@@ -199,7 +199,7 @@
     "redisConfigured": true
   },
   "topsqillDiagnostic": {
-    "startedAt": "2026-09-29T11:22:59.344Z",
+    "startedAt": "2026-09-30T05:23:11.591Z",
     "environment": "TEST",
     "authenticationIdentity": {
       "keyEnvVar": "SUPABASE_SERVICE_ROLE_KEY",
@@ -305,9 +305,9 @@
       "Fields: externalId, title, description, severity, owner, sourceSystem, sourceEnvironment, lastSyncedAt",
       "Set VIS_PILOT_TOPSQILL_FORM_ID and VIS_PILOT_TOPSQILL_ORG_ID"
     ],
-    "finishedAt": "2026-09-29T11:23:00.539Z"
+    "finishedAt": "2026-09-30T05:23:14.782Z"
   },
-  "contractFacadeBase": "http://127.0.0.1:44853",
+  "contractFacadeBase": "http://127.0.0.1:40187",
   "classification": "NOT READY FOR PILOT",
   "classificationReason": "SUPABASE_SERVICE_ROLE_KEY is anon (not service_role); 0 forms; no third-party sandbox credentials. Contract E2E PASS.",
   "externalPrerequisites": [
@@ -345,5 +345,5 @@
       "secret": true
     }
   ],
-  "finishedAt": "2026-09-29T11:23:01.182Z"
+  "finishedAt": "2026-09-30T05:23:15.354Z"
 }
