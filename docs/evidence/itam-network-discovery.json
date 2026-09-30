@@ -1,0 +1,225 @@
+{
+  "startedAt": "2026-09-30T05:40:20.302Z",
+  "tests": {
+    "cidr_validation": {
+      "status": "PASS"
+    },
+    "scope_fail_closed": {
+      "status": "PASS",
+      "detail": {
+        "denied": true,
+        "excludedEmpty": true
+      }
+    },
+    "max_hosts_limit": {
+      "status": "PASS",
+      "detail": {
+        "errors": [
+          "Estimated 65534 hosts exceeds maxHosts=100",
+          "CIDR 10.10.0.0/16 expands to 65534 hosts which exceeds maxHosts=100. Narrow the scope or raise the approved limit."
+        ]
+      }
+    },
+    "scope_approve": {
+      "status": "PASS",
+      "detail": {
+        "cidr": "10.10.10.0/30"
+      }
+    },
+    "unapproved_cidr_rejected": {
+      "status": "PASS",
+      "detail": {
+        "errors": [
+          "CIDR 10.99.0.0/24 is not an APPROVED network scope — refuse to scan"
+        ]
+      }
+    },
+    "job_validate": {
+      "status": "PASS",
+      "detail": {
+        "estimatedHosts": 2
+      }
+    },
+    "job_estimate": {
+      "status": "PASS",
+      "detail": {
+        "cidrs": [
+          "10.10.10.0/30"
+        ],
+        "excluded": [],
+        "estimatedAddresses": 2,
+        "actionableHosts": 2,
+        "warnings": [],
+        "errors": [],
+        "discoveryMethods": [
+          "TCP",
+          "CREDENTIALED"
+        ]
+      }
+    },
+    "discovery_run": {
+      "status": "PASS",
+      "detail": {
+        "assets": 2,
+        "metrics": {
+          "hostsPerSec": 95.24,
+          "durationMs": 21,
+          "hostDiscoveryLatencyMs": 0,
+          "credentialedInventoryLatencyMs": 1,
+          "workerUtilization": 4
+        },
+        "durationMs": 22
+      }
+    },
+    "software_inventory": {
+      "status": "PASS",
+      "detail": {
+        "count": 3,
+        "office": "Microsoft Office"
+      }
+    },
+    "duplicate_prevention": {
+      "status": "PASS",
+      "detail": {
+        "count": 2
+      }
+    },
+    "software_version_change": {
+      "status": "PASS",
+      "detail": {
+        "chromeVersion": "126.0.0",
+        "versionChangeDiffs": 2
+      }
+    },
+    "agent_merge": {
+      "status": "PASS"
+    },
+    "unknown_asset_low_confidence": {
+      "status": "PASS",
+      "detail": {
+        "matchedAssetId": null,
+        "confidence": "LOW",
+        "signals": [
+          {
+            "type": "ipAddress",
+            "value": "10.10.99.9",
+            "source": "NETWORK_DISCOVERY",
+            "weight": 10
+          }
+        ],
+        "action": "CREATE_UNMANAGED"
+      }
+    },
+    "correlation_serial": {
+      "status": "PASS",
+      "detail": {
+        "matchedAssetId": "e3dc7062-7793-45b5-98f3-904c5b82734c",
+        "confidence": "HIGH",
+        "signals": [
+          {
+            "type": "serialNumber",
+            "value": "sn-lab-002",
+            "source": "NETWORK_DISCOVERY",
+            "weight": 80
+          },
+          {
+            "type": "hostname",
+            "value": "changed-name",
+            "source": "NETWORK_DISCOVERY",
+            "weight": 30
+          },
+          {
+            "type": "ipAddress",
+            "value": "10.10.10.50",
+            "source": "NETWORK_DISCOVERY",
+            "weight": 10
+          }
+        ],
+        "action": "UPDATE"
+      }
+    },
+    "credential_missing_safe": {
+      "status": "PASS"
+    },
+    "cancel": {
+      "status": "PASS"
+    },
+    "rbac_admin_required": {
+      "status": "PASS"
+    },
+    "tenant_isolation": {
+      "status": "PASS"
+    },
+    "agent_onboarding_explicit": {
+      "status": "PASS",
+      "detail": {
+        "approved": true,
+        "assetId": "80d6ba6d-378a-40ad-aea8-cfec27a9f91c",
+        "automaticInstall": false
+      }
+    },
+    "performance_slash24": {
+      "status": "PASS",
+      "detail": {
+        "durationMs": 2,
+        "hostsPerSec": 127000,
+        "hostsScanned": 254,
+        "hostsDiscovered": 20,
+        "note": "Measured against mock provider (not production network)"
+      }
+    },
+    "audit_trail": {
+      "status": "PASS",
+      "detail": {
+        "count": 45
+      }
+    },
+    "secret_not_in_job_payload": {
+      "status": "PASS"
+    }
+  },
+  "finishedAt": "2026-09-30T05:40:20.393Z",
+  "dashboard": {
+    "jobs": 5,
+    "running": 0,
+    "discoveredHosts": 28,
+    "managedAssets": 1,
+    "unmanagedAssets": 22,
+    "softwareRows": 4,
+    "lastRun": {
+      "id": "573000e7-205f-489d-b184-18525c7d22ef",
+      "jobId": "64ba3eb0-b101-4fd9-9cb6-3b94d02c66cd",
+      "organizationId": "org-lab-1",
+      "status": "COMPLETED",
+      "startedAt": "2026-09-30T05:40:20.390Z",
+      "hostsTargeted": 254,
+      "hostsScanned": 254,
+      "hostsDiscovered": 20,
+      "assetsCreated": 20,
+      "assetsUpdated": 0,
+      "assetsUnmanaged": 20,
+      "softwareDiscovered": 0,
+      "errors": 0,
+      "metrics": {
+        "hostsPerSec": 127000,
+        "durationMs": 2,
+        "hostDiscoveryLatencyMs": 0,
+        "credentialedInventoryLatencyMs": 0,
+        "workerUtilization": 32
+      },
+      "finishedAt": "2026-09-30T05:40:20.392Z"
+    }
+  },
+  "metrics": {
+    "discovery_jobs_total": 5,
+    "discovery_jobs_success": 5,
+    "discovery_jobs_failed": 0,
+    "hosts_scanned_total": 262,
+    "hosts_discovered_total": 28,
+    "assets_created_total": 23,
+    "assets_updated_total": 5,
+    "assets_unmanaged_total": 23,
+    "software_discovered_total": 18,
+    "discovery_errors_total": 0
+  }
+}
