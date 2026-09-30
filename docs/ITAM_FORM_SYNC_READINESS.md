@@ -57,15 +57,17 @@ Configured per sync target (not hardcoded field IDs):
 
 | Operation | Default path pattern |
 |-----------|----------------------|
-| List forms | `GET {formsPath}` → `/api/forms` |
-| Form fields | `GET {formFieldsPath}` → `/api/forms/{formId}/fields` |
+| List forms | `GET {formsPath}` → TopSqill: `/forms` under `…/functions/v1/form-api` (not Nest `/api/forms`) |
+| Form fields | `GET {formFieldsPath}` → `/forms/{formId}/fields` |
 | Search/list records | `GET {recordsPath}` / optional `searchPath` |
 | Get record | `GET {recordByIdPath}` |
 | Create | `POST {recordsPath}` |
 | Update | `PUT/PATCH {recordByIdPath}` |
 
-Live HTTP target: `HttpExistingAppTarget` in `backend/src/itam/sync/target.ts`.  
+Live HTTP target: `HttpExistingAppTarget` in `backend/src/itam/sync/target.ts` (unwraps `{success,data}` envelopes; resolves `credentialReferenceId` → Bearer).  
 Lab/mock: `MockExistingAppTarget` (`mock://existing-app` or `ITAM_SYNC_USE_MOCK=1`).
+
+Configure path overrides via sync target / `ITAM_SYNC_*_PATH` env vars — do not assume `/api/forms`.
 
 ---
 
