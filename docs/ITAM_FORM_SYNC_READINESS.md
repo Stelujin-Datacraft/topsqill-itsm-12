@@ -188,7 +188,7 @@ Sync targets, mappings, runs, history, and provenance filtered by organization. 
 | Suite | Command | Result |
 |-------|---------|--------|
 | Form sync (mock E2E pipeline) | `npm run test:itam:form-sync` | **PASS** — PARTIALLY VALIDATED |
-| Real environment preflight | `npm run test:itam:form-sync:real` | **REAL_ENVIRONMENT_BLOCKED** |
+| Real environment validation | `npm run test:itam:form-sync:real` | **REAL_ENVIRONMENT_PARTIAL** (auth/schema PASS; writes BLOCKED — no ITAM form) |
 | Phase A network discovery | `npm run test:itam:discovery` | **PASS** (regression) |
 | Phases B–D | `npm run test:itam:phases-bd` | **PASS** (regression) |
 | Combined | `npm run test:itam:all` | Run before merge |
@@ -201,42 +201,57 @@ Evidence: `docs/evidence/itam-form-sync.json`, `docs/evidence/itam-form-sync-rea
 
 ## 16. REAL ENVIRONMENT VALIDATION
 
-**Verdict: `REAL_ENVIRONMENT_BLOCKED`**
+**Verdict: `REAL_ENVIRONMENT_PARTIAL`**
 
-**Date:** 2026-09-30  
-**Environment type:** Cursor cloud agent (Nest platform on `:3001`)  
-**Target application version:** unavailable (no Form API configured)  
-**Target form:** unavailable  
-**Test asset type:** none selected (blocked before asset selection)  
-**Execution IDs / target record IDs:** none (no live writes attempted)  
-**Measured API/write latency:** n/a  
-**Duplicate count before/after:** n/a (no live sync)  
-**Fields successfully synchronized (live):** none  
+**Date:** 2026-09-30 (configuration attempt)  
+**Environment type:** Cursor cloud agent → live TopSqill Supabase Edge Form API  
+**Evidence:** `docs/evidence/itam-form-sync-real.json`
 
-### Pre-flight findings (non-secret)
+### Discovered API contract (actual)
 
-| Config | Status |
-|--------|--------|
-| `ITAM_SYNC_REAL=1` | **MISSING** |
-| `ITAM_SYNC_BASE_URL` (authorized Form API) | **MISSING** |
-| `ITAM_SYNC_CREDENTIAL_REF` (credentialReferenceId) | **MISSING** |
-| SecretProvider entry for that ref | **MISSING** (`VIS_SECRET_PROVIDER` unset) |
-| `ITAM_SYNC_FORM_ID` | **MISSING** |
-| `ITAM_SYNC_ORG_ID` / `ITAM_DEFAULT_ORG_ID` | **MISSING** |
-| Local Nest `/api/health` | 200 (platform up) |
-| Local Nest `/api/forms` | **404** — Nest is not the existing-application Form API SoR |
+| Item | Value |
+|------|-------|
+| API base URL (redacted host kept) | `https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/form-api` |
+| Form list | `GET /forms` |
+| Form get | `GET /forms/{formId}` |
+| Fields | `GET /forms/{formId}/fields` |
+| Schema | `GET /forms/{formId}/schema` |
+| Records list/search | `GET /forms/{formId}/records` |
+| Record get | `GET /forms/{formId}/records/{recordId}` |
+| Record create | `POST /forms/{formId}/records` |
+| Record update | `PUT/PATCH /forms/{formId}/records/{recordId}` |
+| Auth method | Bearer token via `credentialReferenceId` → SecretProvider (`BEARER_TOKEN`) |
+| Nest alternate | `GET /api/form-api/forms` exists but requires **user JWT** (global `SupabaseAuthGuard`) → 401 with anon key |
+| Incorrect default | `GET /api/forms` on Nest → **404** (must not assume this path) |
 
-Implemented platform sync APIs remain under `/api/itam/sync/*`. Existing-application Form API contract (defaults): `/api/forms`, `/api/forms/{formId}/fields`, `/api/forms/{formId}/records`, `/api/forms/{formId}/records/{recordId}` via `HttpExistingAppTarget` + `InternalApplicationConnector` (bearer + `credentialReferenceId`).
+Response envelope: `{ success: true, data: ... }` (HttpExistingAppTarget unwraps this).
 
-**No live Form API authentication or write was attempted.** Mock evidence was not relabeled as real.
+### Connectivity
+
+| Check | Result |
+|-------|--------|
+| API_CONNECTIVITY | **PASS** |
+| FORM_API_CONNECTIVITY | **PASS** |
+| Real API authentication | **PASS** |
+| Real form discovery | **PASS** (5 forms) |
+| Real schema retrieval | **PASS** (Demo Form, 5 fields, ~1174 ms) |
+
+### Forms discovered (names only)
+
+Employee Onboarding Form, GRC, Report Test Form, Demo Form, Comprehensive Employee Onboarding & Personal Record.
+
+**ITAM Asset form count: 0**
+
+Configured probe form for schema only: **Demo Form** (`04418ba4-0f24-429f-8f43-8c58953e7e9b`).  
+Writes against non-ITAM forms are **refused** unless `ITAM_SYNC_ALLOW_NON_ITAM_WRITE=1` (not set).
 
 ### Status table
 
 | Test | Result |
 |---|---|
-| Real API authentication | BLOCKED |
-| Real form discovery | BLOCKED |
-| Real schema retrieval | BLOCKED |
+| Real API authentication | PASS |
+| Real form discovery | PASS |
+| Real schema retrieval | PASS |
 | Real discovery | BLOCKED |
 | Real correlation | BLOCKED |
 | Real mapping | BLOCKED |
@@ -250,43 +265,55 @@ Implemented platform sync APIs remain under `/api/itam/sync/*`. Existing-applica
 | Provenance | BLOCKED |
 | Audit | BLOCKED |
 | Failure handling | BLOCKED |
-| Security | BLOCKED |
+| Security | PASS |
 
-### Failures / limitations (this attempt)
+### Write / full-chain status
 
-1. Authorized existing-application Form API base URL not configured in this environment.
-2. No sync `credentialReferenceId` + SecretProvider-backed credential available.
-3. No target ITAM form id / org context for a controlled test.
-4. Local Nest health is OK but does not expose `/api/forms` — Supabase REST is the platform DB and is **not** used as a Form API write path for this validation (SoR rule).
+**REAL_WRITE_TEST = BLOCKED** — no authorized ITAM Asset form in the tenant; no CREATE/UPDATE executed; mock evidence not relabeled as real write success.
 
-### Required to unblock
+### Required to complete full chain
 
-1. `ITAM_SYNC_REAL=1`
-2. `ITAM_SYNC_BASE_URL=<authorized Form API base URL>`
-3. `ITAM_SYNC_CREDENTIAL_REF=<credentialReferenceId>` with secret stored in SecretProvider
-4. `ITAM_SYNC_FORM_ID=<ITAM Asset form id>`
-5. `ITAM_SYNC_ORG_ID=<organization UUID>`
-6. One authorized test asset in discovery (or `ITAM_SYNC_ASSET_EXTERNAL_ID` after discovery)
+1. Create a dedicated TEST/UAT **ITAM Asset** form in TopSqill (hostname/IP/serial/OS/external_id fields as needed).
+2. Set `ITAM_SYNC_FORM_ID` to that form’s UUID.
+3. Store a gateway/user bearer in SecretProvider under `ITAM_SYNC_CREDENTIAL_REF` (do not commit secrets). Prefer real `service_role` for Nest FormApiService paths if using Nest; edge Form API accepts gateway bearer for reads.
+4. Discover one authorized lab asset (`ITAM_SYNC_ASSET_EXTERNAL_ID`).
+5. Re-run: `npm run test:itam:form-sync:real`
 
-Then run: `npm run test:itam:form-sync:real`
+### Configuration used this run (non-secret)
+
+```bash
+ITAM_SYNC_REAL=1
+ITAM_SYNC_BASE_URL=https://<project>.supabase.co/functions/v1/form-api
+ITAM_SYNC_CREDENTIAL_REF=itam-sync-form-api-bearer
+ITAM_SYNC_FORM_ID=<Demo Form UUID — schema probe only>
+ITAM_SYNC_ORG_ID=<Demo_Organization UUID>
+ITAM_SYNC_FORMS_PATH=/forms
+ITAM_SYNC_FORM_FIELDS_PATH=/forms/{formId}/fields
+ITAM_SYNC_RECORDS_PATH=/forms/{formId}/records
+ITAM_SYNC_RECORD_BY_ID_PATH=/forms/{formId}/records/{recordId}
+ITAM_SYNC_BOOTSTRAP_ANON_GATEWAY=1   # lab: maps publishable anon key into ref — not a privilege elevation
+```
+
+See also `backend/.env.vis.example`.
 
 ---
 
 ## 17. Known limitations
 
-1. Real existing-application E2E **BLOCKED** in this environment (missing Form API endpoint + credentials).
-2. Software / NIC / cloud-resource entity sync uses the same engine; dedicated multi-form fixtures beyond Asset form are thinner than Asset.
-3. Ambiguous-match workflow UI is status-aware; dedicated multi-match resolution UX is minimal.
-4. BullMQ dedicated sync worker chain is not a separate queue topology in this phase — sync runs in-process via Nest service/engine (retry/rate-limit patterns available via VIS infra for future wiring).
-5. Live reference auto-create policies need per-tenant configuration before production.
+1. Real Form API auth + schema **PASS**; full CREATE/UPDATE/idempotent chain **BLOCKED** until an ITAM Asset form + lab asset exist.
+2. Local `SUPABASE_SERVICE_ROLE_KEY` JWT role remains **`anon`** (known misconfig from pilot diagnostic) — Nest FormApiService writes would still be RLS-limited if used with that key.
+3. Software / NIC / cloud-resource entity sync uses the same engine; dedicated multi-form fixtures beyond Asset form are thinner than Asset.
+4. Ambiguous-match workflow UI is status-aware; dedicated multi-match resolution UX is minimal.
+5. BullMQ dedicated sync worker chain is not a separate queue topology in this phase — sync runs in-process via Nest service/engine.
+6. Live reference auto-create policies need per-tenant configuration before production.
 
 ---
 
 ## 18. Required production configuration
 
 1. Apply migrations: `supabase/migrations/20260930140000_itam_form_sync.sql` (and Nest `sql/itam_form_sync.sql` when using dedicated PG).
-2. Configure sync target: Form API base URL + `credentialReferenceId` in SecretProvider.
-3. Set `targetFormId` to the real ITAM Asset form (and additional forms as needed).
+2. Configure sync target: Form API base URL `…/functions/v1/form-api` + path overrides `/forms…` + `credentialReferenceId` in SecretProvider.
+3. Set `targetFormId` / `ITAM_SYNC_FORM_ID` to a real **ITAM Asset** form (not HR/demo forms).
 4. Discover schema → propose mappings → **approve** under RBAC.
 5. Dry-run until WOULD_* outcomes match expectations.
 6. Execute against an authorized lab form/record set first.
@@ -326,9 +353,10 @@ UI: **IT Assets → Form Sync** (`FormSyncPanel`).
 | Mock pipeline (schema → map → dry-run → create/update/idempotent) | **PASS** |
 | Schema evolution without hardcoded IDs | **PASS** |
 | Security / tenant isolation (mock) | **PASS** |
-| Real Form API E2E | **REAL_ENVIRONMENT_BLOCKED** |
-| Overall | **PARTIALLY VALIDATED** |
+| Real Form API connectivity + auth + schema | **PASS** |
+| Real ITAM CREATE / UPDATE / duplicate chain | **BLOCKED** (no ITAM form) |
+| Overall | **PARTIALLY VALIDATED** (`REAL_ENVIRONMENT_PARTIAL`) |
 
 ### Recommended next step
 
-Provide authorized Form API URL + `credentialReferenceId` (SecretProvider) + target form id + org id + one lab asset, then re-run `npm run test:itam:form-sync:real` to complete the live CREATE → NO_CHANGE → UPDATE chain.
+Create an authorized TEST **ITAM Asset** form in TopSqill, set `ITAM_SYNC_FORM_ID`, provision one lab discovery asset, then re-run `npm run test:itam:form-sync:real` for the full dry-run → CREATE → NO_CHANGE → UPDATE chain.

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-30T06:25:52.127Z",
+  "startedAt": "2026-09-30T07:38:59.959Z",
   "tests": {
     "cidr_validation": {
       "status": "PASS"
@@ -62,13 +62,13 @@
       "detail": {
         "assets": 2,
         "metrics": {
-          "hostsPerSec": 90.91,
-          "durationMs": 22,
+          "hostsPerSec": 95.24,
+          "durationMs": 21,
           "hostDiscoveryLatencyMs": 0,
-          "credentialedInventoryLatencyMs": 0,
+          "credentialedInventoryLatencyMs": 1,
           "workerUtilization": 4
         },
-        "durationMs": 22
+        "durationMs": 21
       }
     },
     "software_inventory": {
@@ -113,7 +113,7 @@
     "correlation_serial": {
       "status": "PASS",
       "detail": {
-        "matchedAssetId": "cbc6ce34-ccd1-45e4-9dac-3e21723d875c",
+        "matchedAssetId": "4701c525-78e2-4eaf-8ae4-e74c9af1a5c1",
         "confidence": "HIGH",
         "signals": [
           {
@@ -154,7 +154,7 @@
       "status": "PASS",
       "detail": {
         "approved": true,
-        "assetId": "81feb5b0-8e1f-4872-8d62-20f689f81544",
+        "assetId": "3717efa4-e47d-4241-b3bb-87ab1bc6a0b8",
         "automaticInstall": false
       }
     },
@@ -178,7 +178,7 @@
       "status": "PASS"
     }
   },
-  "finishedAt": "2026-09-30T06:25:52.219Z",
+  "finishedAt": "2026-09-30T07:39:00.050Z",
   "dashboard": {
     "jobs": 5,
     "running": 0,
@@ -187,11 +187,11 @@
     "unmanagedAssets": 22,
     "softwareRows": 4,
     "lastRun": {
-      "id": "c287de5d-36ca-4025-8a38-fd15a410816a",
-      "jobId": "4ea9f4f3-03f9-448a-9c6a-be0476ae6153",
+      "id": "3056841c-9182-45d6-896b-4820920ee847",
+      "jobId": "cb3910c5-81bc-46eb-8640-7fc0e0125eac",
       "organizationId": "org-lab-1",
       "status": "COMPLETED",
-      "startedAt": "2026-09-30T06:25:52.217Z",
+      "startedAt": "2026-09-30T07:39:00.048Z",
       "hostsTargeted": 254,
       "hostsScanned": 254,
       "hostsDiscovered": 20,
@@ -207,7 +207,7 @@
         "credentialedInventoryLatencyMs": 0,
         "workerUtilization": 32
       },
-      "finishedAt": "2026-09-30T06:25:52.219Z"
+      "finishedAt": "2026-09-30T07:39:00.050Z"
     }
   },
   "metrics": {

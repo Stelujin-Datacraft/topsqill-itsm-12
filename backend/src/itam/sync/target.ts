@@ -106,10 +106,42 @@ export class MockExistingAppTarget implements ExistingAppTarget {
   }
 }
 
+/** Unwrap TopSqill Form API `{ success, data }` envelopes. */
+function unwrapData(payload: unknown): unknown {
+  if (payload && typeof payload === 'object' && 'data' in (payload as any)) {
+    const p = payload as any;
+    if (p.success === true || p.success === false || Array.isArray(p.data) || (p.data && typeof p.data === 'object')) {
+      return p.data;
+    }
+  }
+  return payload;
+}
+
+function asArray(payload: unknown): any[] {
+  const u = unwrapData(payload);
+  if (Array.isArray(u)) return u;
+  if (u && typeof u === 'object' && Array.isArray((u as any).fields)) return (u as any).fields;
+  if (u && typeof u === 'object' && Array.isArray((u as any).items)) return (u as any).items;
+  return [];
+}
+
+function fieldNameFrom(f: any): string {
+  if (f.name) return String(f.name);
+  if (f.field_name) return String(f.field_name);
+  if (f.label) {
+    return String(f.label)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '') || String(f.id);
+  }
+  return String(f.id);
+}
+
 /** HTTP adapter using InternalApplicationConnector against existing app API. */
 export class HttpExistingAppTarget implements ExistingAppTarget {
   private readonly connector: InternalApplicationConnector;
-  private readonly ctx: ConnectorContext;
+  private readonly ctx: ConnectorContext & { resolveSecret?: (ref: string) => Promise<string | null> };
 
   constructor(
     private readonly config: SyncTargetConfig,
@@ -138,21 +170,23 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
 
   async connect() {
     await this.connector.connect(this.ctx);
-    if (this.config.credentialReferenceId) {
-      await this.connector.authenticate(
-        { type: 'bearer', credentialRefId: this.config.credentialReferenceId },
-        this.ctx,
-      );
-    }
+    if (!this.config.credentialReferenceId) return;
+    const resolve = this.ctx.resolveSecret;
+    if (!resolve) throw new Error('resolveSecret required for credentialReferenceId');
+    const token = await resolve(this.config.credentialReferenceId);
+    if (!token) throw new Error('SecretProvider returned no token for credentialReferenceId');
+    await this.connector.authenticate(
+      { type: 'BEARER_TOKEN', credentialRefId: this.config.credentialReferenceId, extra: { token } },
+      this.ctx,
+    );
   }
 
   async discoverForms() {
     const res = await this.connector.discoverForms(this.ctx);
     if (!res.ok) throw new Error(res.error?.message || 'discoverForms failed');
-    const items = (res.data as any)?.items || (res.data as any)?.data || res.data || [];
-    return (Array.isArray(items) ? items : []).map((f: any) => ({
+    return asArray(res.data).map((f: any) => ({
       id: String(f.id),
-      name: String(f.name || f.id),
+      name: String(f.name || f.reference_id || f.id),
       description: f.description,
     }));
   }
@@ -160,10 +194,17 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
   async getFormSchema(formId: string): Promise<FormSchemaSnapshot> {
     const res = await this.connector.getFormSchema(formId, this.ctx);
     if (!res.ok) throw new Error(res.error?.message || 'getFormSchema failed');
-    const rawFields = (res.data as any)?.fields || [];
-    const fields: FormFieldSchema[] = (Array.isArray(rawFields) ? rawFields : []).map((f: any) => ({
+    const root = unwrapData(res.data) as any;
+    const formObj = root?.form || (root?.id ? root : unwrapData((res.data as any)?.data) ) || {};
+    let rawFields: any[] = [];
+    if (Array.isArray(root?.fields)) rawFields = root.fields;
+    else {
+      const merged = (res.data as any)?.fields;
+      rawFields = Array.isArray(merged) ? merged : asArray(merged);
+    }
+    const fields: FormFieldSchema[] = rawFields.map((f: any) => ({
       id: f.id,
-      name: String(f.name || f.field_name || f.id),
+      name: fieldNameFrom(f),
       label: f.label,
       type: String(f.type || f.field_type || 'text'),
       required: Boolean(f.required),
@@ -177,7 +218,7 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
     const hash = schemaHash(fields);
     return {
       formId,
-      formName: String((res.data as any)?.name || formId),
+      formName: String(formObj?.name || formObj?.reference_id || formId),
       version: hash,
       fields,
       fetchedAt: new Date().toISOString(),
@@ -188,18 +229,20 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
   async searchRecords(formId: string, query: Record<string, unknown>) {
     const res = await this.connector.searchRecords(formId, query, this.ctx);
     if (!res.ok) throw new Error(res.error?.message || 'searchRecords failed');
-    const items = (res.data as any)?.items || (res.data as any)?.data || [];
-    return (Array.isArray(items) ? items : []).map((r: any) => ({
+    return asArray(res.data).map((r: any) => ({
       id: String(r.id),
-      data: (r.data || r) as Record<string, unknown>,
+      data: (r.submission_data || r.data || r) as Record<string, unknown>,
     }));
   }
 
   async getRecord(formId: string, recordId: string) {
     const res = await this.connector.getRecord(formId, recordId, this.ctx);
     if (!res.ok) return null;
-    const d = res.data as any;
-    return { id: String(d.id || recordId), data: (d.data || d) as Record<string, unknown> };
+    const d = unwrapData(res.data) as any;
+    return {
+      id: String(d?.id || recordId),
+      data: (d?.submission_data || d?.data || d) as Record<string, unknown>,
+    };
   }
 
   async createRecord(formId: string, body: Record<string, unknown>) {
@@ -214,8 +257,8 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
       }
       throw Object.assign(new Error(res.error?.message || 'create failed'), { category: 'API_ERROR' });
     }
-    const d = res.data as any;
-    return { id: String(d.id || d.data?.id), data: (d.data || d) as Record<string, unknown> };
+    const d = unwrapData(res.data) as any;
+    return { id: String(d?.id || d?.data?.id), data: (d?.submission_data || d?.data || d) as Record<string, unknown> };
   }
 
   async updateRecord(formId: string, recordId: string, body: Record<string, unknown>) {
@@ -223,7 +266,7 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
     if (!res.ok) {
       throw Object.assign(new Error(res.error?.message || 'update failed'), { category: 'API_ERROR' });
     }
-    const d = res.data as any;
-    return { id: String(d.id || recordId), data: (d.data || d) as Record<string, unknown> };
+    const d = unwrapData(res.data) as any;
+    return { id: String(d?.id || recordId), data: (d?.submission_data || d?.data || d) as Record<string, unknown> };
   }
 }

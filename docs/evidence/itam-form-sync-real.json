@@ -1,176 +1,208 @@
 {
-  "startedAt": "2026-09-30T06:25:47.001Z",
-  "classification": "REAL_ENVIRONMENT_BLOCKED",
+  "startedAt": "2026-09-30T07:38:49.112Z",
+  "classification": "REAL_ENVIRONMENT_PARTIAL",
   "environmentType": "cloud-agent",
   "tests": {
-    "preflight": {
-      "status": "BLOCKED",
-      "detail": {
-        "missing": [
-          "ITAM_SYNC_REAL=1",
-          "ITAM_SYNC_BASE_URL",
-          "ITAM_SYNC_CREDENTIAL_REF (credentialReferenceId)",
-          "ITAM_SYNC_FORM_ID",
-          "ITAM_SYNC_ORG_ID (or ITAM_DEFAULT_ORG_ID)"
-        ]
-      }
-    },
     "real_api_authentication": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "method": "BEARER_TOKEN via credentialReferenceId"
       }
     },
     "real_form_discovery": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "formId": "04418ba4-0f24-429f-8f43-8c58953e7e9b",
+        "formName": "Demo Form",
+        "formCount": 5,
+        "itamFormCount": 0,
+        "FORM_DISCOVERY": "PASS"
       }
     },
     "real_schema_retrieval": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "formId": "04418ba4-0f24-429f-8f43-8c58953e7e9b",
+        "formName": "Demo Form",
+        "schemaVersion": "c59f15b352739bad",
+        "fieldCount": 5,
+        "latencyMs": 1174,
+        "sampleFields": [
+          {
+            "id": "536b6822-499e-4ff5-b66b-465ae2dc0b3d",
+            "name": "status",
+            "label": "Status",
+            "type": "select",
+            "required": true
+          },
+          {
+            "id": "84a163d4-46d6-4275-81fe-fd57602dbbe8",
+            "name": "single_line_text",
+            "label": "Single-Line Text",
+            "type": "text",
+            "required": false
+          },
+          {
+            "id": "2ffe85ea-302b-4e6b-8031-96ee0a87e445",
+            "name": "multi_line_text",
+            "label": "Multi-Line Text",
+            "type": "textarea",
+            "required": false
+          },
+          {
+            "id": "f016375c-4c74-4323-a510-64efb1390b22",
+            "name": "number_input",
+            "label": "Number Input",
+            "type": "number",
+            "required": false
+          },
+          {
+            "id": "91042e77-6d8c-4241-af6d-1b9a20d8a35a",
+            "name": "date_picker",
+            "label": "Date Picker",
+            "type": "date",
+            "required": false
+          }
+        ]
       }
     },
     "real_discovery": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "No ITAM Asset form in tenant; configured form is not ITAM-like. Create an authorized ITAM Asset form and set ITAM_SYNC_FORM_ID. Refusing CREATE/UPDATE against non-ITAM forms.",
+        "configuredForm": "Demo Form",
+        "itamFormsFound": []
       }
     },
     "real_correlation": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "real_mapping": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "real_reference_resolution": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "real_dry_run": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "real_create": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "real_update": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "duplicate_prevention": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "ip_change": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "software_synchronization": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "provenance": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "audit": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "failure_handling": {
       "status": "BLOCKED",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
       }
     },
     "security": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+        "note": "credentialReferenceId only; refused non-ITAM write; secrets not logged"
       }
     }
   },
-  "missingConfiguration": [
-    "ITAM_SYNC_REAL=1",
-    "ITAM_SYNC_BASE_URL",
-    "ITAM_SYNC_CREDENTIAL_REF (credentialReferenceId)",
-    "ITAM_SYNC_FORM_ID",
-    "ITAM_SYNC_ORG_ID (or ITAM_DEFAULT_ORG_ID)"
-  ],
+  "missingConfiguration": [],
   "apiContract": {
     "platform": {
       "listTargets": "GET /api/itam/sync/targets",
       "createTarget": "POST /api/itam/sync/targets",
       "discoverForms": "GET /api/itam/sync/targets/:id/forms",
       "getSchema": "GET /api/itam/sync/schema/:form (header x-sync-target-id)",
-      "listMappings": "GET /api/itam/sync/mappings",
-      "previewMappings": "POST /api/itam/sync/mappings/preview",
-      "approveMapping": "POST /api/itam/sync/mappings/:id/approve",
       "dryRun": "POST /api/itam/sync/preview",
-      "execute": "POST /api/itam/sync/execute",
-      "runs": "GET /api/itam/sync/runs",
-      "runById": "GET /api/itam/sync/runs/:id",
-      "history": "GET /api/itam/sync/history/:assetId",
-      "provenance": "GET /api/itam/sync/provenance/:assetId",
-      "metrics": "GET /api/itam/sync/metrics"
+      "execute": "POST /api/itam/sync/execute"
     },
-    "existingApplicationDefaults": {
-      "formsPath": "/api/forms",
-      "formFieldsPath": "/api/forms/{formId}/fields",
-      "recordsPath": "/api/forms/{formId}/records",
-      "recordByIdPath": "/api/forms/{formId}/records/{recordId}",
-      "auth": "bearer via credentialReferenceId → SecretProvider"
+    "existingApplicationDiscovered": {
+      "nestHealth": "GET /api/health",
+      "nestFormApi": "GET /api/form-api/forms (requires user JWT via SupabaseAuthGuard)",
+      "edgeFormApiBase": "https://<project>.supabase.co/functions/v1/form-api",
+      "formsPath": "/forms",
+      "formFieldsPath": "/forms/{formId}/fields",
+      "formSchemaPath": "/forms/{formId}/schema",
+      "recordsPath": "/forms/{formId}/records",
+      "recordByIdPath": "/forms/{formId}/records/{recordId}",
+      "auth": "Bearer gateway token via credentialReferenceId → SecretProvider (anon/publishable or user JWT)",
+      "note": "Default HttpExistingAppTarget path /api/forms is NOT the TopSqill Form API. Configure path overrides."
     }
   },
   "localPlatform": {
     "health": 200,
-    "formsPathOnNest": 404,
-    "note": "Nest health OK but /api/forms is not served here — existing application Form API must be configured via ITAM_SYNC_BASE_URL"
+    "wrongDefaultPath_api_forms": 404,
+    "nestFormApi_forms": 401,
+    "note": "Confirmed: /api/forms is NOT TopSqill Form API. Use edge /functions/v1/form-api or Nest /api/form-api with user JWT."
+  },
+  "apiConnectivity": {
+    "healthOrFormsProbe": 200,
+    "baseUrlRedacted": "https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/form-api",
+    "formsPath": "/forms",
+    "API_CONNECTIVITY": "PASS",
+    "FORM_API_CONNECTIVITY": "PASS"
   },
   "observed": {
-    "ITAM_SYNC_REAL": "MISSING",
-    "ITAM_SYNC_BASE_URL": "MISSING",
-    "ITAM_SYNC_CREDENTIAL_REF": "MISSING",
-    "ITAM_SYNC_FORM_ID": "MISSING",
-    "ITAM_SYNC_ORG_ID": "MISSING",
-    "VIS_SECRET_PROVIDER": "MISSING",
-    "localNestHealth": "probed separately"
+    "ITAM_SYNC_REAL": "1",
+    "ITAM_SYNC_BASE_URL": "https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/form-api",
+    "ITAM_SYNC_CREDENTIAL_REF": "[ref-present]",
+    "ITAM_SYNC_FORM_ID": "04418ba4-0f24-429f-8f43-8c58953e7e9b",
+    "ITAM_SYNC_ORG_ID": "4decf513-b52c-41e2-a73f-9d8337b56c3a",
+    "paths": {
+      "formsPath": "/forms",
+      "formFieldsPath": "/forms/{formId}/fields",
+      "recordsPath": "/forms/{formId}/records",
+      "recordByIdPath": "/forms/{formId}/records/{recordId}"
+    },
+    "VIS_SECRET_PROVIDER": "MISSING"
   },
-  "requiredToUnblock": [
-    "Authorized existing-application Form API base URL → ITAM_SYNC_BASE_URL",
-    "ITAM_SYNC_REAL=1",
-    "credentialReferenceId → ITAM_SYNC_CREDENTIAL_REF with SecretProvider-backed secret",
-    "Target ITAM form id → ITAM_SYNC_FORM_ID",
-    "Organization context → ITAM_SYNC_ORG_ID",
-    "One authorized test asset available via discovery (or ITAM_SYNC_ASSET_EXTERNAL_ID)"
-  ],
-  "finishedAt": "2026-09-30T06:25:47.028Z"
+  "writeBlockedReason": "No ITAM Asset form discovered; schema/auth validated against configured form only",
+  "finishedAt": "2026-09-30T07:38:51.335Z"
 }
