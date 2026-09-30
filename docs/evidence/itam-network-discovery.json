@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-30T06:21:50.569Z",
+  "startedAt": "2026-09-30T06:25:52.127Z",
   "tests": {
     "cidr_validation": {
       "status": "PASS"
@@ -65,7 +65,7 @@
           "hostsPerSec": 90.91,
           "durationMs": 22,
           "hostDiscoveryLatencyMs": 0,
-          "credentialedInventoryLatencyMs": 1,
+          "credentialedInventoryLatencyMs": 0,
           "workerUtilization": 4
         },
         "durationMs": 22
@@ -113,7 +113,7 @@
     "correlation_serial": {
       "status": "PASS",
       "detail": {
-        "matchedAssetId": "2ea37b65-0b42-433d-acee-d9cf5d9cb12d",
+        "matchedAssetId": "cbc6ce34-ccd1-45e4-9dac-3e21723d875c",
         "confidence": "HIGH",
         "signals": [
           {
@@ -154,14 +154,14 @@
       "status": "PASS",
       "detail": {
         "approved": true,
-        "assetId": "955fbd26-b355-4cc2-91d7-1f938054c7f4",
+        "assetId": "81feb5b0-8e1f-4872-8d62-20f689f81544",
         "automaticInstall": false
       }
     },
     "performance_slash24": {
       "status": "PASS",
       "detail": {
-        "durationMs": 2,
+        "durationMs": 3,
         "hostsPerSec": 127000,
         "hostsScanned": 254,
         "hostsDiscovered": 20,
@@ -178,7 +178,7 @@
       "status": "PASS"
     }
   },
-  "finishedAt": "2026-09-30T06:21:50.660Z",
+  "finishedAt": "2026-09-30T06:25:52.219Z",
   "dashboard": {
     "jobs": 5,
     "running": 0,
@@ -187,11 +187,11 @@
     "unmanagedAssets": 22,
     "softwareRows": 4,
     "lastRun": {
-      "id": "b46d0184-a5b9-47bc-96f6-63cf9a779f12",
-      "jobId": "9552976a-545b-414a-b967-a6c96d5386d3",
+      "id": "c287de5d-36ca-4025-8a38-fd15a410816a",
+      "jobId": "4ea9f4f3-03f9-448a-9c6a-be0476ae6153",
       "organizationId": "org-lab-1",
       "status": "COMPLETED",
-      "startedAt": "2026-09-30T06:21:50.658Z",
+      "startedAt": "2026-09-30T06:25:52.217Z",
       "hostsTargeted": 254,
       "hostsScanned": 254,
       "hostsDiscovered": 20,
@@ -207,7 +207,7 @@
         "credentialedInventoryLatencyMs": 0,
         "workerUtilization": 32
       },
-      "finishedAt": "2026-09-30T06:21:50.660Z"
+      "finishedAt": "2026-09-30T06:25:52.219Z"
     }
   },
   "metrics": {

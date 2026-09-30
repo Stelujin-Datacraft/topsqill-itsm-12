@@ -1,0 +1,176 @@
+{
+  "startedAt": "2026-09-30T06:25:47.001Z",
+  "classification": "REAL_ENVIRONMENT_BLOCKED",
+  "environmentType": "cloud-agent",
+  "tests": {
+    "preflight": {
+      "status": "BLOCKED",
+      "detail": {
+        "missing": [
+          "ITAM_SYNC_REAL=1",
+          "ITAM_SYNC_BASE_URL",
+          "ITAM_SYNC_CREDENTIAL_REF (credentialReferenceId)",
+          "ITAM_SYNC_FORM_ID",
+          "ITAM_SYNC_ORG_ID (or ITAM_DEFAULT_ORG_ID)"
+        ]
+      }
+    },
+    "real_api_authentication": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_form_discovery": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_schema_retrieval": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_discovery": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_correlation": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_mapping": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_reference_resolution": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_dry_run": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_create": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "real_update": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "duplicate_prevention": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "ip_change": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "software_synchronization": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "provenance": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "audit": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "failure_handling": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    },
+    "security": {
+      "status": "BLOCKED",
+      "detail": {
+        "reason": "REAL_ENVIRONMENT_BLOCKED — missing configuration"
+      }
+    }
+  },
+  "missingConfiguration": [
+    "ITAM_SYNC_REAL=1",
+    "ITAM_SYNC_BASE_URL",
+    "ITAM_SYNC_CREDENTIAL_REF (credentialReferenceId)",
+    "ITAM_SYNC_FORM_ID",
+    "ITAM_SYNC_ORG_ID (or ITAM_DEFAULT_ORG_ID)"
+  ],
+  "apiContract": {
+    "platform": {
+      "listTargets": "GET /api/itam/sync/targets",
+      "createTarget": "POST /api/itam/sync/targets",
+      "discoverForms": "GET /api/itam/sync/targets/:id/forms",
+      "getSchema": "GET /api/itam/sync/schema/:form (header x-sync-target-id)",
+      "listMappings": "GET /api/itam/sync/mappings",
+      "previewMappings": "POST /api/itam/sync/mappings/preview",
+      "approveMapping": "POST /api/itam/sync/mappings/:id/approve",
+      "dryRun": "POST /api/itam/sync/preview",
+      "execute": "POST /api/itam/sync/execute",
+      "runs": "GET /api/itam/sync/runs",
+      "runById": "GET /api/itam/sync/runs/:id",
+      "history": "GET /api/itam/sync/history/:assetId",
+      "provenance": "GET /api/itam/sync/provenance/:assetId",
+      "metrics": "GET /api/itam/sync/metrics"
+    },
+    "existingApplicationDefaults": {
+      "formsPath": "/api/forms",
+      "formFieldsPath": "/api/forms/{formId}/fields",
+      "recordsPath": "/api/forms/{formId}/records",
+      "recordByIdPath": "/api/forms/{formId}/records/{recordId}",
+      "auth": "bearer via credentialReferenceId → SecretProvider"
+    }
+  },
+  "localPlatform": {
+    "health": 200,
+    "formsPathOnNest": 404,
+    "note": "Nest health OK but /api/forms is not served here — existing application Form API must be configured via ITAM_SYNC_BASE_URL"
+  },
+  "observed": {
+    "ITAM_SYNC_REAL": "MISSING",
+    "ITAM_SYNC_BASE_URL": "MISSING",
+    "ITAM_SYNC_CREDENTIAL_REF": "MISSING",
+    "ITAM_SYNC_FORM_ID": "MISSING",
+    "ITAM_SYNC_ORG_ID": "MISSING",
+    "VIS_SECRET_PROVIDER": "MISSING",
+    "localNestHealth": "probed separately"
+  },
+  "requiredToUnblock": [
+    "Authorized existing-application Form API base URL → ITAM_SYNC_BASE_URL",
+    "ITAM_SYNC_REAL=1",
+    "credentialReferenceId → ITAM_SYNC_CREDENTIAL_REF with SecretProvider-backed secret",
+    "Target ITAM form id → ITAM_SYNC_FORM_ID",
+    "Organization context → ITAM_SYNC_ORG_ID",
+    "One authorized test asset available via discovery (or ITAM_SYNC_ASSET_EXTERNAL_ID)"
+  ],
+  "finishedAt": "2026-09-30T06:25:47.028Z"
+}
