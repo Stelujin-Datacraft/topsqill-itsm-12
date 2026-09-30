@@ -188,29 +188,93 @@ Sync targets, mappings, runs, history, and provenance filtered by organization. 
 | Suite | Command | Result |
 |-------|---------|--------|
 | Form sync (mock E2E pipeline) | `npm run test:itam:form-sync` | **PASS** — PARTIALLY VALIDATED |
-| Phase A network discovery | `npm run test:itam:discovery` | Regression required at ship |
-| Phases B–D | `npm run test:itam:phases-bd` | Regression required at ship |
+| Real environment preflight | `npm run test:itam:form-sync:real` | **REAL_ENVIRONMENT_BLOCKED** |
+| Phase A network discovery | `npm run test:itam:discovery` | **PASS** (regression) |
+| Phases B–D | `npm run test:itam:phases-bd` | **PASS** (regression) |
 | Combined | `npm run test:itam:all` | Run before merge |
 
 Mock coverage includes: schema discovery/cache/evolution, mapping preview/approve, dry-run, CREATE/UPDATE/NO_CHANGE, IP change no-dupe, stale mapping block, provenance/history, tenant isolation, secrets hygiene, metrics.
 
+Evidence: `docs/evidence/itam-form-sync.json`, `docs/evidence/itam-form-sync-real.json`
+
 ---
 
-## 16. Real environment validation
+## 16. REAL ENVIRONMENT VALIDATION
 
-| Item | Status |
-|------|--------|
-| Live Form API CREATE/UPDATE | **NOT TESTED** |
-| Live credentials / endpoint | **REQUIRED** — set `ITAM_SYNC_REAL=1` + `ITAM_SYNC_BASE_URL` (+ SecretProvider ref) |
-| Controlled authorized test asset | **NOT TESTED** |
+**Verdict: `REAL_ENVIRONMENT_BLOCKED`**
 
-Do **not** treat mock success as production validation.
+**Date:** 2026-09-30  
+**Environment type:** Cursor cloud agent (Nest platform on `:3001`)  
+**Target application version:** unavailable (no Form API configured)  
+**Target form:** unavailable  
+**Test asset type:** none selected (blocked before asset selection)  
+**Execution IDs / target record IDs:** none (no live writes attempted)  
+**Measured API/write latency:** n/a  
+**Duplicate count before/after:** n/a (no live sync)  
+**Fields successfully synchronized (live):** none  
+
+### Pre-flight findings (non-secret)
+
+| Config | Status |
+|--------|--------|
+| `ITAM_SYNC_REAL=1` | **MISSING** |
+| `ITAM_SYNC_BASE_URL` (authorized Form API) | **MISSING** |
+| `ITAM_SYNC_CREDENTIAL_REF` (credentialReferenceId) | **MISSING** |
+| SecretProvider entry for that ref | **MISSING** (`VIS_SECRET_PROVIDER` unset) |
+| `ITAM_SYNC_FORM_ID` | **MISSING** |
+| `ITAM_SYNC_ORG_ID` / `ITAM_DEFAULT_ORG_ID` | **MISSING** |
+| Local Nest `/api/health` | 200 (platform up) |
+| Local Nest `/api/forms` | **404** — Nest is not the existing-application Form API SoR |
+
+Implemented platform sync APIs remain under `/api/itam/sync/*`. Existing-application Form API contract (defaults): `/api/forms`, `/api/forms/{formId}/fields`, `/api/forms/{formId}/records`, `/api/forms/{formId}/records/{recordId}` via `HttpExistingAppTarget` + `InternalApplicationConnector` (bearer + `credentialReferenceId`).
+
+**No live Form API authentication or write was attempted.** Mock evidence was not relabeled as real.
+
+### Status table
+
+| Test | Result |
+|---|---|
+| Real API authentication | BLOCKED |
+| Real form discovery | BLOCKED |
+| Real schema retrieval | BLOCKED |
+| Real discovery | BLOCKED |
+| Real correlation | BLOCKED |
+| Real mapping | BLOCKED |
+| Real reference resolution | BLOCKED |
+| Real dry run | BLOCKED |
+| Real CREATE | BLOCKED |
+| Real UPDATE | BLOCKED |
+| Duplicate prevention | BLOCKED |
+| IP change | BLOCKED |
+| Software synchronization | BLOCKED |
+| Provenance | BLOCKED |
+| Audit | BLOCKED |
+| Failure handling | BLOCKED |
+| Security | BLOCKED |
+
+### Failures / limitations (this attempt)
+
+1. Authorized existing-application Form API base URL not configured in this environment.
+2. No sync `credentialReferenceId` + SecretProvider-backed credential available.
+3. No target ITAM form id / org context for a controlled test.
+4. Local Nest health is OK but does not expose `/api/forms` — Supabase REST is the platform DB and is **not** used as a Form API write path for this validation (SoR rule).
+
+### Required to unblock
+
+1. `ITAM_SYNC_REAL=1`
+2. `ITAM_SYNC_BASE_URL=<authorized Form API base URL>`
+3. `ITAM_SYNC_CREDENTIAL_REF=<credentialReferenceId>` with secret stored in SecretProvider
+4. `ITAM_SYNC_FORM_ID=<ITAM Asset form id>`
+5. `ITAM_SYNC_ORG_ID=<organization UUID>`
+6. One authorized test asset in discovery (or `ITAM_SYNC_ASSET_EXTERNAL_ID` after discovery)
+
+Then run: `npm run test:itam:form-sync:real`
 
 ---
 
 ## 17. Known limitations
 
-1. Real existing-application E2E not run in this environment (no credentials).
+1. Real existing-application E2E **BLOCKED** in this environment (missing Form API endpoint + credentials).
 2. Software / NIC / cloud-resource entity sync uses the same engine; dedicated multi-form fixtures beyond Asset form are thinner than Asset.
 3. Ambiguous-match workflow UI is status-aware; dedicated multi-match resolution UX is minimal.
 4. BullMQ dedicated sync worker chain is not a separate queue topology in this phase — sync runs in-process via Nest service/engine (retry/rate-limit patterns available via VIS infra for future wiring).
@@ -228,6 +292,7 @@ Do **not** treat mock success as production validation.
 6. Execute against an authorized lab form/record set first.
 7. Enable `ITAM_DISCOVERY_PERSISTENCE=postgres` for durable sync metadata.
 8. Monitor `/api/itam/sync/metrics` and audit trails.
+9. Re-run `npm run test:itam:form-sync:real` until classification is `REAL_ENVIRONMENT_VALIDATED`.
 
 ---
 
@@ -261,9 +326,9 @@ UI: **IT Assets → Form Sync** (`FormSyncPanel`).
 | Mock pipeline (schema → map → dry-run → create/update/idempotent) | **PASS** |
 | Schema evolution without hardcoded IDs | **PASS** |
 | Security / tenant isolation (mock) | **PASS** |
-| Real Form API E2E | **NOT TESTED** |
+| Real Form API E2E | **REAL_ENVIRONMENT_BLOCKED** |
 | Overall | **PARTIALLY VALIDATED** |
 
 ### Recommended next step
 
-Run controlled real E2E against an authorized test ITAM form with `ITAM_SYNC_REAL=1`, then wire dedicated BullMQ sync stages for production concurrency/rate limits.
+Provide authorized Form API URL + `credentialReferenceId` (SecretProvider) + target form id + org id + one lab asset, then re-run `npm run test:itam:form-sync:real` to complete the live CREATE → NO_CHANGE → UPDATE chain.
