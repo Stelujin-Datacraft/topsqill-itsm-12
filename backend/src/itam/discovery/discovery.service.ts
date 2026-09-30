@@ -3,9 +3,13 @@
  * Reuses DiscoveryStore/Engine; does not replace agent ingest.
  */
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import {
   DiscoveryStore,
   getDiscoveryStore,
+  initDiscoveryStore,
+  flushDiscoveryStoreDurable,
+  getDiscoveryPersistenceMode,
   type StoredAsset,
 } from './store';
 import { DiscoveryEngine } from './engine';
@@ -23,13 +27,36 @@ export interface ItamPrincipal {
 
 @Injectable()
 export class ItamDiscoveryService {
-  private readonly store: DiscoveryStore;
+  private store: DiscoveryStore;
   private readonly engines = new Map<string, DiscoveryEngine>();
   /** Optional lab mock provider shared for demo/tests via Nest */
   readonly mockProvider = new MockNetworkDiscoveryProvider();
+  private ready: Promise<void>;
 
   constructor() {
+    // Default to memory until async init; production boot must await onModuleInit path
     this.store = getDiscoveryStore();
+    this.ready = Promise.resolve();
+  }
+
+  /** Called from module init / tests to force postgres persistence. */
+  async initializePersistence(opts?: { mode?: 'memory' | 'postgres'; applySchema?: boolean }) {
+    this.store = await initDiscoveryStore(opts);
+    this.engines.clear();
+    this.ready = Promise.resolve();
+    return this.store;
+  }
+
+  async ensureReady() {
+    await this.ready;
+  }
+
+  persistenceMode() {
+    return getDiscoveryPersistenceMode();
+  }
+
+  private async persist() {
+    await flushDiscoveryStoreDurable(this.store);
   }
 
   private assertAdmin(principal: ItamPrincipal) {
@@ -81,7 +108,7 @@ export class ItamDiscoveryService {
         throw new BadRequestException('PROD scopes require ITAM_ALLOW_PROD_DISCOVERY=1');
       }
     }
-    return this.store.createScope({
+    const row = this.store.createScope({
       organizationId: principal.organizationId,
       environment: (body.environment || 'LAB') as DiscoveryEnvironment,
       name: body.name,
@@ -92,13 +119,17 @@ export class ItamDiscoveryService {
       enabled: true,
       createdBy: principal.userId,
     });
+    void this.persist();
+    return row;
   }
 
   approveScope(principal: ItamPrincipal, scopeId: string) {
     this.requireAdmin(principal);
     const scope = this.store.scopes.find((s) => s.id === scopeId && s.organizationId === principal.organizationId);
     if (!scope) throw new NotFoundException('Scope not found');
-    return this.store.approveScope(scopeId, principal.userId);
+    const row = this.store.approveScope(scopeId, principal.userId);
+    void this.persist();
+    return row;
   }
 
   listJobs(principal: ItamPrincipal) {
@@ -122,6 +153,7 @@ export class ItamDiscoveryService {
       createdBy: principal.userId,
       status: 'DRAFT',
     });
+    void this.persist();
     return job;
   }
 
@@ -162,6 +194,7 @@ export class ItamDiscoveryService {
       status: result.ok ? 'READY' : 'DRAFT',
       lastError: result.ok ? undefined : result.errors.join('; '),
     });
+    await this.persist();
     return result;
   }
 
@@ -173,16 +206,16 @@ export class ItamDiscoveryService {
         try { return n + cidrHostCount(c); } catch { return n; }
       }, 0);
       if (est > 256 && process.env.ITAM_DISCOVERY_CONFIRM_LARGE !== '1') {
-        // Still allow if already READY after explicit validate; large ranges need confirm flag in prod
         if (job.status !== 'READY' && est > 1024) {
           throw new BadRequestException('Large discovery range requires validate + confirmation');
         }
       }
     }
-    // Fire async — return run handle immediately for Nest; tests can await runJob directly
     const engine = this.engineFor(principal.organizationId);
-    const running = engine.runJob(jobId, { actorId: principal.userId });
-    // Attach promise for awaiters (tests)
+    const running = engine.runJob(jobId, { actorId: principal.userId }).then(async (r) => {
+      await this.persist();
+      return r;
+    });
     (this as any)._lastRun = running;
     return { started: true, jobId, status: 'RUNNING' };
   }
@@ -195,6 +228,7 @@ export class ItamDiscoveryService {
     this.requireAdmin(principal);
     this.getJob(principal, jobId);
     this.engineFor(principal.organizationId).pause(jobId);
+    void this.persist();
     return { paused: true };
   }
 
@@ -202,6 +236,7 @@ export class ItamDiscoveryService {
     this.requireAdmin(principal);
     this.getJob(principal, jobId);
     this.engineFor(principal.organizationId).resume(jobId);
+    void this.persist();
     return { resumed: true };
   }
 
@@ -209,6 +244,7 @@ export class ItamDiscoveryService {
     this.requireAdmin(principal);
     this.getJob(principal, jobId);
     this.engineFor(principal.organizationId).cancel(jobId);
+    void this.persist();
     return { cancelled: true };
   }
 
@@ -249,6 +285,7 @@ export class ItamDiscoveryService {
       entityType: 'it_asset',
       entityId: assetId,
     });
+    void this.persist();
     return asset;
   }
 
@@ -262,6 +299,7 @@ export class ItamDiscoveryService {
       entityType: 'it_asset',
       entityId: assetId,
     });
+    void this.persist();
     return asset;
   }
 
@@ -280,6 +318,7 @@ export class ItamDiscoveryService {
       entityId: assetId,
       detail: { note: 'Administrator explicitly authorized agent deployment — install is not automatic' },
     });
+    void this.persist();
     return { approved: true, assetId, automaticInstall: false };
   }
 
@@ -302,7 +341,7 @@ export class ItamDiscoveryService {
     });
     if (agent.agentKey) {
       this.store.identities.push({
-        id: `${assetId}-agent`,
+        id: randomUUID(),
         organizationId: principal.organizationId,
         assetId,
         identityType: 'agentId',
@@ -316,6 +355,7 @@ export class ItamDiscoveryService {
       entityId: assetId,
       detail: { sources: ['NETWORK_DISCOVERY', 'AGENT'] },
     });
+    void this.persist();
     return asset;
   }
 

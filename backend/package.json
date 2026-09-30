@@ -19,6 +19,7 @@
     "test:vis:pilot": "VIS_PERSISTENCE=prisma VIS_PILOT_ENV=TEST npx tsx test/vis/vis.pilot-enablement.test.ts",
     "test:vis:secrets": "bash ../scripts/security/scan.sh",
     "test:itam:discovery": "npx tsx test/itam/itam.network-discovery.test.ts",
+    "test:itam:discovery:persist": "ITAM_DISCOVERY_PERSISTENCE=postgres npx tsx test/itam/itam.discovery-persistence.test.ts",
     "prisma:vis:generate": "prisma generate --schema=src/vis/prisma/schema.prisma",
     "prisma:vis:push": "prisma db push --schema=src/vis/prisma/schema.prisma",
     "security:scan": "bash ../scripts/security/scan.sh",

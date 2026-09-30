@@ -388,18 +388,95 @@ export function NetworkDiscoveryPanel() {
           </div>
         </TabsContent>
 
-        <TabsContent value="unmanaged" className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Unmanaged assets were found by network discovery and are not yet agent-managed.
-            Approve agent onboarding explicitly — software is never installed silently.
-          </p>
-          <Button variant="outline" size="sm" onClick={() => void itamFetch('/unmanaged-assets').then((rows) => {
-            toast({ title: `${rows.length} unmanaged assets`, description: 'See Discovered Assets for correlation status' });
-          })}>
-            Load unmanaged count
-          </Button>
+        <TabsContent value="unmanaged" className="space-y-3">
+          <div className="rounded-md border px-3 py-2 text-sm space-y-1">
+            <p className="font-medium">Agent not installed</p>
+            <p className="text-muted-foreground">
+              Network-discovered hosts without an ITAM agent stay <strong>UNMANAGED</strong> until an administrator
+              explicitly approves agent onboarding. Installation is never automatic.
+            </p>
+          </div>
+          <UnmanagedAssetsList orgId={orgId} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function UnmanagedAssetsList({ orgId }: { orgId: string }) {
+  const [rows, setRows] = useState<Array<{
+    id: string;
+    displayName?: string;
+    hostname?: string;
+    ipAddress?: string;
+    discoveryLifecycle?: string;
+    discoveryConfidence?: string;
+    customFields?: Record<string, unknown>;
+  }>>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = async () => {
+    if (!orgId) return;
+    localStorage.setItem('current_organization_id', orgId);
+    const data = await itamFetch('/unmanaged-assets');
+    setRows(data);
+  };
+
+  useMemo(() => {
+    void load().catch(() => setRows([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
+
+  const approveOnboarding = async (assetId: string) => {
+    setBusy(assetId);
+    try {
+      const res = await itamFetch(`/assets/${assetId}/approve-agent-onboarding`, {
+        method: 'POST',
+        body: '{}',
+      });
+      toast({
+        title: 'Agent onboarding authorized',
+        description: res.automaticInstall === false
+          ? 'Authorization recorded. Deploy the agent separately — nothing was installed automatically.'
+          : 'Approved',
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: 'Onboarding approval failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Button variant="outline" size="sm" onClick={() => void load()}>Refresh unmanaged</Button>
+      {rows.map((a) => (
+        <Card key={a.id}>
+          <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <div>
+              <div className="font-medium">{a.displayName || a.hostname || a.ipAddress || a.id}</div>
+              <div className="text-xs text-muted-foreground font-mono">
+                {a.ipAddress} · {a.hostname || 'no hostname'} · confidence {a.discoveryConfidence || 'LOW'}
+              </div>
+              <div className="text-xs mt-1">
+                Status: {a.discoveryLifecycle || 'DISCOVERED'} · Agent: not installed
+                {a.customFields?.agentOnboardingApproved ? ' · Onboarding authorized (awaiting install)' : ''}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              disabled={busy === a.id || Boolean(a.customFields?.agentOnboardingApproved)}
+              onClick={() => void approveOnboarding(a.id)}
+            >
+              Authorize agent install
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+      {!rows.length && (
+        <p className="text-sm text-muted-foreground">No unmanaged assets. Run discovery against an approved scope first.</p>
+      )}
     </div>
   );
 }

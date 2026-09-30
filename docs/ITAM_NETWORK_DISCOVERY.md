@@ -130,8 +130,8 @@ Agent route `POST /api/itam/agent-report` preserved.
 
 ## 16. Known limitations
 
-- Live ICMP/WinRM/SSH/SNMP against customer networks not run in CI (LAB mock only)
-- In-process DiscoveryStore used by Nest service today; apply SQL migration for durable multi-instance SoR sync
+- Live WinRM/SSH/SNMP against customer networks not run in CI — see `docs/ITAM_NETWORK_DISCOVERY_READINESS.md`
+- Production Nest path uses PostgreSQL (`ITAM_DISCOVERY_DATABASE_URL`); in-memory store is tests-only
 - Cloud/VMware providers are stubs
 - Full topology mapping deferred
 - Agent offline cron not part of this change
@@ -143,11 +143,13 @@ AWS / Azure / GCP inventory, VMware/Hyper-V, DHCP/ARP/DNS passive feeds, SNMP wa
 ## 18. Commands
 
 ```bash
-# Apply schema (Supabase)
-# supabase db push   # or run migration 20260930120000_itam_network_discovery.sql
+# Apply Nest dedicated schema (or Supabase migration 20260930120000_…)
+export ITAM_DISCOVERY_DATABASE_URL=postgresql://…/itam_discovery
 
 cd backend
 npm run test:itam:discovery
+npm run test:itam:discovery:persist
 
-# Optional: start API and open /it-assets → Network Discovery
+# Readiness report
+# docs/ITAM_NETWORK_DISCOVERY_READINESS.md
 ```

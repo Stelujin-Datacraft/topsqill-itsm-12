@@ -267,11 +267,68 @@ export class DiscoveryStore {
 }
 
 let singleton: DiscoveryStore | null = null;
+let persistenceMode: 'memory' | 'postgres' = 'memory';
+
+export function getDiscoveryPersistenceMode(): 'memory' | 'postgres' {
+  return persistenceMode;
+}
+
 export function getDiscoveryStore(): DiscoveryStore {
   if (!singleton) singleton = new DiscoveryStore();
   return singleton;
 }
+
 export function resetDiscoveryStore(): DiscoveryStore {
   singleton = new DiscoveryStore();
+  persistenceMode = 'memory';
   return singleton;
+}
+
+/**
+ * Boot production/lab store.
+ * - memory: unit tests only
+ * - postgres: hydrate from ITAM_DISCOVERY_DATABASE_URL (required in production)
+ */
+export async function initDiscoveryStore(opts?: {
+  mode?: 'memory' | 'postgres';
+  applySchema?: boolean;
+}): Promise<DiscoveryStore> {
+  const {
+    isPostgresPersistenceRequired,
+    getItamDiscoveryDatabaseUrl,
+    applyDiscoverySchema,
+    hydrateDiscoveryStore,
+  } = await import('./pg-persistence');
+
+  const mode =
+    opts?.mode
+    || (process.env.ITAM_DISCOVERY_PERSISTENCE as 'memory' | 'postgres' | undefined)
+    || (isPostgresPersistenceRequired() ? 'postgres' : 'memory');
+
+  if (mode === 'postgres') {
+    if (!getItamDiscoveryDatabaseUrl()) {
+      throw new Error(
+        'Production discovery persistence requires ITAM_DISCOVERY_DATABASE_URL (in-memory store forbidden)',
+      );
+    }
+    if (opts?.applySchema !== false) {
+      await applyDiscoverySchema();
+    }
+    const store = resetDiscoveryStore();
+    persistenceMode = 'postgres';
+    await hydrateDiscoveryStore(store);
+    return store;
+  }
+
+  persistenceMode = 'memory';
+  if (process.env.NODE_ENV === 'production' && process.env.ITAM_ALLOW_MEMORY_STORE !== '1') {
+    throw new Error('In-memory DiscoveryStore is forbidden in production');
+  }
+  return resetDiscoveryStore();
+}
+
+export async function flushDiscoveryStoreDurable(store?: DiscoveryStore): Promise<void> {
+  if (persistenceMode !== 'postgres') return;
+  const { flushDiscoveryStore } = await import('./pg-persistence');
+  await flushDiscoveryStore(store || getDiscoveryStore());
 }
