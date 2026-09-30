@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-30T07:38:59.959Z",
+  "startedAt": "2026-09-30T07:50:25.054Z",
   "tests": {
     "cidr_validation": {
       "status": "PASS"
@@ -62,13 +62,13 @@
       "detail": {
         "assets": 2,
         "metrics": {
-          "hostsPerSec": 95.24,
-          "durationMs": 21,
+          "hostsPerSec": 90.91,
+          "durationMs": 22,
           "hostDiscoveryLatencyMs": 0,
           "credentialedInventoryLatencyMs": 1,
           "workerUtilization": 4
         },
-        "durationMs": 21
+        "durationMs": 23
       }
     },
     "software_inventory": {
@@ -113,7 +113,7 @@
     "correlation_serial": {
       "status": "PASS",
       "detail": {
-        "matchedAssetId": "4701c525-78e2-4eaf-8ae4-e74c9af1a5c1",
+        "matchedAssetId": "b3485560-b4bb-4fbe-a441-dd3d52ffa115",
         "confidence": "HIGH",
         "signals": [
           {
@@ -154,14 +154,14 @@
       "status": "PASS",
       "detail": {
         "approved": true,
-        "assetId": "3717efa4-e47d-4241-b3bb-87ab1bc6a0b8",
+        "assetId": "7ebe7a00-f3ee-454e-995b-c341ef1e7588",
         "automaticInstall": false
       }
     },
     "performance_slash24": {
       "status": "PASS",
       "detail": {
-        "durationMs": 3,
+        "durationMs": 2,
         "hostsPerSec": 127000,
         "hostsScanned": 254,
         "hostsDiscovered": 20,
@@ -178,7 +178,7 @@
       "status": "PASS"
     }
   },
-  "finishedAt": "2026-09-30T07:39:00.050Z",
+  "finishedAt": "2026-09-30T07:50:25.145Z",
   "dashboard": {
     "jobs": 5,
     "running": 0,
@@ -187,11 +187,11 @@
     "unmanagedAssets": 22,
     "softwareRows": 4,
     "lastRun": {
-      "id": "3056841c-9182-45d6-896b-4820920ee847",
-      "jobId": "cb3910c5-81bc-46eb-8640-7fc0e0125eac",
+      "id": "08534c44-6b95-4ae6-be26-d0ce3f39a1cd",
+      "jobId": "2c09056a-94ac-410d-a120-d169b3b5e92b",
       "organizationId": "org-lab-1",
       "status": "COMPLETED",
-      "startedAt": "2026-09-30T07:39:00.048Z",
+      "startedAt": "2026-09-30T07:50:25.143Z",
       "hostsTargeted": 254,
       "hostsScanned": 254,
       "hostsDiscovered": 20,
@@ -207,7 +207,7 @@
         "credentialedInventoryLatencyMs": 0,
         "workerUtilization": 32
       },
-      "finishedAt": "2026-09-30T07:39:00.050Z"
+      "finishedAt": "2026-09-30T07:50:25.145Z"
     }
   },
   "metrics": {

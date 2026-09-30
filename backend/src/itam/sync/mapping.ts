@@ -10,22 +10,30 @@ import type { DiscoveredField, FieldMappingSpec, MappingConfidence } from '../..
 import type { FormFieldSchema, SyncValidationError } from './types';
 
 const ITAM_SYNONYMS: Array<[RegExp, string[], number]> = [
-  [/hostname|fqdn|displayname|assetname|devicename|servername/, ['hostname', 'device_name', 'asset_name', 'display_name', 'name', 'fqdn'], 98],
-  [/primaryip|ipaddress|^ip$|privateip|managementip/, ['primary_ip', 'ip_address', 'ip', 'management_ip', 'private_ip'], 97],
+  [/hostname|fqdn|displayname|assetname|devicename|servername/, ['hostname', 'device_name', 'asset_name', 'asset_name_hostname', 'display_name', 'name', 'fqdn'], 98],
+  [/primaryip|ipaddress|^ip$|privateip|managementip/, ['primary_ip', 'primary_ip_address', 'ip_address', 'ip', 'management_ip', 'private_ip'], 97],
   [/macaddress|^mac$|hwaddress/, ['mac_address', 'mac', 'hardware_address'], 96],
-  [/serialnumber|serial|servicetag/, ['serial_number', 'serial', 'service_tag'], 97],
+  [/serialnumber|serial|servicetag/, ['serial_number', 'serial_number_service_tag', 'serial', 'service_tag'], 97],
   [/machineguid|biosuuid|uuid|cloudinstanceid|instanceid|resourceid|externalid/, ['machine_guid', 'bios_uuid', 'uuid', 'cloud_instance_id', 'external_id', 'instance_id', 'resource_id', 'device_unique_identifier'], 95],
   [/operatingsystem|^os$|osname|guestos/, ['operating_system', 'os', 'os_name', 'guest_os'], 94],
   [/osversion|os_version|version/, ['os_version', 'operating_system_version', 'version'], 90],
   [/manufacturer|vendor|make/, ['manufacturer', 'vendor', 'make'], 92],
-  [/model|product/, ['model', 'product_model'], 90],
+  [/model|product|modelnumber/, ['model', 'model_number', 'product_model'], 90],
   [/assettype|devicetype|type/, ['asset_type', 'device_type', 'type', 'category'], 88],
+  [/cpumodel|^cpu$|processor/, ['cpu', 'cpu_model', 'processor'], 88],
+  [/memory|ramgb|^ram$/, ['memory', 'ram', 'ram_gb', 'memory_gb'], 88],
   [/environment|env/, ['environment', 'env'], 90],
-  [/owner|managedby/, ['owner', 'managed_by', 'asset_owner'], 85],
+  [/owner|managedby|assigneduser/, ['owner', 'managed_by', 'asset_owner', 'assigned_user_full_name'], 85],
+  [/department|dept/, ['department', 'dept'], 86],
   [/cloudprovider|provider/, ['cloud_provider', 'provider'], 88],
   [/cloudregion|region|availabilityzone|zone/, ['cloud_region', 'region', 'zone'], 86],
   [/virtualizationhost|esxi|hypervisor|host/, ['virtualization_host', 'esxi_host', 'host'], 84],
 ];
+
+/** Layout / non-data field types — never required for sync validation. */
+export const NON_DATA_FIELD_TYPES = new Set([
+  'header', 'description', 'section-break', 'horizontal-line', 'page-break', 'html', 'divider',
+]);
 
 function normalize(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -152,6 +160,7 @@ export function validateAgainstSchema(
 
   for (const f of schema) {
     if (f.readOnly) continue;
+    if (NON_DATA_FIELD_TYPES.has(String(f.type || '').toLowerCase())) continue;
     const val = payload[f.name];
     if (f.required && (val === undefined || val === null || val === '')) {
       errors.push({

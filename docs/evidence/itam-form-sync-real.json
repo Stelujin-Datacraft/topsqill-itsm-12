@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-09-30T07:38:49.112Z",
-  "classification": "REAL_ENVIRONMENT_PARTIAL",
+  "startedAt": "2026-09-30T07:49:42.865Z",
+  "classification": "REAL_ENVIRONMENT_VALIDATED",
   "environmentType": "cloud-agent",
   "tests": {
     "real_api_authentication": {
@@ -9,200 +9,772 @@
         "method": "BEARER_TOKEN via credentialReferenceId"
       }
     },
-    "real_form_discovery": {
+    "manual_itam_form_discovery": {
       "status": "PASS",
       "detail": {
-        "formId": "04418ba4-0f24-429f-8f43-8c58953e7e9b",
-        "formName": "Demo Form",
-        "formCount": 5,
-        "itamFormCount": 0,
-        "FORM_DISCOVERY": "PASS"
+        "formId": "d45d078e-9a83-4308-84fe-d2c8799670f9",
+        "formName": "Enterprise IT Asset Lifecycle & Inventory Management",
+        "formCount": 6,
+        "itamFormCount": 1,
+        "fieldCount": 43,
+        "organizationId": "29accb8d-682f-4b2f-908a-b5a655c45375"
       }
     },
-    "real_schema_retrieval": {
+    "live_schema_retrieval": {
       "status": "PASS",
       "detail": {
-        "formId": "04418ba4-0f24-429f-8f43-8c58953e7e9b",
-        "formName": "Demo Form",
-        "schemaVersion": "c59f15b352739bad",
-        "fieldCount": 5,
-        "latencyMs": 1174,
-        "sampleFields": [
+        "formId": "d45d078e-9a83-4308-84fe-d2c8799670f9",
+        "formName": "Enterprise IT Asset Lifecycle & Inventory Management",
+        "schemaVersion": "050b50fefd6babac",
+        "fieldCount": 43,
+        "dataFieldCount": 34,
+        "latencyMs": 1139,
+        "fields": [
           {
-            "id": "536b6822-499e-4ff5-b66b-465ae2dc0b3d",
+            "id": "e35208a3-4910-4a05-bbd5-0d21cc740f60",
+            "name": "model_number",
+            "label": "Model Number",
+            "type": "text",
+            "required": true,
+            "editable": true
+          },
+          {
+            "id": "125d89dc-3b36-4c35-bb91-fd3c5d485534",
+            "name": "network_segment_vlan",
+            "label": "Network Segment / VLAN",
+            "type": "select",
+            "required": false,
+            "editable": true,
+            "allowedValues": [
+              "corp",
+              "prod",
+              "guest",
+              "dmz",
+              "mgmt"
+            ]
+          },
+          {
+            "id": "ac2b0873-48d7-49b4-b93f-280d91a916f2",
+            "name": "physical_location_country",
+            "label": "Physical Location (Country)",
+            "type": "country",
+            "required": true,
+            "editable": true
+          },
+          {
+            "id": "20a5947e-c7b8-423e-b5b7-d422bb810957",
+            "name": "cpu_model",
+            "label": "CPU Model",
+            "type": "text",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "0c155baf-2d74-4134-a5a5-f685ccd49110",
+            "name": "current_status",
+            "label": "Current Status",
+            "type": "select",
+            "required": true,
+            "editable": true,
+            "allowedValues": [
+              "in_storage",
+              "active",
+              "maintenance",
+              "retired",
+              "lost_stolen"
+            ]
+          },
+          {
+            "id": "04f4c7cc-a622-421e-b2a4-917f765f7d6a",
+            "name": "primary_ip_address",
+            "label": "Primary IP Address",
+            "type": "text",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "982d9235-0877-417c-a130-3049c0068e37",
+            "name": "static_ip_assigned",
+            "label": "Static IP Assigned?",
+            "type": "toggle-switch",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "88023271-292c-4e57-ab02-7fb451719486",
+            "name": "office_address_data_center_location",
+            "label": "Office Address / Data Center Location",
+            "type": "address",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "24796d70-2e2d-48f5-9a34-c88cfa5ebe00",
+            "name": "operating_system",
+            "label": "Operating System",
+            "type": "select",
+            "required": false,
+            "editable": true,
+            "allowedValues": [
+              "win11",
+              "win10",
+              "macos",
+              "linux",
+              "ios",
+              "android"
+            ]
+          },
+          {
+            "id": "4c3b2961-fb8d-41e8-8454-f69dc95afd79",
+            "name": "storage_capacity_gb",
+            "label": "Storage Capacity (GB)",
+            "type": "number",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "69fb7b8f-7ffc-489e-9716-a1ca4f7aa7b9",
+            "name": "asset_type",
+            "label": "Asset Type",
+            "type": "select",
+            "required": true,
+            "editable": true,
+            "allowedValues": [
+              "laptop",
+              "desktop",
+              "server_physical",
+              "server_virtual",
+              "network",
+              "peripheral",
+              "mobile"
+            ]
+          },
+          {
+            "id": "7ae7adfb-318c-4cce-851a-208393906fa3",
+            "name": "vendor_supplier",
+            "label": "Vendor / Supplier",
+            "type": "text",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "c0f2fd4a-1f59-4145-a04b-2fec14104c89",
+            "name": "antivirus_edr_installed",
+            "label": "Antivirus/EDR Installed",
+            "type": "toggle-switch",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "0e0c8e90-ab4d-49cb-85b0-23cf6fa3ba3e",
+            "name": "additional_configuration_notes",
+            "label": "Additional Configuration Notes",
+            "type": "textarea",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "327f8b14-33c6-4d57-88b5-f4e6b75520aa",
+            "name": "serial_number_service_tag",
+            "label": "Serial Number / Service Tag",
+            "type": "text",
+            "required": true,
+            "editable": true
+          },
+          {
+            "id": "e6142c5d-24f7-4e57-ab48-f3b1d61e1534",
+            "name": "purchase_date",
+            "label": "Purchase Date",
+            "type": "date",
+            "required": true,
+            "editable": true
+          },
+          {
+            "id": "dca6b05f-b48b-4c2f-9dc8-7a89c8ba7bc9",
+            "name": "warranty_expiration",
+            "label": "Warranty Expiration",
+            "type": "date",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "900db0f9-75a0-4740-812d-927d79d0e375",
+            "name": "user_email_address",
+            "label": "User Email Address",
+            "type": "email",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "59204b98-bbef-4e6a-9c42-bdb79ce2051b",
+            "name": "upload_invoice_receipt",
+            "label": "Upload Invoice / Receipt",
+            "type": "file",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "d48a12aa-d588-4dbf-b360-bb4ebca80a92",
+            "name": "it_auditor_signature",
+            "label": "IT Auditor Signature",
+            "type": "signature",
+            "required": true,
+            "editable": true
+          },
+          {
+            "id": "e0a156de-cd84-47ef-a95d-3f63659e0fca",
             "name": "status",
             "label": "Status",
             "type": "select",
-            "required": true
+            "required": true,
+            "editable": true,
+            "allowedValues": [
+              "Draft",
+              "Inprogress",
+              "Pending",
+              "Completed",
+              "Archived"
+            ]
           },
           {
-            "id": "84a163d4-46d6-4275-81fe-fd57602dbbe8",
-            "name": "single_line_text",
-            "label": "Single-Line Text",
+            "id": "798e288a-4424-40d1-9de9-903037883522",
+            "name": "asset_name_hostname",
+            "label": "Asset Name / Hostname",
             "type": "text",
-            "required": false
+            "required": true,
+            "editable": true
           },
           {
-            "id": "2ffe85ea-302b-4e6b-8031-96ee0a87e445",
-            "name": "multi_line_text",
-            "label": "Multi-Line Text",
-            "type": "textarea",
-            "required": false
+            "id": "7413c7ab-781f-4e9c-a318-ff019c300c07",
+            "name": "purchase_cost",
+            "label": "Purchase Cost",
+            "type": "currency",
+            "required": false,
+            "editable": true
           },
           {
-            "id": "f016375c-4c74-4323-a510-64efb1390b22",
-            "name": "number_input",
-            "label": "Number Input",
+            "id": "444710c6-e7c7-408c-bd5a-98742e9c23b6",
+            "name": "purchase_order_po_number",
+            "label": "Purchase Order (PO) Number",
+            "type": "text",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "dc9f6bc3-37d2-40de-8a88-6879d6b0bc40",
+            "name": "assigned_user_full_name",
+            "label": "Assigned User (Full Name)",
+            "type": "text",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "8bc99a34-c850-4e87-a2a1-a71e24df6a49",
+            "name": "department",
+            "label": "Department",
+            "type": "select",
+            "required": true,
+            "editable": true,
+            "allowedValues": [
+              "it",
+              "hr",
+              "sales",
+              "finance",
+              "ops",
+              "legal"
+            ]
+          },
+          {
+            "id": "66c2232b-46d2-400d-8908-0103c9960dd0",
+            "name": "encryption_enabled_bitlocker_filevault",
+            "label": "Encryption Enabled (BitLocker/FileVault)",
+            "type": "toggle-switch",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "6f2ca0cf-3605-41ab-a238-a4444304f42b",
+            "name": "device_photo_condition_check",
+            "label": "Device Photo (Condition Check)",
+            "type": "image",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "33d55025-4e9d-4da6-8262-ffacf4877401",
+            "name": "last_audit_timestamp",
+            "label": "Last Audit Timestamp",
+            "type": "datetime",
+            "required": true,
+            "editable": true
+          },
+          {
+            "id": "aa0e6f8b-5dc3-4896-b9a0-4fc61d3f0349",
+            "name": "manufacturer",
+            "label": "Manufacturer",
+            "type": "text",
+            "required": true,
+            "editable": true
+          },
+          {
+            "id": "3d076950-0a62-410f-b202-f8c97e8ca070",
+            "name": "mac_address",
+            "label": "MAC Address",
+            "type": "text",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "9642a2e7-1d94-4977-bcda-74d8997125c1",
+            "name": "rack_desk_number",
+            "label": "Rack / Desk Number",
+            "type": "text",
+            "required": false,
+            "editable": true
+          },
+          {
+            "id": "20c746a2-5798-417c-9c90-2f7d9b985043",
+            "name": "ram_gb",
+            "label": "RAM (GB)",
             "type": "number",
-            "required": false
+            "required": false,
+            "editable": true
           },
           {
-            "id": "91042e77-6d8c-4241-af6d-1b9a20d8a35a",
-            "name": "date_picker",
-            "label": "Date Picker",
-            "type": "date",
-            "required": false
+            "id": "382a4009-7594-427a-ad0f-0d1b06c2e36e",
+            "name": "installed_software_tags",
+            "label": "Installed Software Tags",
+            "type": "tags",
+            "required": false,
+            "editable": true
           }
         ]
       }
     },
     "real_discovery": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "No ITAM Asset form in tenant; configured form is not ITAM-like. Create an authorized ITAM Asset form and set ITAM_SYNC_FORM_ID. Refusing CREATE/UPDATE against non-ITAM forms.",
-        "configuredForm": "Demo Form",
-        "itamFormsFound": []
-      }
-    },
-    "real_correlation": {
-      "status": "BLOCKED",
-      "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "assetId": "979184fc-d94c-441e-92c4-2ca1dc19002d",
+        "hostname": "lab-itam-sync-01",
+        "serialNumber": "ITAM-LAB-SERIAL-001",
+        "machineGuid": "GUID-ITAM-LAB-001",
+        "ipAddress": "10.60.0.11",
+        "macAddress": "aa:bb:cc:60:00:11",
+        "manufacturer": "Dell",
+        "model": "PowerEdge-R740",
+        "assetType": "server_physical",
+        "discoverySource": "NETWORK_DISCOVERY"
       }
     },
     "real_mapping": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "mappingId": "5d5aef39-2a71-44ab-ad2c-51aa4dec59d4",
+        "mappingCount": 18,
+        "mappings": [
+          {
+            "sourceField": "macAddress",
+            "targetField": "mac_address",
+            "confidence": "HIGH",
+            "targetFieldId": "3d076950-0a62-410f-b202-f8c97e8ca070",
+            "targetType": "text"
+          },
+          {
+            "sourceField": "manufacturer",
+            "targetField": "manufacturer",
+            "confidence": "HIGH",
+            "targetFieldId": "aa0e6f8b-5dc3-4896-b9a0-4fc61d3f0349",
+            "targetType": "text"
+          },
+          {
+            "sourceField": "assetType",
+            "targetField": "asset_type",
+            "confidence": "HIGH",
+            "targetFieldId": "69fb7b8f-7ffc-489e-9716-a1ca4f7aa7b9",
+            "targetType": "select"
+          },
+          {
+            "sourceField": "hostname",
+            "targetField": "asset_name_hostname",
+            "confidence": "HIGH",
+            "targetFieldId": "798e288a-4424-40d1-9de9-903037883522",
+            "targetType": "text"
+          },
+          {
+            "sourceField": "primaryIp",
+            "targetField": "primary_ip_address",
+            "confidence": "HIGH",
+            "targetFieldId": "04f4c7cc-a622-421e-b2a4-917f765f7d6a",
+            "targetType": "text"
+          },
+          {
+            "sourceField": "ipAddress",
+            "targetField": "static_ip_assigned",
+            "confidence": "HIGH",
+            "targetFieldId": "982d9235-0877-417c-a130-3049c0068e37",
+            "targetType": "toggle-switch"
+          },
+          {
+            "sourceField": "serialNumber",
+            "targetField": "serial_number_service_tag",
+            "confidence": "HIGH",
+            "targetFieldId": "327f8b14-33c6-4d57-88b5-f4e6b75520aa",
+            "targetType": "text"
+          },
+          {
+            "sourceField": "model",
+            "targetField": "model_number",
+            "confidence": "HIGH",
+            "targetFieldId": "e35208a3-4910-4a05-bbd5-0d21cc740f60",
+            "targetType": "text"
+          },
+          {
+            "sourceField": "cpu",
+            "targetField": "cpu_model",
+            "confidence": "MEDIUM",
+            "targetFieldId": "20a5947e-c7b8-423e-b5b7-d422bb810957",
+            "targetType": "text"
+          },
+          {
+            "sourceField": "memory",
+            "targetField": "ram_gb",
+            "confidence": "MEDIUM",
+            "targetFieldId": "20c746a2-5798-417c-9c90-2f7d9b985043",
+            "targetType": "number"
+          },
+          {
+            "sourceField": "externalId",
+            "targetField": "primary_asset_identification",
+            "confidence": "HIGH",
+            "targetFieldId": "94962dba-1e55-42a1-bd51-5d09ed57f3b5",
+            "targetType": "header"
+          },
+          {
+            "sourceField": "__constant__",
+            "targetField": "status",
+            "confidence": "HIGH",
+            "defaultValue": "[set]",
+            "targetFieldId": "e0a156de-cd84-47ef-a95d-3f63659e0fca",
+            "targetType": "select"
+          },
+          {
+            "sourceField": "__constant__",
+            "targetField": "current_status",
+            "confidence": "HIGH",
+            "defaultValue": "[set]",
+            "targetFieldId": "0c155baf-2d74-4134-a5a5-f685ccd49110",
+            "targetType": "select"
+          },
+          {
+            "sourceField": "__constant__",
+            "targetField": "department",
+            "confidence": "HIGH",
+            "defaultValue": "[set]",
+            "targetFieldId": "8bc99a34-c850-4e87-a2a1-a71e24df6a49",
+            "targetType": "select"
+          },
+          {
+            "sourceField": "__constant__",
+            "targetField": "physical_location_country",
+            "confidence": "HIGH",
+            "defaultValue": "[set]",
+            "targetFieldId": "ac2b0873-48d7-49b4-b93f-280d91a916f2",
+            "targetType": "country"
+          },
+          {
+            "sourceField": "__constant__",
+            "targetField": "purchase_date",
+            "confidence": "HIGH",
+            "defaultValue": "[set]",
+            "targetFieldId": "e6142c5d-24f7-4e57-ab48-f3b1d61e1534",
+            "targetType": "date"
+          },
+          {
+            "sourceField": "__constant__",
+            "targetField": "last_audit_timestamp",
+            "confidence": "HIGH",
+            "defaultValue": "[set]",
+            "targetFieldId": "33d55025-4e9d-4da6-8262-ffacf4877401",
+            "targetType": "datetime"
+          },
+          {
+            "sourceField": "__constant__",
+            "targetField": "it_auditor_signature",
+            "confidence": "HIGH",
+            "defaultValue": "[set]",
+            "targetFieldId": "d48a12aa-d588-4dbf-b360-bb4ebca80a92",
+            "targetType": "signature"
+          }
+        ],
+        "unmappedSources": [
+          "machineGuid",
+          "biosUuid"
+        ],
+        "validationErrors": [],
+        "mappedPreviewKeys": [
+          "mac_address",
+          "manufacturer",
+          "asset_type",
+          "asset_name_hostname",
+          "primary_ip_address",
+          "static_ip_assigned",
+          "serial_number_service_tag",
+          "model_number",
+          "primary_asset_identification",
+          "status",
+          "current_status",
+          "department",
+          "physical_location_country",
+          "purchase_date",
+          "last_audit_timestamp",
+          "it_auditor_signature"
+        ]
       }
     },
-    "real_reference_resolution": {
-      "status": "BLOCKED",
+    "reference_resolution": {
+      "status": "NOT_APPLICABLE",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "reason": "Manufacturer/Department/Status are text/select values on this form — not reference lookups"
       }
     },
-    "real_dry_run": {
-      "status": "BLOCKED",
+    "dry_run": {
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "operation": "WOULD_CREATE",
+        "status": "DRY_RUN",
+        "beforeCount": 0,
+        "afterCount": 0,
+        "DRY_RUN_WRITE_CHECK": "PASS",
+        "executionId": "dc6b8f1e-4a37-4423-b3a5-b1f39c1e24c7",
+        "durationMs": 6658
+      }
+    },
+    "real_correlation": {
+      "status": "PASS",
+      "detail": {
+        "result": "NEW_ASSET"
       }
     },
     "real_create": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
-      }
-    },
-    "real_update": {
-      "status": "BLOCKED",
-      "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "operation": "CREATE",
+        "status": "SUCCESS",
+        "targetRecordId": "e897a6f8-12e2-4d46-82a6-269e61da6084",
+        "executionId": "f083666f-54c9-41bf-8fe9-ce6000b45b06",
+        "durationMs": 6540,
+        "mappedPayload": {
+          "mac_address": "aa:bb:cc:60:00:11",
+          "manufacturer": "Dell",
+          "asset_type": "server_physical",
+          "asset_name_hostname": "lab-itam-sync-01",
+          "primary_ip_address": "10.60.0.11",
+          "static_ip_assigned": "10.60.0.11",
+          "serial_number_service_tag": "ITAM-LAB-SERIAL-001",
+          "model_number": "PowerEdge-R740",
+          "primary_asset_identification": "GUID-ITAM-LAB-001",
+          "status": "Draft",
+          "current_status": "active",
+          "department": "it",
+          "physical_location_country": "US",
+          "purchase_date": "2026-09-30",
+          "last_audit_timestamp": "2026-09-30T07:49:44.876Z",
+          "it_auditor_signature": "ITAM-SYNC-LAB-ATTESTATION"
+        }
       }
     },
     "duplicate_prevention": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "before": 1,
+        "after": 1,
+        "operation": "NO_CHANGE",
+        "targetRecordId": "e897a6f8-12e2-4d46-82a6-269e61da6084",
+        "expectedSameId": "e897a6f8-12e2-4d46-82a6-269e61da6084"
       }
     },
-    "ip_change": {
-      "status": "BLOCKED",
+    "real_update": {
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "operation": "UPDATE",
+        "status": "SUCCESS",
+        "targetRecordId": "e897a6f8-12e2-4d46-82a6-269e61da6084",
+        "changedFields": [
+          "manufacturer"
+        ],
+        "executionId": "f717a5af-3b81-47db-96b9-2595f66e5521",
+        "durationMs": 8683
       }
     },
-    "software_synchronization": {
-      "status": "BLOCKED",
+    "same_record_verification": {
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "targetRecordId": "e897a6f8-12e2-4d46-82a6-269e61da6084",
+        "fetchedId": "e897a6f8-12e2-4d46-82a6-269e61da6084",
+        "manufacturer": "Dell Inc",
+        "manufacturerFieldId": "aa0e6f8b-5dc3-4896-b9a0-4fc61d3f0349"
       }
     },
     "provenance": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "rows": 32
       }
     },
     "audit": {
-      "status": "BLOCKED",
+      "status": "PASS",
       "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
-      }
-    },
-    "failure_handling": {
-      "status": "BLOCKED",
-      "detail": {
-        "reason": "REAL_WRITE_TEST blocked — no authorized ITAM form"
+        "historyRows": 3,
+        "runId": "dc75c862-d99e-40e0-8767-94ce1291c37a"
       }
     },
     "security": {
       "status": "PASS",
       "detail": {
-        "note": "credentialReferenceId only; refused non-ITAM write; secrets not logged"
+        "note": "API-only writes; credentialReferenceId; Demo/HR forms refused; secrets not logged"
       }
     }
-  },
-  "missingConfiguration": [],
-  "apiContract": {
-    "platform": {
-      "listTargets": "GET /api/itam/sync/targets",
-      "createTarget": "POST /api/itam/sync/targets",
-      "discoverForms": "GET /api/itam/sync/targets/:id/forms",
-      "getSchema": "GET /api/itam/sync/schema/:form (header x-sync-target-id)",
-      "dryRun": "POST /api/itam/sync/preview",
-      "execute": "POST /api/itam/sync/execute"
-    },
-    "existingApplicationDiscovered": {
-      "nestHealth": "GET /api/health",
-      "nestFormApi": "GET /api/form-api/forms (requires user JWT via SupabaseAuthGuard)",
-      "edgeFormApiBase": "https://<project>.supabase.co/functions/v1/form-api",
-      "formsPath": "/forms",
-      "formFieldsPath": "/forms/{formId}/fields",
-      "formSchemaPath": "/forms/{formId}/schema",
-      "recordsPath": "/forms/{formId}/records",
-      "recordByIdPath": "/forms/{formId}/records/{recordId}",
-      "auth": "Bearer gateway token via credentialReferenceId → SecretProvider (anon/publishable or user JWT)",
-      "note": "Default HttpExistingAppTarget path /api/forms is NOT the TopSqill Form API. Configure path overrides."
-    }
-  },
-  "localPlatform": {
-    "health": 200,
-    "wrongDefaultPath_api_forms": 404,
-    "nestFormApi_forms": 401,
-    "note": "Confirmed: /api/forms is NOT TopSqill Form API. Use edge /functions/v1/form-api or Nest /api/form-api with user JWT."
-  },
-  "apiConnectivity": {
-    "healthOrFormsProbe": 200,
-    "baseUrlRedacted": "https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/form-api",
-    "formsPath": "/forms",
-    "API_CONNECTIVITY": "PASS",
-    "FORM_API_CONNECTIVITY": "PASS"
   },
   "observed": {
     "ITAM_SYNC_REAL": "1",
     "ITAM_SYNC_BASE_URL": "https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/form-api",
     "ITAM_SYNC_CREDENTIAL_REF": "[ref-present]",
-    "ITAM_SYNC_FORM_ID": "04418ba4-0f24-429f-8f43-8c58953e7e9b",
-    "ITAM_SYNC_ORG_ID": "4decf513-b52c-41e2-a73f-9d8337b56c3a",
     "paths": {
       "formsPath": "/forms",
       "formFieldsPath": "/forms/{formId}/fields",
       "recordsPath": "/forms/{formId}/records",
       "recordByIdPath": "/forms/{formId}/records/{recordId}"
-    },
-    "VIS_SECRET_PROVIDER": "MISSING"
+    }
   },
-  "writeBlockedReason": "No ITAM Asset form discovered; schema/auth validated against configured form only",
-  "finishedAt": "2026-09-30T07:38:51.335Z"
+  "apiConnectivity": {
+    "status": 200,
+    "baseUrlRedacted": "https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/form-api",
+    "formsPath": "/forms",
+    "API_CONNECTIVITY": "PASS",
+    "FORM_API_CONNECTIVITY": "PASS"
+  },
+  "fieldVerification": [
+    {
+      "targetField": "mac_address",
+      "sourceValue": "aa:bb:cc:60:00:11",
+      "targetValue": "aa:bb:cc:60:00:11",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "manufacturer",
+      "sourceValue": "Dell",
+      "targetValue": "Dell",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "asset_type",
+      "sourceValue": "server_physical",
+      "targetValue": "server_physical",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "asset_name_hostname",
+      "sourceValue": "lab-itam-sync-01",
+      "targetValue": "lab-itam-sync-01",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "primary_ip_address",
+      "sourceValue": "10.60.0.11",
+      "targetValue": "10.60.0.11",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "static_ip_assigned",
+      "sourceValue": "10.60.0.11",
+      "targetValue": "10.60.0.11",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "serial_number_service_tag",
+      "sourceValue": "ITAM-LAB-SERIAL-001",
+      "targetValue": "ITAM-LAB-SERIAL-001",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "model_number",
+      "sourceValue": "PowerEdge-R740",
+      "targetValue": "PowerEdge-R740",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "primary_asset_identification",
+      "sourceValue": "GUID-ITAM-LAB-001",
+      "targetValue": "GUID-ITAM-LAB-001",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "status",
+      "sourceValue": "Draft",
+      "targetValue": "Draft",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "current_status",
+      "sourceValue": "active",
+      "targetValue": "active",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "department",
+      "sourceValue": "it",
+      "targetValue": "it",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "physical_location_country",
+      "sourceValue": "US",
+      "targetValue": "US",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "purchase_date",
+      "sourceValue": "2026-09-30",
+      "targetValue": "2026-09-30",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "last_audit_timestamp",
+      "sourceValue": "2026-09-30T07:49:44.876Z",
+      "targetValue": "2026-09-30T07:49:44.876Z",
+      "match": "MATCH"
+    },
+    {
+      "targetField": "it_auditor_signature",
+      "sourceValue": "ITAM-SYNC-LAB-ATTESTATION",
+      "targetValue": "ITAM-SYNC-LAB-ATTESTATION",
+      "match": "MATCH"
+    }
+  ],
+  "summary": {
+    "formId": "d45d078e-9a83-4308-84fe-d2c8799670f9",
+    "formName": "Enterprise IT Asset Lifecycle & Inventory Management",
+    "fieldCount": 43,
+    "organizationId": "29accb8d-682f-4b2f-908a-b5a655c45375",
+    "testAsset": {
+      "hostname": "lab-itam-sync-01",
+      "serialNumber": "ITAM-LAB-SERIAL-001",
+      "machineGuid": "GUID-ITAM-LAB-001"
+    },
+    "targetRecordId": "e897a6f8-12e2-4d46-82a6-269e61da6084",
+    "createOperation": "CREATE",
+    "secondRun": "NO_CHANGE",
+    "updateOperation": "UPDATE",
+    "duplicateCount": {
+      "before": 1,
+      "after": 1
+    },
+    "executionIds": [
+      "dc6b8f1e-4a37-4423-b3a5-b1f39c1e24c7",
+      "f083666f-54c9-41bf-8fe9-ce6000b45b06",
+      "14e03fe7-cacf-4d4a-9b01-f59b30305fe2",
+      "f717a5af-3b81-47db-96b9-2595f66e5521"
+    ]
+  },
+  "finishedAt": "2026-09-30T07:50:18.279Z"
 }

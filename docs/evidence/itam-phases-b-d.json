@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-30T07:39:00.839Z",
+  "startedAt": "2026-09-30T07:50:25.926Z",
   "tests": {
     "phase_a_regression": {
       "status": "PASS",
@@ -18,9 +18,9 @@
         "assetsCreated": 0,
         "assetsUpdated": 1,
         "job": {
-          "id": "f18f6410-7827-4312-8b55-f1fa00cbf857",
+          "id": "0cf5fd7b-192d-46d1-b13a-423ac1e7b64d",
           "organizationId": "33333333-3333-3333-3333-333333333333",
-          "providerId": "6a9cae9e-fb69-4f21-bdd8-761fd4c3410f",
+          "providerId": "4f26a30e-aa7a-4622-80f8-779763fd29df",
           "name": "aws-discover",
           "status": "COMPLETED",
           "schedule": "ON_DEMAND",
@@ -37,9 +37,9 @@
             "assetsUpdated": 1
           },
           "createdBy": "admin-bd",
-          "createdAt": "2026-09-30T07:39:00.863Z",
-          "updatedAt": "2026-09-30T07:39:00.864Z",
-          "lastRunAt": "2026-09-30T07:39:00.864Z"
+          "createdAt": "2026-09-30T07:50:25.951Z",
+          "updatedAt": "2026-09-30T07:50:25.952Z",
+          "lastRunAt": "2026-09-30T07:50:25.952Z"
         }
       }
     },
@@ -58,9 +58,9 @@
         "assetsCreated": 0,
         "assetsUpdated": 0,
         "job": {
-          "id": "7fa3b4c5-ab33-4d86-929c-790e6e1634ba",
+          "id": "0c92b7f2-b6ab-4b8d-b907-4468c561ef4e",
           "organizationId": "33333333-3333-3333-3333-333333333333",
-          "providerId": "6a9cae9e-fb69-4f21-bdd8-761fd4c3410f",
+          "providerId": "4f26a30e-aa7a-4622-80f8-779763fd29df",
           "name": "aws-auth-fail",
           "status": "FAILED",
           "schedule": "ON_DEMAND",
@@ -68,8 +68,8 @@
           "progress": {},
           "metrics": {},
           "createdBy": "admin-bd",
-          "createdAt": "2026-09-30T07:39:00.864Z",
-          "updatedAt": "2026-09-30T07:39:00.864Z",
+          "createdAt": "2026-09-30T07:50:25.952Z",
+          "updatedAt": "2026-09-30T07:50:25.952Z",
           "lastError": "AWS authentication failed"
         }
       }
@@ -236,8 +236,8 @@
       "status": "PASS",
       "detail": {
         "observations": 100,
-        "durationMs": 8,
-        "observationsPerSec": 12500,
+        "durationMs": 10,
+        "observationsPerSec": 10000,
         "note": "Mock ingest only — not real network telemetry throughput"
       }
     }
@@ -324,5 +324,5 @@
     "correlation_success_total": 4,
     "discovery_errors_total": 1
   },
-  "finishedAt": "2026-09-30T07:39:00.876Z"
+  "finishedAt": "2026-09-30T07:50:25.966Z"
 }

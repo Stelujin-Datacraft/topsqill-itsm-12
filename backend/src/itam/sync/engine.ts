@@ -30,6 +30,41 @@ export interface SyncStoreSlice {
 
 const SCHEMA_TTL_MS = 5 * 60 * 1000;
 
+/** Convert name-keyed mapped payload to Form API body using live field IDs. */
+export function toFormApiPayload(
+  mapped: Record<string, unknown>,
+  schema: FormSchemaSnapshot,
+): Record<string, unknown> {
+  const byName = new Map(schema.fields.map((f) => [f.name, f]));
+  const data: Record<string, unknown> = {};
+  let usedIds = 0;
+  for (const [k, v] of Object.entries(mapped)) {
+    const f = byName.get(k);
+    if (f?.id) {
+      data[f.id] = v;
+      usedIds += 1;
+    } else {
+      data[k] = v;
+    }
+  }
+  // TopSqill Form API: { data: {fieldId: value}, validate: true }
+  if (usedIds > 0) return { data, validate: true };
+  return mapped;
+}
+
+/** Normalize Form API submission_data (field IDs) back to schema field names. */
+export function normalizeRecordData(
+  data: Record<string, unknown>,
+  schema: FormSchemaSnapshot,
+): Record<string, unknown> {
+  const byId = new Map(schema.fields.filter((f) => f.id).map((f) => [String(f.id), f.name]));
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data || {})) {
+    out[byId.get(k) || k] = v;
+  }
+  return out;
+}
+
 export class FormSyncEngine {
   constructor(private readonly store: DiscoveryStore & SyncStoreSlice) {}
 
@@ -327,18 +362,26 @@ export class FormSyncEngine {
     const searchKeys: Array<[string, string | undefined]> = [
       ['external_id', String(mapped.external_id || normalized.externalId)],
       ['serial_number', String(mapped.serial_number || normalized.serialNumber || '')],
+      ['serial_number_service_tag', String(mapped.serial_number_service_tag || mapped.serial_number || normalized.serialNumber || '')],
       ['machine_guid', String(mapped.machine_guid || normalized.machineGuid || '')],
       ['cloud_instance_id', String(mapped.cloud_instance_id || normalized.cloudInstanceId || '')],
       ['mac_address', String(mapped.mac_address || normalized.macAddresses[0] || '')],
-      ['device_name', String(mapped.device_name || mapped.asset_name || normalized.hostname || '')],
-      ['primary_ip', String(mapped.primary_ip || normalized.ipAddresses[0] || '')],
+      ['device_name', String(mapped.device_name || mapped.asset_name || mapped.asset_name_hostname || normalized.hostname || '')],
+      ['asset_name', String(mapped.asset_name || mapped.asset_name_hostname || normalized.hostname || '')],
+      ['asset_name_hostname', String(mapped.asset_name_hostname || mapped.asset_name || normalized.hostname || '')],
+      ['primary_ip', String(mapped.primary_ip || mapped.primary_ip_address || normalized.ipAddresses[0] || '')],
+      ['primary_ip_address', String(mapped.primary_ip_address || mapped.primary_ip || normalized.ipAddresses[0] || '')],
     ];
 
     for (const [field, value] of searchKeys) {
       if (!value) continue;
       // Skip IP-only as sole permanent identity later
       try {
-        const found = await target.searchRecords(formId, { [field]: value });
+        const schemaField = schema.fields.find((f) => f.name === field);
+        const query = schemaField?.id
+          ? { [`filter[${schemaField.id}]`]: value }
+          : { [field]: value };
+        const found = await target.searchRecords(formId, query);
         for (const f of found) {
           const weight =
             field === 'external_id' || field === 'machine_guid' || field === 'serial_number' || field === 'cloud_instance_id'
@@ -384,7 +427,8 @@ export class FormSyncEngine {
       if (!existing) {
         // stale link
       } else {
-        const changed = diffFields(existing.data, mapped);
+        const existingNamed = normalizeRecordData(existing.data, schema);
+        const changed = diffFields(existingNamed, mapped);
         if (!changed.length) {
           this.history(normalized, formId, best.id, 'NO_CHANGE', 'NO_CHANGE', [], mapping, schema, run);
           return {
@@ -407,7 +451,7 @@ export class FormSyncEngine {
           };
         }
         try {
-          const updated = await target.updateRecord(formId, best.id, mapped);
+          const updated = await target.updateRecord(formId, best.id, toFormApiPayload(mapped, schema));
           this.upsertLink(normalized, formId, updated.id, 'UPDATE');
           this.recordProvenance(normalized, formId, updated.id, mapped, mapping, schema);
           this.history(normalized, formId, updated.id, 'UPDATE', 'SUCCESS', changed, mapping, schema, run);
@@ -442,7 +486,7 @@ export class FormSyncEngine {
       };
     }
     try {
-      const created = await target.createRecord(formId, mapped);
+      const created = await target.createRecord(formId, toFormApiPayload(mapped, schema));
       this.upsertLink(normalized, formId, created.id, 'CREATE');
       this.recordProvenance(normalized, formId, created.id, mapped, mapping, schema);
       this.history(normalized, formId, created.id, 'CREATE', 'SUCCESS', Object.keys(mapped), mapping, schema, run);
@@ -474,6 +518,7 @@ export class FormSyncEngine {
     }
   }
 
+  /** Convert name-keyed mapped payload to TopSqill Form API `{ data: {fieldId: value} }`. */
   private upsertLink(normalized: NormalizedAsset, formId: string, recordId: string, op: string) {
     const existing = this.store.syncLinks.find(
       (l) => l.organizationId === normalized.tenantId && l.targetFormId === formId && l.externalId === normalized.externalId,

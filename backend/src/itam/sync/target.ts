@@ -202,19 +202,30 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
       const merged = (res.data as any)?.fields;
       rawFields = Array.isArray(merged) ? merged : asArray(merged);
     }
-    const fields: FormFieldSchema[] = rawFields.map((f: any) => ({
-      id: f.id,
-      name: fieldNameFrom(f),
-      label: f.label,
-      type: String(f.type || f.field_type || 'text'),
-      required: Boolean(f.required),
-      nullable: f.nullable,
-      readOnly: Boolean(f.readOnly || f.read_only),
-      editable: f.editable !== false,
-      allowedValues: f.allowedValues || f.options,
-      maxLength: f.maxLength || f.max_length,
-      unique: Boolean(f.unique),
-    }));
+    const fields: FormFieldSchema[] = rawFields.map((f: any) => {
+      let allowed = f.allowedValues || f.options;
+      if (typeof allowed === 'string') {
+        try { allowed = JSON.parse(allowed); } catch { /* keep */ }
+      }
+      if (Array.isArray(allowed)) {
+        allowed = allowed.map((o: any) => (o && typeof o === 'object' ? (o.value ?? o.label ?? o.id) : o)).filter((v: any) => v != null && v !== '');
+      } else {
+        allowed = undefined;
+      }
+      return {
+        id: f.id,
+        name: fieldNameFrom(f),
+        label: f.label,
+        type: String(f.type || f.field_type || 'text'),
+        required: Boolean(f.required),
+        nullable: f.nullable,
+        readOnly: Boolean(f.readOnly || f.read_only),
+        editable: f.editable !== false,
+        allowedValues: allowed,
+        maxLength: f.maxLength || f.max_length,
+        unique: Boolean(f.unique),
+      };
+    });
     const hash = schemaHash(fields);
     return {
       formId,
