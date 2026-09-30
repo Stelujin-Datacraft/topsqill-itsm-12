@@ -59,6 +59,7 @@ export interface StoredAsset {
   macAddress?: string;
   biosUuid?: string;
   machineGuid?: string;
+  cloudInstanceId?: string;
   status: string;
   discoveryLifecycle: string;
   discoveryConfidence?: string;
@@ -66,6 +67,7 @@ export interface StoredAsset {
   firstSeenAt?: string;
   lastSeenAt?: string;
   customFields?: Record<string, unknown>;
+  tags?: Record<string, string>;
 }
 
 export interface StoredSoftware {
@@ -148,6 +150,21 @@ export class DiscoveryStore {
   }> = [];
   catalog: Array<{ id: string; organizationId?: string; canonicalName: string; publisher?: string }> = [];
   aliases: Array<{ id: string; productId: string; aliasName: string }> = [];
+
+  // Phase B–D extensions (same SoR — not a second asset DB)
+  cloudProviders: any[] = [];
+  cloudAccounts: any[] = [];
+  cloudResources: any[] = [];
+  cloudJobs: any[] = [];
+  cloudChanges: any[] = [];
+  telemetrySources: any[] = [];
+  networkObservations: any[] = [];
+  ipHistory: any[] = [];
+  macHistory: any[] = [];
+  passiveEvents: any[] = [];
+  topologyNodes: any[] = [];
+  topologyEdges: any[] = [];
+  topologyHistory: any[] = [];
 
   /** Control flags for job runner */
   jobFlags = new Map<string, { cancel?: boolean; pause?: boolean }>();
@@ -317,6 +334,13 @@ export async function initDiscoveryStore(opts?: {
     const store = resetDiscoveryStore();
     persistenceMode = 'postgres';
     await hydrateDiscoveryStore(store);
+    try {
+      const { hydratePhasesBD } = await import('../phases-bd-persistence');
+      await hydratePhasesBD(store);
+    } catch (e: any) {
+      // B-D tables may not exist yet on older DBs
+      if (!/does not exist|relation/i.test(String(e?.message || e))) throw e;
+    }
     return store;
   }
 
@@ -327,8 +351,22 @@ export async function initDiscoveryStore(opts?: {
   return resetDiscoveryStore();
 }
 
+let durableFlushChain: Promise<void> = Promise.resolve();
+
 export async function flushDiscoveryStoreDurable(store?: DiscoveryStore): Promise<void> {
   if (persistenceMode !== 'postgres') return;
-  const { flushDiscoveryStore } = await import('./pg-persistence');
-  await flushDiscoveryStore(store || getDiscoveryStore());
+  const s = store || getDiscoveryStore();
+  const run = async () => {
+    const { flushDiscoveryStore } = await import('./pg-persistence');
+    await flushDiscoveryStore(s);
+    try {
+      const { flushPhasesBD } = await import('../phases-bd-persistence');
+      await flushPhasesBD(s);
+    } catch (e: any) {
+      if (!/does not exist|relation/i.test(String(e?.message || e))) throw e;
+    }
+  };
+  const next = durableFlushChain.then(run, run);
+  durableFlushChain = next.then(() => undefined, () => undefined);
+  return next;
 }

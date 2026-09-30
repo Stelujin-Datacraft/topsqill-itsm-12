@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Monitor, Cpu, Download, History, BarChart3, ShieldCheck, FileText, Radar } from 'lucide-react';
+import { Monitor, Cpu, Download, History, BarChart3, ShieldCheck, FileText, Radar, Cloud, Radio, Network } from 'lucide-react';
 import { AssetDashboard } from '@/components/itam/AssetDashboard';
 import { AssetList } from '@/components/itam/AssetList';
 import { AgentManagement } from '@/components/itam/AgentManagement';
@@ -9,6 +9,8 @@ import { AssetHistoryView } from '@/components/itam/AssetHistoryView';
 import { WarrantyLicenseTracker } from '@/components/itam/WarrantyLicenseTracker';
 import { AssetExport } from '@/components/itam/AssetExport';
 import { NetworkDiscoveryPanel } from '@/components/itam/NetworkDiscoveryPanel';
+import { CloudDiscoveryPanel } from '@/components/itam/CloudDiscoveryPanel';
+import { NetworkIntelligencePanel, TopologyPanel } from '@/components/itam/NetworkIntelligencePanel';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const ITAssets = () => {
@@ -41,6 +43,18 @@ const ITAssets = () => {
               <Radar className="icon-md shrink-0" />
               Network Discovery
             </TabsTrigger>
+            <TabsTrigger value="cloud" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Cloud className="icon-md shrink-0" />
+              Cloud Discovery
+            </TabsTrigger>
+            <TabsTrigger value="intelligence" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Radio className="icon-md shrink-0" />
+              Network Intelligence
+            </TabsTrigger>
+            <TabsTrigger value="topology" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+              <Network className="icon-md shrink-0" />
+              Topology
+            </TabsTrigger>
             <TabsTrigger value="software" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Cpu className="icon-md shrink-0" />
               Software
@@ -67,6 +81,9 @@ const ITAssets = () => {
         <TabsContent value="dashboard"><AssetDashboard /></TabsContent>
         <TabsContent value="assets"><AssetList /></TabsContent>
         <TabsContent value="discovery"><NetworkDiscoveryPanel /></TabsContent>
+        <TabsContent value="cloud"><CloudDiscoveryPanel /></TabsContent>
+        <TabsContent value="intelligence"><NetworkIntelligencePanel /></TabsContent>
+        <TabsContent value="topology"><TopologyPanel /></TabsContent>
         <TabsContent value="software"><SoftwareInventory /></TabsContent>
         <TabsContent value="warranty"><WarrantyLicenseTracker /></TabsContent>
         <TabsContent value="agents"><AgentManagement /></TabsContent>

@@ -15,7 +15,9 @@ export type DiscoveryConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export type InventorySource =
   | 'AGENT' | 'NETWORK_DISCOVERY' | 'CREDENTIALED' | 'MANAGEMENT_API'
-  | 'SNMP' | 'MANUAL' | 'DNS' | 'DHCP' | 'ARP';
+  | 'SNMP' | 'MANUAL' | 'DNS' | 'DHCP' | 'ARP'
+  | 'CLOUD_AWS' | 'CLOUD_AZURE' | 'CLOUD_GCP' | 'VMWARE'
+  | 'WIRELESS' | 'LLDP' | 'CDP' | 'SWITCH_MAC';
 
 export type DeviceType =
   | 'WORKSTATION' | 'SERVER' | 'LAPTOP' | 'DESKTOP' | 'NETWORK_DEVICE'
@@ -104,11 +106,14 @@ export interface DiscoveredHostEvidence {
   serialNumber?: string;
   biosUuid?: string;
   machineGuid?: string;
+  /** Cloud provider instance / resource ID (EC2 i-*, Azure VM id, GCP instance, VMware MoRef) */
+  cloudInstanceId?: string;
   responseTimeMs?: number;
   discoveryMethods: string[];
   services: ObservedService[];
   software: ObservedSoftware[];
   fieldProvenance: Record<string, InventorySource>;
+  tags?: Record<string, string>;
   raw?: Record<string, unknown>;
 }
 
@@ -173,9 +178,23 @@ export interface INetworkDiscoveryProvider {
   ): Promise<Partial<DiscoveredHostEvidence>>;
 }
 
+/**
+ * Phase B cloud provider abstraction — core engine stays provider-agnostic.
+ * Real SDKs are optional; mocks exercise the full pipeline.
+ */
 export interface ICloudAssetDiscoveryProvider {
   readonly name: string;
   readonly cloud: 'AWS' | 'AZURE' | 'GCP' | 'OTHER';
+  authenticate?(ctx: DiscoveryProviderContext): Promise<{ ok: boolean; error?: string; errorClass?: string }>;
+  testConnection?(ctx: DiscoveryProviderContext): Promise<{ ok: boolean; detail?: Record<string, unknown> }>;
+  discoverAccounts?(ctx: DiscoveryProviderContext): Promise<Array<Record<string, unknown>>>;
+  discoverRegions?(ctx: DiscoveryProviderContext): Promise<string[]>;
+  discoverNetworks?(ctx: DiscoveryProviderContext): Promise<Array<Record<string, unknown>>>;
+  discoverAssets?(ctx: DiscoveryProviderContext): Promise<DiscoveredHostEvidence[]>;
+  discoverRelationships?(ctx: DiscoveryProviderContext): Promise<Array<Record<string, unknown>>>;
+  normalize?(raw: Record<string, unknown>): DiscoveredHostEvidence | null;
+  disconnect?(): Promise<void>;
+  /** Legacy single-call entry used by stubs */
   discover?(ctx: DiscoveryProviderContext): Promise<DiscoveredHostEvidence[]>;
 }
 
@@ -184,11 +203,19 @@ export const SOURCE_PRIORITY: InventorySource[] = [
   'AGENT',
   'CREDENTIALED',
   'MANAGEMENT_API',
+  'CLOUD_AWS',
+  'CLOUD_AZURE',
+  'CLOUD_GCP',
+  'VMWARE',
   'SNMP',
   'NETWORK_DISCOVERY',
+  'LLDP',
+  'CDP',
+  'SWITCH_MAC',
   'DNS',
   'DHCP',
   'ARP',
+  'WIRELESS',
   'MANUAL',
 ];
 

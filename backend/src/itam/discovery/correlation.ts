@@ -18,6 +18,7 @@ export interface ExistingAssetIdentity {
   biosUuid?: string | null;
   machineGuid?: string | null;
   agentKey?: string | null;
+  cloudInstanceId?: string | null;
   discoveryLifecycle?: string | null;
 }
 
@@ -46,6 +47,7 @@ export function extractSignals(
   add('serialNumber', evidence.serialNumber);
   add('biosUuid', evidence.biosUuid);
   add('machineGuid', evidence.machineGuid);
+  add('cloudInstanceId', evidence.cloudInstanceId);
   add('macAddress', evidence.macAddress);
   add('hostname', evidence.hostname || evidence.dnsName);
   add('ipAddress', evidence.ipAddress);
@@ -56,7 +58,12 @@ export function confidenceFromScore(score: number, matchedTypes: string[]): Disc
   if (matchedTypes.includes('serialNumber') && (matchedTypes.includes('biosUuid') || matchedTypes.includes('machineGuid'))) {
     return 'HIGH';
   }
-  if (matchedTypes.includes('serialNumber') || matchedTypes.includes('biosUuid') || matchedTypes.includes('machineGuid')) {
+  if (
+    matchedTypes.includes('serialNumber')
+    || matchedTypes.includes('biosUuid')
+    || matchedTypes.includes('machineGuid')
+    || matchedTypes.includes('cloudInstanceId')
+  ) {
     return 'HIGH';
   }
   if (matchedTypes.includes('macAddress') && matchedTypes.includes('hostname')) return 'MEDIUM';
@@ -90,6 +97,7 @@ export function correlateDiscoveredHost(
     check('serialNumber', asset.serialNumber);
     check('biosUuid', asset.biosUuid);
     check('machineGuid', asset.machineGuid);
+    check('cloudInstanceId', asset.cloudInstanceId);
     check('macAddress', asset.macAddress);
     check('hostname', asset.hostname);
     check('ipAddress', asset.ipAddress);

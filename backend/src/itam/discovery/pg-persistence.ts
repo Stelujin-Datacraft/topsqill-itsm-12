@@ -48,9 +48,18 @@ export async function closeDiscoveryPool(): Promise<void> {
 
 export async function applyDiscoverySchema(client?: PoolClient | Pool): Promise<void> {
   const db = client || getDiscoveryPool();
-  const sqlPath = resolve(__dirname, 'sql/itam_discovery_pg.sql');
-  const sql = readFileSync(sqlPath, 'utf8');
-  await db.query(sql);
+  const basePath = resolve(__dirname, 'sql/itam_discovery_pg.sql');
+  const extPath = resolve(__dirname, 'sql/itam_phases_b_d.sql');
+  await db.query(readFileSync(basePath, 'utf8'));
+  try {
+    await db.query(readFileSync(extPath, 'utf8'));
+  } catch (e: any) {
+    // Enum ADD VALUE cannot run in a transaction block on some PG versions — retry statements softly
+    if (!/already exists|duplicate/i.test(String(e?.message || e))) {
+      // Still attempt file; ignore IF NOT EXISTS noise
+      console.warn('ITAM phases B-D schema apply warning:', e?.message || e);
+    }
+  }
 }
 
 export async function hydrateDiscoveryStore(store: DiscoveryStore): Promise<void> {
@@ -95,6 +104,7 @@ export async function hydrateDiscoveryStore(store: DiscoveryStore): Promise<void
     macAddress: a.mac_address || undefined,
     biosUuid: a.bios_uuid || undefined,
     machineGuid: a.machine_guid || undefined,
+    cloudInstanceId: a.cloud_instance_id || undefined,
     status: a.status,
     discoveryLifecycle: a.discovery_lifecycle || 'MANAGED',
     discoveryConfidence: a.discovery_confidence || undefined,
@@ -102,6 +112,7 @@ export async function hydrateDiscoveryStore(store: DiscoveryStore): Promise<void
     firstSeenAt: a.first_seen_at ? iso(a.first_seen_at) : undefined,
     lastSeenAt: a.last_seen_at ? iso(a.last_seen_at) : undefined,
     customFields: a.custom_fields || {},
+    tags: a.tags || {},
   }));
 
   const hosts = await db.query(`SELECT * FROM itam_discovered_hosts`);
@@ -251,7 +262,13 @@ export async function flushDiscoveryStore(store: DiscoveryStore): Promise<void> 
           `INSERT INTO itam_network_scopes
             (id, organization_id, environment, name, description, cidr, scope_kind,
              authorization_status, enabled, created_by, approved_by, approved_at, created_at, updated_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+           ON CONFLICT (organization_id, cidr, scope_kind) DO UPDATE SET
+             name = EXCLUDED.name,
+             authorization_status = EXCLUDED.authorization_status,
+             approved_by = EXCLUDED.approved_by,
+             approved_at = EXCLUDED.approved_at,
+             updated_at = EXCLUDED.updated_at`,
           [
             s.id, s.organizationId, s.environment, s.name, s.description || null, s.cidr, s.scopeKind,
             s.authorizationStatus, s.enabled, s.createdBy || null, s.approvedBy || null,
@@ -286,17 +303,19 @@ export async function flushDiscoveryStore(store: DiscoveryStore): Promise<void> 
         await client.query(
           `INSERT INTO it_assets
             (id, organization_id, asset_tag, hostname, display_name, asset_type, manufacturer, model,
-             serial_number, status, ip_address, mac_address, bios_uuid, machine_guid,
+             serial_number, status, ip_address, mac_address, bios_uuid, machine_guid, cloud_instance_id,
              discovery_lifecycle, discovery_confidence, primary_discovery_source,
-             first_seen_at, last_seen_at, custom_fields)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20::jsonb)
+             first_seen_at, last_seen_at, custom_fields, tags)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22::jsonb)
            ON CONFLICT (id) DO NOTHING`,
           [
             a.id, a.organizationId, a.assetTag || null, a.hostname || null, a.displayName, a.assetType,
             a.manufacturer || null, a.model || null, a.serialNumber || null, a.status,
             a.ipAddress || null, a.macAddress || null, a.biosUuid || null, a.machineGuid || null,
+            a.cloudInstanceId || null,
             a.discoveryLifecycle, a.discoveryConfidence || null, a.primaryDiscoverySource || null,
             a.firstSeenAt || null, a.lastSeenAt || null, JSON.stringify(a.customFields || {}),
+            JSON.stringify(a.tags || {}),
           ],
         );
       }

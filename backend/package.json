@@ -20,6 +20,8 @@
     "test:vis:secrets": "bash ../scripts/security/scan.sh",
     "test:itam:discovery": "npx tsx test/itam/itam.network-discovery.test.ts",
     "test:itam:discovery:persist": "ITAM_DISCOVERY_PERSISTENCE=postgres npx tsx test/itam/itam.discovery-persistence.test.ts",
+    "test:itam:phases-bd": "npx tsx test/itam/itam.phases-b-d.test.ts",
+    "test:itam:phases-bd:persist": "ITAM_DISCOVERY_PERSISTENCE=postgres npx tsx test/itam/itam.phases-b-d.test.ts",
     "prisma:vis:generate": "prisma generate --schema=src/vis/prisma/schema.prisma",
     "prisma:vis:push": "prisma db push --schema=src/vis/prisma/schema.prisma",
     "security:scan": "bash ../scripts/security/scan.sh",

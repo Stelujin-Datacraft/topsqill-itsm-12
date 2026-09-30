@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-30T05:53:03.471Z",
+  "startedAt": "2026-09-30T06:09:17.018Z",
   "tests": {
     "cidr_validation": {
       "status": "PASS"
@@ -62,8 +62,8 @@
       "detail": {
         "assets": 2,
         "metrics": {
-          "hostsPerSec": 95.24,
-          "durationMs": 21,
+          "hostsPerSec": 90.91,
+          "durationMs": 22,
           "hostDiscoveryLatencyMs": 0,
           "credentialedInventoryLatencyMs": 1,
           "workerUtilization": 4
@@ -113,7 +113,7 @@
     "correlation_serial": {
       "status": "PASS",
       "detail": {
-        "matchedAssetId": "a62aeedd-c9a2-4d2e-b293-57b727624849",
+        "matchedAssetId": "2d0ae679-d79e-4e7f-8071-d012ed36380b",
         "confidence": "HIGH",
         "signals": [
           {
@@ -154,7 +154,7 @@
       "status": "PASS",
       "detail": {
         "approved": true,
-        "assetId": "1907bcd4-2f3f-4ac2-8b56-f13bd757d6fd",
+        "assetId": "389826c0-795f-4348-ab83-2a601e549915",
         "automaticInstall": false
       }
     },
@@ -178,7 +178,7 @@
       "status": "PASS"
     }
   },
-  "finishedAt": "2026-09-30T05:53:03.561Z",
+  "finishedAt": "2026-09-30T06:09:17.109Z",
   "dashboard": {
     "jobs": 5,
     "running": 0,
@@ -187,11 +187,11 @@
     "unmanagedAssets": 22,
     "softwareRows": 4,
     "lastRun": {
-      "id": "f744394a-c8c1-49be-bb40-99f7f62d09bc",
-      "jobId": "8cc63c70-4149-4fde-82e7-74f55e00134f",
+      "id": "9eabfe14-8484-4ac2-9342-7b276a5e0934",
+      "jobId": "8c0ad494-9e68-4cfe-8ec5-8b6c97d6d2cb",
       "organizationId": "org-lab-1",
       "status": "COMPLETED",
-      "startedAt": "2026-09-30T05:53:03.559Z",
+      "startedAt": "2026-09-30T06:09:17.107Z",
       "hostsTargeted": 254,
       "hostsScanned": 254,
       "hostsDiscovered": 20,
@@ -207,7 +207,7 @@
         "credentialedInventoryLatencyMs": 0,
         "workerUtilization": 32
       },
-      "finishedAt": "2026-09-30T05:53:03.561Z"
+      "finishedAt": "2026-09-30T06:09:17.109Z"
     }
   },
   "metrics": {
