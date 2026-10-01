@@ -1,0 +1,258 @@
+{
+  "startedAt": "2026-09-30T05:52:52.350Z",
+  "tests": {
+    "migration_applied": {
+      "status": "PASS",
+      "detail": {
+        "tables": [
+          "asset_software",
+          "it_assets",
+          "itam_asset_identities",
+          "itam_asset_services",
+          "itam_discovered_hosts",
+          "itam_discovery_audit",
+          "itam_discovery_diffs",
+          "itam_discovery_jobs",
+          "itam_discovery_runs",
+          "itam_field_provenance",
+          "itam_network_scopes",
+          "itam_software_aliases",
+          "itam_software_catalog"
+        ]
+      }
+    },
+    "database_constraints": {
+      "status": "PASS",
+      "detail": {
+        "uniqueIndexes": [
+          {
+            "table": "asset_software",
+            "index": "asset_software_asset_id_software_name_version_key"
+          },
+          {
+            "table": "asset_software",
+            "index": "asset_software_pkey"
+          },
+          {
+            "table": "itam_network_scopes",
+            "index": "itam_network_scopes_pkey"
+          },
+          {
+            "table": "itam_network_scopes",
+            "index": "itam_network_scopes_organization_id_cidr_scope_kind_key"
+          },
+          {
+            "table": "itam_asset_identities",
+            "index": "itam_asset_identities_pkey"
+          },
+          {
+            "table": "itam_asset_identities",
+            "index": "itam_asset_identities_organization_id_identity_type_identit_key"
+          },
+          {
+            "table": "itam_asset_services",
+            "index": "itam_asset_services_pkey"
+          },
+          {
+            "table": "itam_asset_services",
+            "index": "itam_asset_services_asset_id_port_protocol_key"
+          }
+        ]
+      }
+    },
+    "production_memory_forbidden": {
+      "status": "PASS"
+    },
+    "postgres_rows_written": {
+      "status": "PASS",
+      "detail": {
+        "scopes": 1,
+        "jobs": 1,
+        "runs": 1,
+        "hosts": 1,
+        "assets": 1,
+        "software": 1,
+        "identities": 5,
+        "services": 1,
+        "audits": 6,
+        "diffs": 2,
+        "provenance": 2
+      }
+    },
+    "restart_hydrate": {
+      "status": "PASS",
+      "detail": {
+        "jobStatus": "COMPLETED",
+        "assets": 1,
+        "hosts": 1,
+        "runId": "57da6b2e-95b3-41a5-931f-01b25de597ef"
+      }
+    },
+    "out_of_scope_rejected": {
+      "status": "PASS"
+    },
+    "exclude_range_enforced": {
+      "status": "PASS",
+      "detail": {
+        "actionable": 253
+      }
+    },
+    "real_icmp_localhost": {
+      "status": "PASS",
+      "detail": {
+        "hosts": [
+          {
+            "ipAddress": "127.0.0.1",
+            "discoveryMethods": [
+              "ICMP"
+            ],
+            "responseTimeMs": 4,
+            "services": [],
+            "software": [],
+            "fieldProvenance": {
+              "ipAddress": "NETWORK_DISCOVERY"
+            }
+          }
+        ],
+        "latencyMs": 4,
+        "note": "Authorized loopback only — not an enterprise LAN"
+      }
+    },
+    "real_tcp_localhost": {
+      "status": "PASS",
+      "detail": {
+        "openPorts": [
+          {
+            "port": 5432,
+            "protocol": "tcp",
+            "service": "unknown"
+          },
+          {
+            "port": 6379,
+            "protocol": "tcp",
+            "service": "unknown"
+          }
+        ],
+        "note": "Loopback TCP connect checks only"
+      }
+    },
+    "real_ssh_inventory": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — prerequisite unavailable (ITAM_LAB_SSH_HOST + credential ref)"
+      }
+    },
+    "real_winrm_inventory": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — prerequisite unavailable (ITAM_LAB_WINRM_HOST + credential ref)"
+      }
+    },
+    "real_snmp": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — prerequisite unavailable (ITAM_LAB_SNMP_HOST + credential ref)"
+      }
+    },
+    "agent_network_merge_db": {
+      "status": "PASS",
+      "detail": {
+        "count": 1
+      }
+    },
+    "ip_change_same_asset": {
+      "status": "PASS",
+      "detail": {
+        "ip": "10.10.30.1",
+        "count": 1
+      }
+    },
+    "software_version_change_persisted": {
+      "status": "PASS",
+      "detail": {
+        "diffs": 1,
+        "note": "diff recorded"
+      }
+    },
+    "cancel_persisted": {
+      "status": "PASS"
+    },
+    "tenant_isolation": {
+      "status": "PASS"
+    },
+    "secrets_not_in_db_payloads": {
+      "status": "PASS"
+    },
+    "performance_real_network": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "No enterprise lab CIDR available. Mock /24 previously measured; localhost ICMP latency recorded above.",
+        "icmpLocalhostLatencyMs": 4,
+        "mockSlash24Note": "Prior mock ~127k hosts/sec must NOT be used as real-world performance"
+      }
+    }
+  },
+  "providers": {
+    "ICMP": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "RealLabTested": "PARTIAL (127.0.0.1 only)",
+      "ProductionReady": "NO — enterprise LAN not available in this environment"
+    },
+    "TCP": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "RealLabTested": "PARTIAL (127.0.0.1 ports)",
+      "ProductionReady": "NO — enterprise LAN not available"
+    },
+    "SSH": {
+      "Implemented": "YES",
+      "UnitTested": "YES (mock/raw path)",
+      "RealLabTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "WinRM": {
+      "Implemented": "YES",
+      "UnitTested": "YES (mock/raw path)",
+      "RealLabTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "SNMP": {
+      "Implemented": "YES",
+      "UnitTested": "YES (mock/raw path)",
+      "RealLabTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "MOCK": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "RealLabTested": "N/A",
+      "ProductionReady": "TEST-ONLY"
+    }
+  },
+  "databaseUrl": "postgresql://vis:***@127.0.0.1:5432/itam_discovery",
+  "classification": "PARTIALLY VALIDATED",
+  "classificationReason": [
+    "PostgreSQL persistence + restart hydrate PASS",
+    "ICMP/TCP validated on 127.0.0.1 only",
+    "SSH/WinRM/SNMP real lab NOT TESTED — prerequisites unavailable",
+    "Enterprise LAN discovery NOT TESTED"
+  ],
+  "labTopology": {
+    "available": false,
+    "loopbackValidated": true,
+    "windowsHost": null,
+    "linuxHost": null,
+    "snmpDevice": null,
+    "requiredEnv": [
+      "ITAM_LAB_SSH_HOST",
+      "ITAM_LAB_SSH_CREDENTIAL_REF",
+      "ITAM_LAB_WINRM_HOST",
+      "ITAM_LAB_WINRM_CREDENTIAL_REF",
+      "ITAM_LAB_SNMP_HOST",
+      "ITAM_LAB_SNMP_CREDENTIAL_REF",
+      "ITAM_LAB_CIDR"
+    ]
+  },
+  "finishedAt": "2026-09-30T05:52:52.953Z"
+}

@@ -61,6 +61,8 @@ export function ConnectorDialog({
         base_url: connector.base_url || '',
         auth_type: connector.auth_type,
         credentials: { ...connector.credentials },
+        credential_reference_id: connector.credential_reference_id || '',
+        logical_key: connector.logical_key || '',
         headers: { ...connector.headers },
         schedule_cron: connector.schedule_cron || '',
         project_id: connector.project_id,
@@ -120,8 +122,8 @@ export function ConnectorDialog({
             {connector ? 'Edit connector' : 'Add outbound connector'}
           </DialogTitle>
           <DialogDescription>
-            Connect Topsqill to a third-party tool. Fields change based on auth type
-            (API key, username/password, OAuth client secret, etc.).
+            Connect Topsqill to a third-party tool. Secrets must use a SecretProvider
+            credentialReferenceId — they are never stored in connector JSON.
           </DialogDescription>
         </DialogHeader>
 
@@ -133,6 +135,29 @@ export function ConnectorDialog({
               placeholder="e.g. Salesforce production"
               value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="connector-cred-ref">credentialReferenceId *</Label>
+            <Input
+              id="connector-cred-ref"
+              placeholder="secret://connectors/salesforce-prod"
+              value={form.credential_reference_id}
+              onChange={(e) => setForm((p) => ({ ...p, credential_reference_id: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Resolves via SecretProvider. Do not paste API keys or passwords here into DB fields.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="connector-logical-key">Logical key</Label>
+            <Input
+              id="connector-logical-key"
+              placeholder="connector.salesforce-prod (optional, auto-derived)"
+              value={form.logical_key || ''}
+              onChange={(e) => setForm((p) => ({ ...p, logical_key: e.target.value }))}
             />
           </div>
 

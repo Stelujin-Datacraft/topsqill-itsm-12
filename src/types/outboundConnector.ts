@@ -45,7 +45,11 @@ export interface OutboundConnector {
   mode: ConnectorMode;
   base_url: string | null;
   auth_type: ConnectorAuthType;
+  /** Public non-secret auth metadata only after migration */
   credentials: ConnectorCredentials;
+  /** SecretProvider reference — never a plaintext secret */
+  credential_reference_id: string | null;
+  logical_key: string | null;
   headers: Record<string, string>;
   schedule_cron: string | null;
   is_active: boolean;
@@ -62,6 +66,9 @@ export interface OutboundConnectorFormData {
   base_url: string;
   auth_type: ConnectorAuthType;
   credentials: ConnectorCredentials;
+  /** Required for new connectors — SecretProvider ref; secrets not stored in DB JSON */
+  credential_reference_id: string;
+  logical_key?: string;
   headers: Record<string, string>;
   schedule_cron: string;
   project_id: string | null;
@@ -153,8 +160,9 @@ export const emptyConnectorForm = (): OutboundConnectorFormData => ({
   auth_type: 'api_key',
   credentials: {
     apiKeyHeader: 'x-api-key',
-    apiKeyValue: '',
   },
+  credential_reference_id: '',
+  logical_key: '',
   headers: {},
   schedule_cron: '',
   project_id: null,

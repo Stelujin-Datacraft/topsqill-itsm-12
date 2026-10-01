@@ -118,6 +118,7 @@ const VisIntegrationsList = lazyWithRetry(() => import("./pages/vis/VisIntegrati
 const VisIntegrationDetail = lazyWithRetry(() => import("./pages/vis/VisIntegrationDetail"));
 const VisConnections = lazyWithRetry(() => import("./pages/vis/VisConnections"));
 const VisExecutions = lazyWithRetry(() => import("./pages/vis/VisExecutions"));
+const VisEnterprise = lazyWithRetry(() => import("./pages/vis/VisEnterprise"));
 const ApiDocs = lazyWithRetry(() => import("./pages/ApiDocs"));
 const RolesAndAccess = lazyWithRetry(() => import("./pages/RolesAndAccess"));
 const Projects = lazyWithRetry(() => import("./pages/Projects"));
@@ -413,6 +414,7 @@ const App = () => (
                         <Route path="/vis/connections" element={<VisConnections />} />
                         <Route path="/vis/executions" element={<VisExecutions />} />
                         <Route path="/vis/executions/:id" element={<VisExecutions />} />
+                        <Route path="/vis/enterprise" element={<VisEnterprise />} />
                         <Route path="/blog-admin" element={
                           <Suspense fallback={<RouteLoader />}>
                             <BlogAdmin />

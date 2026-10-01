@@ -17,6 +17,7 @@ interface Store {
   executions: Row[];
   logs: Row[];
   audits: Row[];
+  deadLetters: Row[];
   mockForms: Row[];
   mockRecords: Row[];
 }
@@ -88,6 +89,7 @@ function emptyStore(): Store {
     executions: [],
     logs: [],
     audits: [],
+    deadLetters: [],
     mockForms: structuredClone(MOCK_FORMS),
     mockRecords: [],
   };
@@ -102,6 +104,7 @@ function load(): Store {
     return {
       ...emptyStore(),
       ...parsed,
+      deadLetters: parsed.deadLetters || [],
       mockForms: parsed.mockForms?.length ? parsed.mockForms : structuredClone(MOCK_FORMS),
     };
   } catch {
@@ -841,14 +844,14 @@ export const visClientEngine = {
     const store = loadStore();
     const integration = store.integrations.find((i) => i.id === integrationId);
     if (!integration) throw new Error('Integration not found');
-    const correlationId = uid();
+    const correlationId = `INT-VUL-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${uid().slice(0, 5).toUpperCase()}`;
     const execution: Row = {
       id: uid(),
       integrationId,
       versionId: integration.currentVersionId,
-      status: 'SUCCESS',
+      status: 'QUEUED',
       startedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
+      completedAt: null,
       recordsRead: 0,
       recordsCreated: 0,
       recordsUpdated: 0,
@@ -859,6 +862,40 @@ export const visClientEngine = {
       createdAt: new Date().toISOString(),
     };
     store.executions.push(execution);
+    // Client fallback: deterministic mini-run against mock vulnerabilities without Nest workers
+    const vulns = [
+      { id: 'VUL-1001', severity: 'Critical', description: 'Apache vulnerability', team: 'Infrastructure' },
+      { id: 'VUL-1002', severity: 'High', description: 'Outdated OpenSSL', team: 'Platform' },
+    ];
+    const version = store.versions.find((v) => v.id === integration.currentVersionId);
+    const direction = ((version as any)?.directions || [])[0];
+    const mappings = (direction?.mappings || []) as any[];
+    let created = 0;
+    for (const src of vulns) {
+      const data: Record<string, unknown> = {};
+      for (const m of mappings) {
+        if (m.enabled === false) continue;
+        data[m.targetField] = src[m.sourceField as keyof typeof src];
+      }
+      if (!Object.keys(data).length) {
+        data.vulnerability_id = src.id;
+        data.description = src.description;
+        data.priority = src.severity === 'Critical' ? '1' : '2';
+      }
+      store.mockRecords.push({
+        id: uid(),
+        formId: direction?.selectedFormId || 'form-vulnerability',
+        data,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      created += 1;
+    }
+    execution.status = 'SUCCESS';
+    execution.completedAt = new Date().toISOString();
+    execution.recordsRead = vulns.length;
+    execution.recordsCreated = created;
+    execution.recordsProcessed = vulns.length;
     store.logs.push({
       id: uid(),
       executionId: execution.id,
@@ -866,11 +903,36 @@ export const visClientEngine = {
       correlationId,
       level: 'INFO',
       step: 'complete',
-      message: 'Client-mode stub execution completed (Nest /api/vis unavailable)',
+      message: `Client-mode execution completed — ${created} records (Nest /api/vis unavailable)`,
       timestamp: new Date().toISOString(),
     });
     save(store);
     return execution;
+  },
+
+  cancelExecution(executionId: string) {
+    const store = loadStore();
+    const row = store.executions.find((e) => e.id === executionId);
+    if (!row) throw new Error('Execution not found');
+    row.status = 'CANCELLED';
+    row.completedAt = new Date().toISOString();
+    save(store);
+    return this.getExecution(executionId);
+  },
+
+  retryFailedExecution(executionId: string) {
+    const store = loadStore();
+    const parent = store.executions.find((e) => e.id === executionId);
+    if (!parent) throw new Error('Execution not found');
+    const dead = (store as any).deadLetters?.filter((d: any) => d.executionId === executionId && !d.ignored) || [];
+    if (!dead.length) throw new Error('No failed records to retry');
+    return this.createExecution(String(parent.integrationId));
+  },
+
+  listDeadLetters(executionId?: string) {
+    const store = loadStore() as any;
+    const all = store.deadLetters || [];
+    return executionId ? all.filter((d: any) => d.executionId === executionId) : [...all].reverse();
   },
 
   listExecutions(integrationId?: string) {
@@ -882,9 +944,17 @@ export const visClientEngine = {
     const store = loadStore();
     const row = store.executions.find((e) => e.id === id);
     if (!row) throw new Error('Execution not found');
+    const dead = (store as any).deadLetters?.filter((d: any) => d.executionId === id) || [];
     return {
       ...row,
       logs: store.logs.filter((l) => l.executionId === id),
+      deadLetters: dead,
+      actions: {
+        canCancel: ['QUEUED', 'STARTING', 'RUNNING'].includes(String(row.status)),
+        canRetryFailed: dead.some((d: any) => !d.ignored),
+        canPause: false,
+        canResume: false,
+      },
     };
   },
 
