@@ -42,6 +42,22 @@ This document audits the DEV platform and records the foundation required so QA/
 - Memory `promotion-test-*` namespaces remain available for unit tests; production path is postgres.
 - QA/PROD environments themselves are still **not provisioned**.
 
+### Live dual-write inventory (post-blocker audit)
+
+Promotion packages are logical-key based (`resourceKey` / `formKey` / `reportKeys` + `rewriteUuidRefs`). Some **runtime writers** still persist environment UUIDs for local operation. Classification:
+
+| Finding | Paths (representative) | Class |
+|---|---|---|
+| `role_permissions.resource_id` UUID + `resource_logical_key` | `useCreateRole.ts` (dual-write), access hooks still match UUID at runtime | **FIXED** (portable key on write) / **EXPECTED** (runtime still resolves local UUID) |
+| Report `config.formId` / field UUID slots in `report_components.config` | `useReports.ts`, `ComponentConfigDialog.tsx`, chart/table configs | **EXPECTED** — export must rewrite via id→key map; import restores local UUIDs |
+| Dashboard↔report FK `reports.dashboard_id` | `useDashboards.ts` | **EXPECTED** — promote via `reportKeys`, re-link FK on import |
+| Workflow node/trigger `*FormId` / `*FieldId` / `source_form_id` | `WorkflowDesigner.tsx`, `useTriggerManagement.ts`, `nodeCompiler.ts` | **EXPECTED** — same rewrite-on-export pattern |
+| Form `customConfig.assignRole` / cross-ref form UUIDs | FormBuilder user-picker / cross-ref config | **EXPECTED** |
+| Hardcoded KPI form/field UUIDs | `useHierarchyKPI.ts`, KPI `RecordDetailView` panels | **DOCUMENTED EXCEPTION** — replace with logical keys before promoting that KPI pack |
+| Docs/examples using sample UUIDs | `ApiDocs.tsx`, `QueryExamplesPopover.tsx` | **TEST-ONLY** / docs — not runtime identity |
+| Asset/SEO image UUID paths | `seo.ts`, headers | **EXPECTED** — not config identity |
+
+**Rule:** local UUID identity for runtime queries is fine; **portable packages must not treat those UUIDs as cross-env identity**. Export/import + `resource_logical_key` / field `logical_key` close the promotion path.
 ## Phase scope
 
 | In scope | Out of scope |
