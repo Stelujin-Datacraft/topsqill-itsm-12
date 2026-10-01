@@ -25,6 +25,7 @@
     "test:itam:form-sync": "npx tsx test/itam/itam.form-sync.test.ts",
     "test:itam:form-sync:real": "npx tsx test/itam/itam.form-sync.real.test.ts",
     "test:itam:all": "npx tsx test/itam/itam.network-discovery.test.ts && npx tsx test/itam/itam.phases-b-d.test.ts && npx tsx test/itam/itam.form-sync.test.ts && npx tsx test/itam/itam.form-sync.real.test.ts",
+    "test:promotion": "npx tsx test/promotion/promotion.foundation.test.ts",
     "prisma:vis:generate": "prisma generate --schema=src/vis/prisma/schema.prisma",
     "prisma:vis:push": "prisma db push --schema=src/vis/prisma/schema.prisma",
     "security:scan": "bash ../scripts/security/scan.sh",
