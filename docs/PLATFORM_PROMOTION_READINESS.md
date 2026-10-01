@@ -48,6 +48,20 @@ DEV  ──package──►  QA  ──package──►  PROD   (future)
 
 ---
 
+## Existing related capabilities (pre-foundation)
+
+Discovered in-repo; **not** a cross-environment config package:
+
+| Capability | Location | Promotion relevance |
+|---|---|---|
+| Form UI duplicate | `FormsList.tsx` / `FormContext.duplicateForm` | Same-env clone only; FormsList deep-copies fields, FormContext path is shallower |
+| Excel form-schema import | `ExcelFormImporter.tsx` | Schema seed, not package promote |
+| Submission import/export | `ImportDialog`, `ExportDropdown`, `exportUtils` | **Transactional data** — do not promote |
+| VIS integration promote | `vis/governance` `promote()` | Strips credentials; VIS env labels only — not platform QA/PROD |
+| VIS marketplace package scan | `vis/marketplace` | Rejects embedded secret patterns |
+| ITAM form sync | `itam/sync/*` | External Form API sync with `credentialReferenceId`; not platform package promote |
+| User CSV import | `UserImportDialog` | Can include password column — **not scrubbed**; never use for env promotion |
+
 ## Foundation delivered in this phase
 
 | Capability | Location |
@@ -172,12 +186,14 @@ Legend: **READY** | **PARTIAL** | **BLOCKED** | **NOT_APPLICABLE**
 
 ## Logical key introduction strategy (safe)
 
-1. Add nullable `logical_key` (done in migration) + partial unique indexes.
-2. Prefer existing `reference_id` (forms/workflows/reports/dashboards); Form API already resolves forms by `reference_id`.
+1. Add nullable `logical_key` (done in migration) + partial unique indexes on projects, forms, form_fields, workflows, roles, groups, reports, dashboards, organizations, outbound_connectors.
+2. Prefer existing `reference_id` (forms/workflows/reports/dashboards/policies); Form API / Public API already resolve forms (and similar) by `reference_id`.
 3. Backfill from `reference_id` where present (done in migration).
-4. UI: allow editors to set logical keys; do not break UUID URLs.
-5. New workflow/report bindings should store logical keys; maintain dual-resolve (UUID or key) during transition.
-6. Import maps `logical_key` → local UUID; never assume ID equality across environments.
+4. Note: `itam_topology_nodes.logical_key` already existed (UNIQUE per org) before this phase — reuse that pattern.
+5. `form_fields` historically had **no** logical key (UUID + label only) — highest-priority gap for report/workflow bindings.
+6. UI: allow editors to set logical keys; do not break UUID URLs.
+7. New workflow/report bindings should store logical keys; maintain dual-resolve (UUID or key) during transition.
+8. Import maps `logical_key` → local UUID; never assume ID equality across environments.
 
 ---
 

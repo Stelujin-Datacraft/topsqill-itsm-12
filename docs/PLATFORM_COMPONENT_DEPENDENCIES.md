@@ -104,11 +104,20 @@ No hard DB-level circular FKs found among core config tables; cycles appear in *
 
 | Classification | Examples |
 |---|---|
-| PLATFORM_CONFIGURATION | projects, forms, fields, roles, workflows, reports, dashboards, templates, ITAM mappings |
+| PLATFORM_CONFIGURATION | projects, forms, fields, roles, workflows, reports, dashboards, templates, ITAM mappings, policies (`reference_id`) |
 | ENVIRONMENT_CONFIGURATION | DB/Redis/API URLs, SMTP, connector base URLs, bucket names, cron targets |
-| TRANSACTIONAL_DATA | submissions, ITAM assets, workflow runs, notifications inbox, audit rows |
-| REFERENCE_DATA | status/severity lists, categories with stable keys |
+| TRANSACTIONAL_DATA | submissions (`submission_ref_id` is per-env record id), ITAM assets, workflow runs, notifications inbox, audit rows |
+| REFERENCE_DATA | status/severity lists, `asset_categories`, compliance controls (`control_id_ref`), `itam_software_catalog` |
 | SECRET | passwords, API keys, OAuth tokens, connector `credentials` JSON values |
+
+### Tables that do **not** exist as first-class entities
+
+| Concept | Actual storage |
+|---|---|
+| schedules | `data_feeds.schedule`, `outbound_connectors.schedule_cron`, ITAM job cron, `workflow_triggers.trigger_type='schedule'` |
+| business_rules | `forms.form_rules` / `forms.field_rules` JSON |
+| integrations (generic) | `outbound_connectors`, `data_source_connections`, LDAP, VIS integrations, API keys |
+| reference_data | Embedded field options + categories/compliance/ITAM catalogs |
 
 ---
 

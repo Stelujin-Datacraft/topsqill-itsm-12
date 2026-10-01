@@ -216,3 +216,10 @@ Auth: Supabase JWT (global `SupabaseAuthGuard`).
 2. Permissions and many JSON configs store **UUIDs**, not logical keys.
 3. Outbound connector secrets live in DB JSON — export must scrub (foundation does).
 4. No production multi-env deploy API — only DEV promotion foundation + VIS in-store “promote”.
+5. No Nest controllers for `projects`, `roles`, `dashboards`, or notification-template CRUD — those rely on PostgREST / UI.
+6. Some docs mention `GET /reports/:id/data`; **no such handler exists** in public-api (list/get/create/update/delete only).
+
+### Pre-existing same-env import/export (not promotion packages)
+
+- Form duplicate (UI), Excel schema import, submission CSV/XLSX import/export, query/report data export, ITAM asset export, user CSV import/export.
+- None of these produce a versioned cross-env configuration package.
