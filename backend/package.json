@@ -26,6 +26,7 @@
     "test:itam:form-sync:real": "npx tsx test/itam/itam.form-sync.real.test.ts",
     "test:itam:all": "npx tsx test/itam/itam.network-discovery.test.ts && npx tsx test/itam/itam.phases-b-d.test.ts && npx tsx test/itam/itam.form-sync.test.ts && npx tsx test/itam/itam.form-sync.real.test.ts",
     "test:promotion": "npx tsx test/promotion/promotion.foundation.test.ts",
+    "test:promotion:qa": "PROMOTION_PERSISTENCE=postgres PROMOTION_DATABASE_URL=${PROMOTION_DATABASE_URL:-postgresql://vis@127.0.0.1:5432/platform_promotion} npx tsx test/promotion/promotion.qa-blockers.test.ts",
     "prisma:vis:generate": "prisma generate --schema=src/vis/prisma/schema.prisma",
     "prisma:vis:push": "prisma db push --schema=src/vis/prisma/schema.prisma",
     "security:scan": "bash ../scripts/security/scan.sh",

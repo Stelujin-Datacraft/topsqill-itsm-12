@@ -165,7 +165,12 @@ Assets/jobs/history = transactional. Targets/mappings/scopes/providers = configu
 | POST | `/api/promotion/import` | Dry-run (default) or apply into isolated namespace |
 | POST | `/api/promotion/round-trip` | Export→validate→import→verify helper |
 | POST | `/api/promotion/verify` | Compare package vs namespace |
-| GET | `/api/promotion/audits` | In-memory promotion audit records |
+| POST | `/api/promotion/migrate-connector-secrets` | Move connector secrets → SecretProvider; scrub DB JSON |
+| GET | `/api/promotion/scan-connector-secrets` | Verify no residual secrets in connector JSON |
+| POST | `/api/promotion/backfill-field-keys` | Deterministic form field logical_key backfill |
+| GET | `/api/promotion/audits` | In-memory / recent promotion audit records |
+
+Persistence: set `PROMOTION_DATABASE_URL` (+ optional `PROMOTION_PERSISTENCE=postgres`) for real PostgreSQL writes. Dry-run never mutates. Approved import requires `approved: true` (or `dryRun: false`).
 
 Auth: Supabase JWT (global `SupabaseAuthGuard`).
 

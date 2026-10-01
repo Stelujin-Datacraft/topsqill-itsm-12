@@ -244,13 +244,21 @@ async function run() {
   console.log('✓ UUID→logical key rewrite');
 
   // 10) Service round-trip convenience
+  const prevUrl = process.env.PROMOTION_DATABASE_URL;
+  const prevMode = process.env.PROMOTION_PERSISTENCE;
+  delete process.env.PROMOTION_DATABASE_URL;
+  process.env.PROMOTION_PERSISTENCE = 'memory';
   const svc = new PromotionService();
-  const rt = svc.roundTrip(sampleExportInput(), 'svc-test');
+  svc.resetForTests();
+  const rt = await svc.roundTrip(sampleExportInput(), 'svc-test');
   assert.equal(rt.environment, 'DEV');
   assert.equal(rt.validation.ok, true);
   assert.equal(rt.verified.ok, true);
   assert.ok(rt.namespace.name.startsWith('promotion-test-'));
   console.log('✓ PromotionService.roundTrip');
+  if (prevUrl) process.env.PROMOTION_DATABASE_URL = prevUrl;
+  if (prevMode) process.env.PROMOTION_PERSISTENCE = prevMode;
+  else delete process.env.PROMOTION_PERSISTENCE;
 
   // Namespace naming guard
   assert.throws(() => store.createNamespace({ name: 'live-project', organizationLogicalKey: 'x' }));

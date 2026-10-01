@@ -58,6 +58,8 @@ export interface NormalizedAsset {
 export interface FormFieldSchema {
   id?: string;
   name: string;
+  /** Portable stable key when available (logical_key) — preferred mapping identity */
+  logicalKey?: string;
   label?: string;
   type: string;
   required?: boolean;

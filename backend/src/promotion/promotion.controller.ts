@@ -1,12 +1,11 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
 import { PromotionService } from './promotion.service';
 import type { ExportInput } from './exporter';
 import type { PlatformPackage } from './types';
 
 /**
- * DEV-only promotion foundation API.
- * Paths are under /api/promotion/*
- * Does NOT create QA/PROD environments.
+ * Platform promotion API — /api/promotion/*
+ * Dry-run never writes. Approved import persists to PostgreSQL when configured.
  */
 @Controller('promotion')
 export class PromotionController {
@@ -18,9 +17,10 @@ export class PromotionController {
       environment: 'DEV',
       qaProvisioned: false,
       prodProvisioned: false,
-      phase: 'DEV_PROMOTION_READINESS',
+      persistence: this.promotion.persistenceMode(),
+      phase: 'PROMOTION_QA_BLOCKERS',
       message:
-        'Foundation only. Future path is DEV → QA → PROD. QA and PROD are not implemented in this phase.',
+        'Promotion foundation with QA blockers remediation. Future path DEV → QA → PROD. QA/PROD not provisioned.',
       namespaces: this.promotion.listNamespaces(),
     };
   }
@@ -46,8 +46,22 @@ export class PromotionController {
   }
 
   @Post('dry-run')
-  dryRun(@Body() body: { package: PlatformPackage; targetNamespaceId: string }) {
-    return this.promotion.dryRun(body.package, body.targetNamespaceId);
+  dryRun(
+    @Body()
+    body: {
+      package: PlatformPackage;
+      targetNamespaceId?: string;
+      organizationLogicalKey?: string;
+      projectLogicalKey?: string;
+      namespace?: string;
+    },
+  ) {
+    return this.promotion.dryRun(body.package, {
+      namespaceId: body.targetNamespaceId,
+      organizationLogicalKey: body.organizationLogicalKey,
+      projectLogicalKey: body.projectLogicalKey,
+      namespace: body.namespace,
+    });
   }
 
   @Post('import')
@@ -56,15 +70,31 @@ export class PromotionController {
     @Body()
     body: {
       package: PlatformPackage;
-      targetNamespaceId: string;
+      targetNamespaceId?: string;
+      organizationLogicalKey?: string;
+      projectLogicalKey?: string;
+      namespace?: string;
       dryRun?: boolean;
+      approved?: boolean;
+      approvedBy?: string;
     },
   ) {
     const initiatedBy = req?.user?.id || req?.user?.email || 'anonymous';
-    return this.promotion.importPackage(body.package, body.targetNamespaceId, {
-      dryRun: body.dryRun !== false,
-      initiatedBy: String(initiatedBy),
-    });
+    const dryRun = body.dryRun !== false && body.approved !== true;
+    return this.promotion.importPackage(
+      body.package,
+      {
+        namespaceId: body.targetNamespaceId,
+        organizationLogicalKey: body.organizationLogicalKey,
+        projectLogicalKey: body.projectLogicalKey,
+        namespace: body.namespace,
+      },
+      {
+        dryRun,
+        initiatedBy: String(initiatedBy),
+        approvedBy: body.approvedBy || null,
+      },
+    );
   }
 
   @Post('round-trip')
@@ -73,13 +103,42 @@ export class PromotionController {
     return this.promotion.roundTrip(body, String(initiatedBy));
   }
 
+  @Post('verify')
+  verify(
+    @Body()
+    body: {
+      package: PlatformPackage;
+      targetNamespaceId?: string;
+      organizationLogicalKey?: string;
+      projectLogicalKey?: string;
+      namespace?: string;
+    },
+  ) {
+    return this.promotion.verify(body.package, {
+      namespaceId: body.targetNamespaceId,
+      organizationLogicalKey: body.organizationLogicalKey,
+      projectLogicalKey: body.projectLogicalKey,
+      namespace: body.namespace,
+    });
+  }
+
+  @Post('migrate-connector-secrets')
+  migrateConnectorSecrets(@Query('dryRun') dryRun?: string) {
+    return this.promotion.migrateConnectorSecrets(dryRun !== 'false');
+  }
+
+  @Get('scan-connector-secrets')
+  scanConnectorSecrets() {
+    return this.promotion.scanConnectorSecrets();
+  }
+
+  @Post('backfill-field-keys')
+  backfillFieldKeys() {
+    return this.promotion.backfillFieldKeys();
+  }
+
   @Get('audits')
   audits() {
     return this.promotion.listAudits();
-  }
-
-  @Post('verify')
-  verify(@Body() body: { package: PlatformPackage; targetNamespaceId: string }) {
-    return this.promotion.verify(body.package, body.targetNamespaceId);
   }
 }

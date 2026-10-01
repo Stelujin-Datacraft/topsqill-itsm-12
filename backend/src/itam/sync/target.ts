@@ -126,6 +126,9 @@ function asArray(payload: unknown): any[] {
 }
 
 function fieldNameFrom(f: any): string {
+  // Prefer portable logical_key over environment UUID / display label
+  if (f.logical_key) return String(f.logical_key);
+  if (f.logicalKey) return String(f.logicalKey);
   if (f.name) return String(f.name);
   if (f.field_name) return String(f.field_name);
   if (f.label) {
@@ -215,6 +218,7 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
       return {
         id: f.id,
         name: fieldNameFrom(f),
+        logicalKey: f.logical_key || f.logicalKey || undefined,
         label: f.label,
         type: String(f.type || f.field_type || 'text'),
         required: Boolean(f.required),

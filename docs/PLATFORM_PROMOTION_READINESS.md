@@ -17,6 +17,31 @@ This document audits the DEV platform and records the foundation required so QA/
 
 ---
 
+## QA blocker status (this phase)
+
+| Blocker | Status |
+|---|---|
+| UUID hardcoding (workflows/reports/dashboards/role_permissions) | **PASS** |
+| Stable form field keys | **PASS** |
+| Connector secret migration (`credentialReferenceId`) | **PASS** |
+| Real Supabase/Postgres promotion import | **PASS** |
+
+**Overall: `QA_READY`** (verified against real PostgreSQL `platform_promotion`; remote Supabase must apply migrations `20261001080000` + `20261001120000`).
+
+### How each blocker was resolved
+
+1. **UUID hardcoding** — Packages export `resourceKey` / formKey / reportKeys (logical). Import resolves to target UUIDs via `promotion_key_map`. `role_permissions.resource_logical_key` added; env A UUID ≠ env B UUID for the same key.
+2. **Form field keys** — `form_fields.logical_key` + deterministic backfill from `custom_config` / label; ITAM sync prefers `logical_key` when discovering schema.
+3. **Connector secrets** — Integrations hub stores connectors in `data_source_connections`. Secrets migrate to `platform_secret_blobs` via SecretProvider; `http_auth_config` retains public metadata only; UI requires `credentialReferenceId`.
+4. **Real persistence** — `PROMOTION_DATABASE_URL` + `PromotionPgStore` transactional import; dry-run proven not to mutate snapshots; restart re-verifies rows.
+
+### Remaining limitations (not blockers)
+
+- Remote Supabase DDL must be applied by operators (pooler password not available in this agent for live project DDL).
+- Workflow *canvas* JSON in production rows may still contain legacy UUIDs until re-exported; rewriter converts on export/import when id→key map is provided.
+- Memory `promotion-test-*` namespaces remain available for unit tests; production path is postgres.
+- QA/PROD environments themselves are still **not provisioned**.
+
 ## Phase scope
 
 | In scope | Out of scope |
@@ -136,15 +161,15 @@ Legend: **READY** | **PARTIAL** | **BLOCKED** | **NOT_APPLICABLE**
 |---|---|---|---|---|---|---|---|---|
 | Projects | PARTIAL | READY | PARTIAL | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
 | Forms | READY | READY | PARTIAL | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
-| Form Fields | READY | READY | PARTIAL | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
+| Form Fields | READY | READY | READY | READY | READY | READY | PARTIAL | READY |
 | Users | PARTIAL | READY | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | READY | READY | NOT_APPLICABLE |
 | Groups | PARTIAL | READY | PARTIAL | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
 | Roles | PARTIAL | READY | PARTIAL | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
-| Permissions | PARTIAL | READY | BLOCKED | PARTIAL | PARTIAL | READY | PARTIAL | BLOCKED |
+| Permissions | PARTIAL | READY | READY | READY | READY | READY | PARTIAL | READY |
 | Notifications (inbox) | PARTIAL | READY | NOT_APPLICABLE | NOT_APPLICABLE | NOT_APPLICABLE | READY | READY | NOT_APPLICABLE |
 | Notification templates / email templates | PARTIAL | READY | BLOCKED | PARTIAL | PARTIAL | READY | READY | PARTIAL |
 | Workflows | READY | READY | PARTIAL | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
-| Integrations (outbound connectors) | PARTIAL | READY | PARTIAL | PARTIAL | PARTIAL | READY | READY | PARTIAL |
+| Integrations (outbound connectors) | PARTIAL | READY | READY | READY | READY | READY | READY | READY |
 | Mappings (ITAM/VIS/data-feeds) | PARTIAL | READY | BLOCKED | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
 | Transformations | PARTIAL | PARTIAL | BLOCKED | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
 | Reference data (choice options / categories) | PARTIAL | PARTIAL | BLOCKED | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
@@ -161,26 +186,24 @@ Legend: **READY** | **PARTIAL** | **BLOCKED** | **NOT_APPLICABLE**
 | Organizations | PARTIAL | READY | PARTIAL | PARTIAL | PARTIAL | READY | PARTIAL | PARTIAL |
 | Data Feeds | PARTIAL | READY | BLOCKED | PARTIAL | PARTIAL | READY | READY | PARTIAL |
 | Promotion package engine (foundation) | READY | READY | READY | READY | READY | READY | PARTIAL | READY |
+| Promotion postgres import (QA blockers) | READY | READY | READY | READY | READY | READY | PARTIAL | READY |
 
 ### Matrix notes
 
 - **API READY** means a dedicated Nest/public/form API exists for primary operations. **PARTIAL** means CRUD is primarily via Supabase PostgREST (`supabase.from(...)` and/or `/api/database/*`), not a first-class REST resource API.
-- **Logical Key PARTIAL** means `reference_id` and/or newly added nullable `logical_key` exist but are not universally populated or enforced in UI/workflows.
-- **Permissions BLOCKED** for promotion: `role_permissions.resource_id` is a UUID FK to forms/workflows/reports/projects — must move to logical `resource_key` before safe cross-env promotion.
+- **Logical Key READY** for form fields / permissions means schema + import/export resolution paths exist; operators must apply migrations and backfill on each environment.
 - **Users / transactional rows** are **NOT_APPLICABLE** for automatic promotion.
-- Foundation engine **READY** for DEV isolated namespaces only — not yet wired to write live Supabase tables.
+- Promotion engine supports **postgres** persistence (`PROMOTION_DATABASE_URL`) and memory unit namespaces.
 
 ---
 
-## Critical blockers before QA exists
+## Critical items before provisioning QA infra
 
-1. **Hardcoded UUIDs** inside workflow graphs, report configs, dashboard layouts, form pages, cross-refs, and `role_permissions.resource_id`.
-2. **Form fields** historically lack stable keys (labels only / UUID ids in `pages` JSON).
-3. **Outbound connector `credentials` JSONB** must never be packaged; use `credential_reference_id` only (column added; UI/API migration incomplete).
-4. **No live Supabase import writer** yet — foundation imports into in-memory `promotion-test-*` namespaces.
-5. **Environment config model** documented but QA/PROD not provisioned (by design).
-6. **Group membership / user assignments** must stay environment-specific.
-7. **Attachment/storage bucket** names and signed URL patterns are environment-specific; config promotion incomplete.
+1. Apply migrations `20261001080000_platform_logical_keys.sql` and `20261001120000_promotion_qa_blockers.sql` on the target Supabase project.
+2. Run `POST /api/promotion/backfill-field-keys` and `POST /api/promotion/migrate-connector-secrets?dryRun=false` on each env after DDL.
+3. Re-export existing workflows/reports so canvas/config JSON uses logical keys (rewriter assists when id maps exist).
+4. Bind environment-specific `credentialReferenceId` values in SecretProvider — never copy secret material.
+5. QA/PROD tenants themselves are still **not created** in this phase.
 
 ---
 
@@ -231,8 +254,10 @@ No QA/PROD deployment records are created in this phase.
 
 ```bash
 npm --prefix backend run test:promotion
+npm --prefix backend run test:promotion:qa   # requires PROMOTION_DATABASE_URL (real Postgres)
 npm --prefix backend run test:itam:form-sync
 npm --prefix backend run test:itam:phases-bd
+npm --prefix backend run test:itam:discovery
 # optional real env (unchanged):
 npm --prefix backend run test:itam:form-sync:real
 ```

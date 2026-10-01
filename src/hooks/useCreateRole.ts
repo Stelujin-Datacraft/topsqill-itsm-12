@@ -50,46 +50,78 @@ export function useCreateRole() {
 
       console.log('Role created successfully:', roleData);
 
-      // Prepare permissions to insert
+      // Prepare permissions to insert (UUID + portable logical key)
       const permissionsToInsert: any[] = [];
+      const resourceIdsByType: Record<string, string[]> = {};
 
-      // Add resource-specific permissions
       Object.entries(data.resourcePermissions).forEach(([key, permissionTypes]) => {
         const [resourceType, resourceId] = key.split(':');
-        
-        // Map resource types correctly for database
         let dbResourceType = resourceType;
-        if (resourceType === 'forms') {
-          dbResourceType = 'form';
-        } else if (resourceType === 'workflows') {
-          dbResourceType = 'workflow';
-        } else if (resourceType === 'reports') {
-          dbResourceType = 'report';
-        } else if (resourceType === 'policies') {
-          dbResourceType = 'policy';
-        } else if (resourceType === 'projects') {
-          dbResourceType = 'project';
-        } else if (resourceType === 'dashboards') {
-          dbResourceType = 'dashboard';
+        if (resourceType === 'forms') dbResourceType = 'form';
+        else if (resourceType === 'workflows') dbResourceType = 'workflow';
+        else if (resourceType === 'reports') dbResourceType = 'report';
+        else if (resourceType === 'policies') dbResourceType = 'policy';
+        else if (resourceType === 'projects') dbResourceType = 'project';
+        else if (resourceType === 'dashboards') dbResourceType = 'dashboard';
+
+        if (resourceId && resourceId !== 'all') {
+          resourceIdsByType[dbResourceType] = resourceIdsByType[dbResourceType] || [];
+          resourceIdsByType[dbResourceType].push(resourceId);
         }
-        
-        permissionTypes.forEach(permission => {
+
+        permissionTypes.forEach((permission) => {
           permissionsToInsert.push({
             role_id: roleData.id,
             resource_type: dbResourceType,
             resource_id: resourceId === 'all' ? null : resourceId,
-            permission_type: permission
+            resource_logical_key: null as string | null,
+            permission_type: permission,
+            _lookupId: resourceId === 'all' ? null : resourceId,
           });
         });
       });
+
+      // Resolve portable logical keys for each resource UUID
+      const logicalById = new Map<string, string>();
+      const tableFor: Record<string, string> = {
+        form: 'forms',
+        workflow: 'workflows',
+        report: 'reports',
+        project: 'projects',
+        dashboard: 'dashboards',
+      };
+      for (const [rtype, ids] of Object.entries(resourceIdsByType)) {
+        const table = tableFor[rtype];
+        if (!table || !ids.length) continue;
+        const { data: rows } = await supabase
+          .from(table)
+          .select('id, logical_key, reference_id, name')
+          .in('id', ids);
+        for (const row of rows || []) {
+          const lk = (row as any).logical_key || (row as any).reference_id || null;
+          if (lk) logicalById.set(row.id, String(lk).toLowerCase());
+        }
+      }
+      for (const p of permissionsToInsert) {
+        if (p._lookupId && logicalById.has(p._lookupId)) {
+          p.resource_logical_key = logicalById.get(p._lookupId);
+        }
+        delete p._lookupId;
+      }
 
       console.log('Permissions to insert:', permissionsToInsert);
 
       // Insert permissions if any
       if (permissionsToInsert.length > 0) {
-        const { error: permissionsError } = await supabase
+        let { error: permissionsError } = await supabase
           .from('role_permissions')
           .insert(permissionsToInsert);
+
+        // If resource_logical_key column not migrated yet, retry without it
+        if (permissionsError && /resource_logical_key/i.test(permissionsError.message || '')) {
+          const stripped = permissionsToInsert.map(({ resource_logical_key, ...rest }) => rest);
+          ({ error: permissionsError } = await supabase.from('role_permissions').insert(stripped));
+        }
 
         if (permissionsError) {
           console.error('Error creating permissions:', permissionsError);
@@ -145,45 +177,63 @@ export function useCreateRole() {
         throw deleteError;
       }
 
-      // Prepare permissions to insert
+      // Prepare permissions with portable resource_logical_key
       const permissionsToInsert: any[] = [];
+      const resourceIdsByType: Record<string, string[]> = {};
 
-      // Add resource-specific permissions
       Object.entries(data.resourcePermissions).forEach(([key, permissionTypes]) => {
         const [resourceType, resourceId] = key.split(':');
-        
-        // Map resource types correctly for database
         let dbResourceType = resourceType;
-        if (resourceType === 'forms') {
-          dbResourceType = 'form';
-        } else if (resourceType === 'workflows') {
-          dbResourceType = 'workflow';
-        } else if (resourceType === 'reports') {
-          dbResourceType = 'report';
-        } else if (resourceType === 'policies') {
-          dbResourceType = 'policy';
-        } else if (resourceType === 'projects') {
-          dbResourceType = 'project';
-        } else if (resourceType === 'dashboards') {
-          dbResourceType = 'dashboard';
+        if (resourceType === 'forms') dbResourceType = 'form';
+        else if (resourceType === 'workflows') dbResourceType = 'workflow';
+        else if (resourceType === 'reports') dbResourceType = 'report';
+        else if (resourceType === 'policies') dbResourceType = 'policy';
+        else if (resourceType === 'projects') dbResourceType = 'project';
+        else if (resourceType === 'dashboards') dbResourceType = 'dashboard';
+
+        if (resourceId && resourceId !== 'all') {
+          resourceIdsByType[dbResourceType] = resourceIdsByType[dbResourceType] || [];
+          resourceIdsByType[dbResourceType].push(resourceId);
         }
-        
-        permissionTypes.forEach(permission => {
+
+        permissionTypes.forEach((permission) => {
           permissionsToInsert.push({
             role_id: data.roleId,
             resource_type: dbResourceType,
             resource_id: resourceId === 'all' ? null : resourceId,
-            permission_type: permission
+            resource_logical_key: null as string | null,
+            permission_type: permission,
+            _lookupId: resourceId === 'all' ? null : resourceId,
           });
         });
       });
 
-      // Insert permissions if any
+      const logicalById = new Map<string, string>();
+      const tableFor: Record<string, string> = {
+        form: 'forms', workflow: 'workflows', report: 'reports', project: 'projects', dashboard: 'dashboards',
+      };
+      for (const [rtype, ids] of Object.entries(resourceIdsByType)) {
+        const table = tableFor[rtype];
+        if (!table || !ids.length) continue;
+        const { data: rows } = await supabase.from(table).select('id, logical_key, reference_id').in('id', ids);
+        for (const row of rows || []) {
+          const lk = (row as any).logical_key || (row as any).reference_id || null;
+          if (lk) logicalById.set(row.id, String(lk).toLowerCase());
+        }
+      }
+      for (const p of permissionsToInsert) {
+        if (p._lookupId && logicalById.has(p._lookupId)) p.resource_logical_key = logicalById.get(p._lookupId);
+        delete p._lookupId;
+      }
+
       if (permissionsToInsert.length > 0) {
-        const { error: permissionsError } = await supabase
+        let { error: permissionsError } = await supabase
           .from('role_permissions')
           .insert(permissionsToInsert);
-
+        if (permissionsError && /resource_logical_key/i.test(permissionsError.message || '')) {
+          const stripped = permissionsToInsert.map(({ resource_logical_key, ...rest }) => rest);
+          ({ error: permissionsError } = await supabase.from('role_permissions').insert(stripped));
+        }
         if (permissionsError) {
           console.error('Error updating permissions:', permissionsError);
           throw permissionsError;

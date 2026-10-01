@@ -46,6 +46,9 @@ export function scoreItamFieldPair(
   const sn = normalize(sourceName);
   const tn = normalize(target.name);
   const tl = normalize(target.label || '');
+  const tk = normalize((target as FormFieldSchema).logicalKey || '');
+  if (tk && sn === tk) return { percent: 100, reason: 'Exact logical_key match' };
+  if (tk && sn === normalize(tk.split('.').pop() || '')) return { percent: 99, reason: 'logical_key leaf match' };
   if (sn === tn) return { percent: 99, reason: 'Exact field name match' };
   if (sn === tl) return { percent: 96, reason: 'Source matches target label' };
   for (const [re, targets, score] of ITAM_SYNONYMS) {
