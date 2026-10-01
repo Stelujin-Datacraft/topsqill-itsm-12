@@ -24,3 +24,13 @@ dist-ssr
 *.sw?
 .vis-data/
 .vis-data/
+
+# VIS Prisma generated client (run prisma generate)
+backend/src/vis/generated/
+backend/.vis-codegen-validate/
+backend/vis-hardening-results.json
+
+# Redis accidental dumps
+dump.rdb
+*.rdb
+

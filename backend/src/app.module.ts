@@ -26,6 +26,7 @@ import { CronModule } from './cron/cron.module';
 import { QueueModule } from './queue/queue.module';
 import { BlogModule } from './blog/blog.module';
 import { VisModule } from './vis/vis.module';
+import { PromotionModule } from './promotion/promotion.module';
 import { HealthController } from './health.controller';
 import { resolve } from 'path';
 
@@ -80,6 +81,7 @@ const envFilePath = [
     QueueModule,
     BlogModule,
     VisModule,
+    PromotionModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -1,0 +1,328 @@
+{
+  "startedAt": "2026-09-30T07:50:25.926Z",
+  "tests": {
+    "phase_a_regression": {
+      "status": "PASS",
+      "detail": {
+        "assets": 1
+      }
+    },
+    "phase_a_agent_merge": {
+      "status": "PASS"
+    },
+    "aws_mock_discovery": {
+      "status": "PASS",
+      "detail": {
+        "started": true,
+        "resourcesDiscovered": 3,
+        "assetsCreated": 0,
+        "assetsUpdated": 1,
+        "job": {
+          "id": "0cf5fd7b-192d-46d1-b13a-423ac1e7b64d",
+          "organizationId": "33333333-3333-3333-3333-333333333333",
+          "providerId": "4f26a30e-aa7a-4622-80f8-779763fd29df",
+          "name": "aws-discover",
+          "status": "COMPLETED",
+          "schedule": "ON_DEMAND",
+          "credentialReferenceId": "aws-lab-ref",
+          "progress": {
+            "resourcesDiscovered": 3,
+            "assetsCreated": 0,
+            "assetsUpdated": 1
+          },
+          "metrics": {
+            "relationships": 3,
+            "resourcesDiscovered": 3,
+            "assetsCreated": 0,
+            "assetsUpdated": 1
+          },
+          "createdBy": "admin-bd",
+          "createdAt": "2026-09-30T07:50:25.951Z",
+          "updatedAt": "2026-09-30T07:50:25.952Z",
+          "lastRunAt": "2026-09-30T07:50:25.952Z"
+        }
+      }
+    },
+    "aws_agent_correlation": {
+      "status": "PASS",
+      "detail": {
+        "count": 1,
+        "cloudInstanceId": "i-0abc123"
+      }
+    },
+    "aws_auth_failure": {
+      "status": "PASS",
+      "detail": {
+        "started": true,
+        "resourcesDiscovered": 0,
+        "assetsCreated": 0,
+        "assetsUpdated": 0,
+        "job": {
+          "id": "0c92b7f2-b6ab-4b8d-b907-4468c561ef4e",
+          "organizationId": "33333333-3333-3333-3333-333333333333",
+          "providerId": "4f26a30e-aa7a-4622-80f8-779763fd29df",
+          "name": "aws-auth-fail",
+          "status": "FAILED",
+          "schedule": "ON_DEMAND",
+          "credentialReferenceId": "aws-lab-ref",
+          "progress": {},
+          "metrics": {},
+          "createdBy": "admin-bd",
+          "createdAt": "2026-09-30T07:50:25.952Z",
+          "updatedAt": "2026-09-30T07:50:25.952Z",
+          "lastError": "AWS authentication failed"
+        }
+      }
+    },
+    "azure_mock_discovery": {
+      "status": "PASS"
+    },
+    "gcp_mock_discovery": {
+      "status": "PASS"
+    },
+    "vmware_mock_discovery": {
+      "status": "PASS"
+    },
+    "cloud_change_detection": {
+      "status": "PASS",
+      "detail": {
+        "changes": 6
+      }
+    },
+    "cloud_tags": {
+      "status": "PASS"
+    },
+    "cloud_secrets_hygiene": {
+      "status": "PASS"
+    },
+    "cloud_tenant_isolation": {
+      "status": "PASS"
+    },
+    "real_aws": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — prerequisite unavailable (ITAM_AWS_LIVE + sandbox creds)"
+      }
+    },
+    "real_azure": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — prerequisite unavailable"
+      }
+    },
+    "real_gcp": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — prerequisite unavailable"
+      }
+    },
+    "real_vmware": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — prerequisite unavailable"
+      }
+    },
+    "dhcp_ingest": {
+      "status": "PASS",
+      "detail": {
+        "accepted": 1,
+        "correlated": 1,
+        "created": 0,
+        "rejected": 1
+      }
+    },
+    "arp_ip_change": {
+      "status": "PASS",
+      "detail": {
+        "ipHistory": 2,
+        "ipChangedEvents": 1,
+        "ingest": {
+          "accepted": 1,
+          "correlated": 1,
+          "created": 0,
+          "rejected": 0
+        }
+      }
+    },
+    "dns_ingest": {
+      "status": "PASS"
+    },
+    "switch_mac_ingest": {
+      "status": "PASS"
+    },
+    "wireless_abstraction": {
+      "status": "PASS"
+    },
+    "duplicate_observation": {
+      "status": "PASS",
+      "detail": {
+        "accepted": 1,
+        "correlated": 0,
+        "created": 0,
+        "rejected": 0
+      }
+    },
+    "passive_tenant_isolation": {
+      "status": "PASS"
+    },
+    "real_passive_telemetry": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — network telemetry infrastructure unavailable"
+      }
+    },
+    "topology_switch_host": {
+      "status": "PASS"
+    },
+    "topology_switch_switch_lldp": {
+      "status": "PASS"
+    },
+    "topology_cloud_hierarchy": {
+      "status": "PASS"
+    },
+    "topology_vmware_hierarchy": {
+      "status": "PASS"
+    },
+    "topology_duplicate_edge": {
+      "status": "PASS"
+    },
+    "topology_bounded_neighbors": {
+      "status": "PASS",
+      "detail": {
+        "nodes": 3,
+        "edges": 2
+      }
+    },
+    "topology_summary": {
+      "status": "PASS",
+      "detail": {
+        "nodes": 16,
+        "edges": 12,
+        "history": 12
+      }
+    },
+    "topology_remove_history": {
+      "status": "PASS"
+    },
+    "topology_tenant_isolation": {
+      "status": "PASS"
+    },
+    "real_lldp_cdp": {
+      "status": "NOT_TESTED",
+      "detail": {
+        "reason": "NOT TESTED — switch lab unavailable"
+      }
+    },
+    "phases_bd_persistence": {
+      "status": "PASS",
+      "detail": {
+        "note": "memory mode — set ITAM_DISCOVERY_DATABASE_URL for PG verify"
+      }
+    },
+    "e2e_synthetic_enterprise": {
+      "status": "PASS",
+      "detail": {
+        "cloud_discovery_jobs_total": 5,
+        "cloud_resources_discovered_total": 6,
+        "vmware_resources_discovered_total": 1,
+        "network_observations_total": 5,
+        "topology_edges_created_total": 11,
+        "topology_edges_removed_total": 1,
+        "correlation_success_total": 4,
+        "discovery_errors_total": 1
+      }
+    },
+    "performance_mock_observations": {
+      "status": "PASS",
+      "detail": {
+        "observations": 100,
+        "durationMs": 10,
+        "observationsPerSec": 10000,
+        "note": "Mock ingest only — not real network telemetry throughput"
+      }
+    }
+  },
+  "providers": {
+    "AWS": {
+      "Implemented": "YES",
+      "UnitTested": "YES (mock)",
+      "IntegrationTested": "YES (mock pipeline)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "AZURE": {
+      "Implemented": "YES",
+      "UnitTested": "YES (mock)",
+      "IntegrationTested": "YES (mock pipeline)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "GCP": {
+      "Implemented": "YES",
+      "UnitTested": "YES (mock)",
+      "IntegrationTested": "YES (mock pipeline)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "VMWARE": {
+      "Implemented": "YES",
+      "UnitTested": "YES (mock)",
+      "IntegrationTested": "YES (mock pipeline)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "DHCP": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "IntegrationTested": "YES (mock)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "ARP": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "IntegrationTested": "YES (mock)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "DNS": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "IntegrationTested": "YES (mock)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "SWITCH_MAC": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "IntegrationTested": "YES (mock)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    },
+    "WIRELESS": {
+      "Implemented": "YES",
+      "UnitTested": "YES",
+      "IntegrationTested": "YES (mock)",
+      "RealEnvironmentTested": "NO",
+      "ProductionReady": "NO"
+    }
+  },
+  "classification": {
+    "phaseB": "IMPLEMENTED — MOCK VALIDATED; REAL PROVIDERS NOT TESTED",
+    "phaseC": "IMPLEMENTED — MOCK VALIDATED; REAL TELEMETRY NOT TESTED",
+    "phaseD": "IMPLEMENTED — MOCK VALIDATED; REAL LLDP/CDP NOT TESTED",
+    "overall": "PARTIALLY VALIDATED",
+    "vulnerabilityManagement": "Intentionally excluded — will be a separate module"
+  },
+  "metrics": {
+    "cloud_discovery_jobs_total": 5,
+    "cloud_resources_discovered_total": 6,
+    "vmware_resources_discovered_total": 1,
+    "network_observations_total": 5,
+    "topology_edges_created_total": 11,
+    "topology_edges_removed_total": 1,
+    "correlation_success_total": 4,
+    "discovery_errors_total": 1
+  },
+  "finishedAt": "2026-09-30T07:50:25.966Z"
+}
