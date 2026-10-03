@@ -6,29 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  RefreshCw, Link2, CheckCircle2, AlertTriangle, Play, Eye, History, FileSearch,
+  RefreshCw, Link2, CheckCircle2, AlertTriangle, Play, Eye, History, FileSearch, Cable,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { itamSyncApi, isItamSyncClientMode } from '@/lib/itam/api';
 
 /**
  * ITAM Form Sync UI — discovered assets → existing application Form API.
  * Existing application remains system of record. No secrets in payloads.
+ * Uses Nest `/api/itam/sync` when available; falls back to browser lab engine.
  */
-
-async function itamFetch(path: string, init?: RequestInit) {
-  const base = import.meta.env.VITE_API_URL || '';
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(init?.headers as Record<string, string> || {}),
-  };
-  const org = localStorage.getItem('current_organization_id') || '';
-  if (org) headers['x-organization-id'] = org;
-  headers['x-itam-roles'] = 'ITAM_ADMIN';
-  const res = await fetch(`${base}/api/itam${path}`, { ...init, headers });
-  if (!res.ok) throw new Error(await res.text() || res.statusText);
-  return res.json();
-}
 
 function statusBadge(status?: string) {
   const s = String(status || '').toUpperCase();
@@ -49,6 +37,7 @@ export function FormSyncPanel() {
   const orgId = userProfile?.organization_id || '';
   const [tab, setTab] = useState('targets');
   const [loading, setLoading] = useState(false);
+  const [clientMode, setClientMode] = useState(false);
   const [targets, setTargets] = useState<any[]>([]);
   const [mappings, setMappings] = useState<any[]>([]);
   const [runs, setRuns] = useState<any[]>([]);
@@ -65,7 +54,7 @@ export function FormSyncPanel() {
   const [targetForm, setTargetForm] = useState({
     name: 'Existing App ITAM',
     baseUrl: 'mock://existing-app',
-    credentialReferenceId: '',
+    credentialReferenceId: 'cred-ref-lab',
     targetFormId: 'form-itam-asset',
   });
 
@@ -75,17 +64,18 @@ export function FormSyncPanel() {
     try {
       localStorage.setItem('current_organization_id', orgId);
       const [t, m, r, met] = await Promise.all([
-        itamFetch('/sync/targets'),
-        itamFetch('/sync/mappings'),
-        itamFetch('/sync/runs'),
-        itamFetch('/sync/metrics'),
+        itamSyncApi.listTargets(),
+        itamSyncApi.listMappings(),
+        itamSyncApi.listRuns(),
+        itamSyncApi.metrics(),
       ]);
-      setTargets(t);
-      setMappings(m);
-      setRuns(r);
-      setMetrics(met);
-      if (!selectedTargetId && t[0]?.id) setSelectedTargetId(t[0].id);
-      if (!selectedMappingId && m[0]?.id) setSelectedMappingId(m[0].id);
+      setTargets(Array.isArray(t) ? t : []);
+      setMappings(Array.isArray(m) ? m : []);
+      setRuns(Array.isArray(r) ? r : []);
+      setMetrics(met as Record<string, number>);
+      setClientMode(isItamSyncClientMode());
+      if (!selectedTargetId && Array.isArray(t) && t[0]?.id) setSelectedTargetId(t[0].id);
+      if (!selectedMappingId && Array.isArray(m) && m[0]?.id) setSelectedMappingId(m[0].id);
     } catch (e: any) {
       toast({
         title: 'Form Sync API',
@@ -105,11 +95,9 @@ export function FormSyncPanel() {
         toast({ title: 'credentialReferenceId required', variant: 'destructive' });
         return;
       }
-      const row = await itamFetch('/sync/targets', {
-        method: 'POST',
-        body: JSON.stringify(targetForm),
-      });
-      setSelectedTargetId(row.id);
+      const row = await itamSyncApi.createTarget(targetForm);
+      setSelectedTargetId(String((row as any).id));
+      setClientMode(isItamSyncClientMode());
       toast({ title: 'Sync target saved' });
       await refresh();
     } catch (e: any) {
@@ -120,10 +108,9 @@ export function FormSyncPanel() {
   const loadSchema = async () => {
     if (!selectedTargetId || !targetForm.targetFormId) return;
     try {
-      const s = await itamFetch(`/sync/schema/${encodeURIComponent(targetForm.targetFormId)}`, {
-        headers: { 'x-sync-target-id': selectedTargetId },
-      });
+      const s = await itamSyncApi.getSchema(targetForm.targetFormId, selectedTargetId);
       setSchema(s);
+      setClientMode(isItamSyncClientMode());
       toast({ title: 'Schema refreshed' });
     } catch (e: any) {
       toast({ title: 'Schema failed', description: e.message, variant: 'destructive' });
@@ -133,16 +120,14 @@ export function FormSyncPanel() {
   const previewMappings = async () => {
     if (!selectedTargetId) return;
     try {
-      const res = await itamFetch('/sync/mappings/preview', {
-        method: 'POST',
-        body: JSON.stringify({
-          targetId: selectedTargetId,
-          formId: targetForm.targetFormId,
-          name: `Mapping ${targetForm.targetFormId}`,
-        }),
+      const res: any = await itamSyncApi.previewMappings({
+        targetId: selectedTargetId,
+        formId: targetForm.targetFormId,
+        name: `Mapping ${targetForm.targetFormId}`,
       });
       setSchema(res.schema);
       setSelectedMappingId(res.mapping?.id);
+      setClientMode(isItamSyncClientMode());
       toast({ title: 'Mapping proposed', description: res.requiresApproval ? 'Requires approval' : 'Ready' });
       await refresh();
       setTab('mappings');
@@ -153,7 +138,7 @@ export function FormSyncPanel() {
 
   const approveMapping = async (id: string) => {
     try {
-      await itamFetch(`/sync/mappings/${id}/approve`, { method: 'POST', body: '{}' });
+      await itamSyncApi.approveMapping(id);
       toast({ title: 'Mapping approved' });
       await refresh();
     } catch (e: any) {
@@ -164,13 +149,14 @@ export function FormSyncPanel() {
   const runDry = async () => {
     if (!selectedTargetId || !selectedMappingId) return;
     try {
-      const run = await itamFetch('/sync/preview', {
-        method: 'POST',
-        body: JSON.stringify({ targetId: selectedTargetId, mappingId: selectedMappingId }),
+      const run = await itamSyncApi.previewSync({
+        targetId: selectedTargetId,
+        mappingId: selectedMappingId,
       });
       setPreviewRun(run);
       setSelectedRun(run);
-      toast({ title: 'Dry-run complete', description: 'No writes to existing application' });
+      setClientMode(isItamSyncClientMode());
+      toast({ title: 'Dry-run complete', description: 'No writes to the existing application' });
       await refresh();
       setTab('runs');
     } catch (e: any) {
@@ -181,11 +167,12 @@ export function FormSyncPanel() {
   const runExecute = async () => {
     if (!selectedTargetId || !selectedMappingId) return;
     try {
-      const run = await itamFetch('/sync/execute', {
-        method: 'POST',
-        body: JSON.stringify({ targetId: selectedTargetId, mappingId: selectedMappingId }),
+      const run: any = await itamSyncApi.executeSync({
+        targetId: selectedTargetId,
+        mappingId: selectedMappingId,
       });
       setSelectedRun(run);
+      setClientMode(isItamSyncClientMode());
       toast({ title: 'Sync executed', description: `Status: ${run.status}` });
       await refresh();
       setTab('runs');
@@ -198,11 +185,11 @@ export function FormSyncPanel() {
     if (!assetLookup.trim()) return;
     try {
       const [h, p] = await Promise.all([
-        itamFetch(`/sync/history/${encodeURIComponent(assetLookup.trim())}`),
-        itamFetch(`/sync/provenance/${encodeURIComponent(assetLookup.trim())}`),
+        itamSyncApi.history(assetLookup.trim()),
+        itamSyncApi.provenance(assetLookup.trim()),
       ]);
-      setHistoryRows(h);
-      setProvenanceRows(p);
+      setHistoryRows(Array.isArray(h) ? h : []);
+      setProvenanceRows(Array.isArray(p) ? p : []);
       setTab('history');
     } catch (e: any) {
       toast({ title: 'Lookup failed', description: e.message, variant: 'destructive' });
@@ -246,6 +233,14 @@ export function FormSyncPanel() {
         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
         Credentials must use credentialReferenceId only. Dry-run never writes to the existing application.
       </div>
+
+      {clientMode && (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm flex gap-2 text-muted-foreground">
+          <Cable className="h-4 w-4 shrink-0 mt-0.5" />
+          Local Form Sync lab mode — Nest <code className="font-mono text-xs">/api/itam/sync</code> is
+          offline. Targets and dry-runs run in this browser against <code className="font-mono text-xs">mock://existing-app</code>.
+        </div>
+      )}
 
       {metrics && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 text-sm">
