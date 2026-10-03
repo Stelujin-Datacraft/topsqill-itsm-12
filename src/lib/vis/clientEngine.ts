@@ -153,7 +153,7 @@ function detectClarifications(prompt: string) {
     allowCustom?: boolean;
   }> = [];
   const hasSource =
-    /servicenow|snow\b|rest\s*api|database|sql|jdbc|jira|salesforce/.test(p)
+    /servicenow|snow\b|rest\s*api|database|sql|jdbc|jira|salesforce|crowdstrike|falcon|mockoon|127\.0\.0\.1|localhost/.test(p)
     || /\bfrom\s+[a-z0-9_\- ]+/.test(p);
   const hasFrequency =
     /every|schedule|cron|hourly|daily|minute|real.?time|webhook|on\s+demand|manual/.test(p);
@@ -204,14 +204,27 @@ function buildDesign(prompt: string, answers?: Record<string, string>) {
     /servicenow|snow\b/.test(p)
     || answers?.source === 'ServiceNow'
     || answers?.q_source === 'ServiceNow';
-  const vuln = /vulnerabilit/.test(p);
+  const crowdstrike = /crowdstrike|falcon|edr|device|host\b|endpoint/.test(p);
+  const vuln = /vulnerabilit/.test(p) || crowdstrike;
   const internal = /internal|form|topsqill|our\s+app/.test(p);
 
+  const crowdstrikeMappings = [
+    { sourceField: 'device_id', targetField: 'vulnerability_id', confidence: 'HIGH', reason: 'Device id used as record key in lab form.' },
+    { sourceField: 'device_id', targetField: 'external_id', confidence: 'HIGH', reason: 'Idempotency key from CrowdStrike device id.' },
+    { sourceField: 'hostname', targetField: 'description', confidence: 'MEDIUM', reason: 'Hostname carried into description for lab Vulnerability form.' },
+    { sourceField: 'status', targetField: 'status', confidence: 'HIGH', reason: 'Exact field name match.' },
+    { sourceField: 'platform_name', targetField: 'assignment_group', confidence: 'LOW', reason: 'Platform hint — review before execute.' },
+  ];
+
   return {
-    name: vuln ? 'ServiceNow Vulnerabilities → Internal Form' : 'Prompt Integration',
+    name: crowdstrike
+      ? 'CrowdStrike Devices → Internal Form'
+      : vuln
+        ? 'ServiceNow Vulnerabilities → Internal Form'
+        : 'Prompt Integration',
     summary: prompt.trim().slice(0, 500) || 'Integration from natural-language requirement',
     source: 'REST_API',
-    target: internal || vuln ? 'INTERNAL_APPLICATION_API' : 'REST_API',
+    target: internal || vuln || crowdstrike ? 'INTERNAL_APPLICATION_API' : 'REST_API',
     direction: /bidirectional|two.?way|↔/.test(p) ? 'BIDIRECTIONAL' : 'UNIDIRECTIONAL',
     executionMode: scheduled ? 'SCHEDULED' : /webhook|event|realtime/.test(p) ? 'EVENT_DRIVEN' : 'MANUAL',
     frequency: every15 ? '15_MINUTES' : every5 ? '5_MINUTES' : scheduled ? 'HOURLY' : null,
@@ -230,29 +243,43 @@ function buildDesign(prompt: string, answers?: Record<string, string>) {
     retryPolicy: 'EXPONENTIAL',
     rateLimitPerMinute: 120,
     idempotencyStrategy: 'EXTERNAL_ID',
-    authHint: 'OAUTH2',
+    authHint: crowdstrike ? 'API_KEY' : 'OAUTH2',
     sourceHints: {
-      vendorExample: servicenow ? 'ServiceNow (generic REST)' : 'Generic REST',
-      system: servicenow ? 'ServiceNow' : answers?.q_source || null,
+      vendorExample: crowdstrike
+        ? 'CrowdStrike Falcon (Mockoon)'
+        : servicenow
+          ? 'ServiceNow (generic REST)'
+          : 'Generic REST',
+      system: crowdstrike
+        ? 'CrowdStrike'
+        : servicenow
+          ? 'ServiceNow'
+          : answers?.q_source || null,
       openFilter: /open/.test(p) ? 'status=Open' : null,
+      listPathHint: crowdstrike ? '/devices/queries/devices/v1' : null,
     },
-    targetHints: { formHint: vuln ? 'Vulnerability' : 'Selected internal form', formName: vuln ? 'Vulnerability' : null },
-    suggestedMappings: vuln
-      ? [
-          { sourceField: 'id', targetField: 'vulnerability_id', confidence: 'HIGH', reason: 'Exact identifier correspondence.' },
-          {
-            sourceField: 'severity',
-            targetField: 'priority',
-            confidence: 'HIGH',
-            transformation: 'Critical→1;High→2;Medium→3;Low→4',
-            reason: 'Both fields represent vulnerability severity. The target uses a numeric priority, so a value transformation is required.',
-          },
-          { sourceField: 'description', targetField: 'description', confidence: 'HIGH', reason: 'Exact field name match.' },
-          { sourceField: 'team', targetField: 'assignment_group', confidence: 'MEDIUM', reason: 'Team maps to assignment group via reference lookup.' },
-          { sourceField: 'status', targetField: 'status', confidence: 'HIGH', reason: 'Exact field name match.' },
-          { sourceField: 'id', targetField: 'external_id', confidence: 'HIGH', reason: 'Use source id as idempotency key.' },
-        ]
-      : [],
+    targetHints: {
+      formHint: vuln || crowdstrike ? 'Vulnerability' : 'Selected internal form',
+      formName: vuln || crowdstrike ? 'Vulnerability' : null,
+    },
+    suggestedMappings: crowdstrike
+      ? crowdstrikeMappings
+      : vuln
+        ? [
+            { sourceField: 'id', targetField: 'vulnerability_id', confidence: 'HIGH', reason: 'Exact identifier correspondence.' },
+            {
+              sourceField: 'severity',
+              targetField: 'priority',
+              confidence: 'HIGH',
+              transformation: 'Critical→1;High→2;Medium→3;Low→4',
+              reason: 'Both fields represent vulnerability severity. The target uses a numeric priority, so a value transformation is required.',
+            },
+            { sourceField: 'description', targetField: 'description', confidence: 'HIGH', reason: 'Exact field name match.' },
+            { sourceField: 'team', targetField: 'assignment_group', confidence: 'MEDIUM', reason: 'Team maps to assignment group via reference lookup.' },
+            { sourceField: 'status', targetField: 'status', confidence: 'HIGH', reason: 'Exact field name match.' },
+            { sourceField: 'id', targetField: 'external_id', confidence: 'HIGH', reason: 'Use source id as idempotency key.' },
+          ]
+        : [],
     recommendations: [
       {
         area: 'LANGUAGE',
@@ -535,9 +562,55 @@ export const visClientEngine = {
     return { connections: this.listConnections(), created: 2, __clientMode: true };
   },
 
-  testConnection(id: string) {
+  async testConnection(id: string) {
     const conn = loadStore().connections.find((c) => c.id === id);
     if (!conn) throw new Error('Connection not found');
+    const baseUrl = String(conn.baseUrl || '');
+    // client:// mocks are always local stubs
+    if (!baseUrl || baseUrl.startsWith('client://')) {
+      return { ok: true, status: 200, data: { mode: 'client', name: conn.name } };
+    }
+    // Real HTTP (Mockoon / localhost): attempt a lightweight reachability probe
+    if (/^https?:\/\//i.test(baseUrl)) {
+      try {
+        const listPath = String((conn.config as any)?.listPath || '/');
+        const url = `${baseUrl.replace(/\/$/, '')}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        const headers: Record<string, string> = { Accept: 'application/json' };
+        if (conn.authType && conn.authType !== 'NONE' && conn.credentialRefId) {
+          const cred = (loadStore().credentials || []).find((c) => c.id === conn.credentialRefId);
+          const secret = cred?._secretPayload;
+          if (typeof secret === 'string' && secret) {
+            headers.Authorization = `Bearer ${secret}`;
+          }
+        }
+        const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
+        clearTimeout(timer);
+        return {
+          ok: res.ok || res.status === 401 || res.status === 403,
+          status: res.status,
+          data: {
+            mode: 'client-http',
+            name: conn.name,
+            probed: url,
+            note: res.ok
+              ? 'Mockoon/API reachable from this browser'
+              : `HTTP ${res.status} — endpoint responded (auth may still be required)`,
+          },
+          error: res.ok ? undefined : `HTTP ${res.status}`,
+        };
+      } catch (e: any) {
+        return {
+          ok: false,
+          status: 0,
+          error: e?.name === 'AbortError'
+            ? 'Timed out reaching Mockoon — is it running on that port?'
+            : (e?.message || 'Failed to reach connection URL'),
+          data: { mode: 'client-http', name: conn.name, baseUrl },
+        };
+      }
+    }
     return { ok: true, status: 200, data: { mode: 'client', name: conn.name } };
   },
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { visApi, LANGUAGES } from '@/lib/vis/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +40,15 @@ const STEPS = [
   'Approval',
 ] as const;
 
+const CROWDSTRIKE_SAMPLE = `{
+  "device_id": "d-1001",
+  "hostname": "WIN-ENDPOINT-01",
+  "status": "normal",
+  "platform_name": "Windows",
+  "os_version": "10.0",
+  "local_ip": "10.0.0.12"
+}`;
+
 function SeverityIcon({ severity }: { severity: string }) {
   if (severity === 'PASS') return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
   if (severity === 'WARNING' || severity === 'warning') {
@@ -50,8 +59,13 @@ function SeverityIcon({ severity }: { severity: string }) {
 
 export default function VisIntegrationDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const [step, setStep] = useState(0);
+  const initialStep = Math.min(
+    STEPS.length - 1,
+    Math.max(0, Number(searchParams.get('step') || 0) || 0),
+  );
+  const [step, setStep] = useState(initialStep);
   const [integration, setIntegration] = useState<any>(null);
   const [connections, setConnections] = useState<any[]>([]);
   const [forms, setForms] = useState<any[]>([]);
@@ -93,6 +107,32 @@ export default function VisIntegrationDetail() {
   useEffect(() => {
     setLoading(true);
     reload()
+      .then(async () => {
+        const stepParam = searchParams.get('step');
+        if (stepParam != null && !Number.isNaN(Number(stepParam))) {
+          setStep(Math.min(STEPS.length - 1, Math.max(0, Number(stepParam))));
+        }
+        // If opened from Connections "Map & execute", ensure forms load for bound target
+        const integ = id ? await visApi.getIntegration(id) : null;
+        const targetId = integ?.directions?.[0]?.targetConnectionId;
+        if (targetId) {
+          try {
+            const res = await visApi.discoverForms(targetId);
+            setForms(res.items || res.data?.items || res.data || []);
+          } catch {
+            /* ignore until Nest/client ready */
+          }
+        }
+        // Prefill CrowdStrike sample when source looks like Falcon/Mockoon
+        const sourceId = integ?.directions?.[0]?.sourceConnectionId;
+        if (sourceId) {
+          const conns = await visApi.listConnections();
+          const source = conns.find((c: any) => c.id === sourceId);
+          if (source && /crowdstrike|falcon|mockoon|device/i.test(String(source.name || ''))) {
+            setSampleJson(CROWDSTRIKE_SAMPLE);
+          }
+        }
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -133,7 +173,19 @@ export default function VisIntegrationDetail() {
       const boot = await visApi.bootstrapDemo();
       const list = boot.connections || (await visApi.listConnections());
       setConnections(list);
-      const source = list.find((c: any) => c.kind === 'REST_API');
+      // Prefer an existing CrowdStrike/Mockoon REST source over generic demo REST
+      const source =
+        list.find(
+          (c: any) =>
+            c.kind === 'REST_API'
+            && /crowdstrike|falcon|mockoon|device/i.test(String(c.name || '')),
+        )
+        || list.find(
+          (c: any) =>
+            c.kind === 'REST_API'
+            && !String(c.name || '').toLowerCase().includes('vulnerability'),
+        )
+        || list.find((c: any) => c.kind === 'REST_API');
       const target = list.find((c: any) => c.kind === 'INTERNAL_APPLICATION_API');
       if (id && source && target) {
         const updated = await visApi.bindConnections(id, {
@@ -143,9 +195,17 @@ export default function VisIntegrationDetail() {
         setIntegration(updated);
         setSourceConnectionId(source.id);
         setTargetConnectionId(target.id);
+        if (/crowdstrike|falcon|mockoon|device/i.test(String(source.name || ''))) {
+          setSampleJson(CROWDSTRIKE_SAMPLE);
+        }
         await loadForms(target.id);
       }
-      toast({ title: 'Demo connections ready' });
+      toast({
+        title: 'Connections ready',
+        description: source
+          ? `Source: ${source.name}. Continue to Form & Schema.`
+          : 'Demo connections created.',
+      });
     } catch (e: any) {
       toast({ title: 'Failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -421,6 +481,30 @@ export default function VisIntegrationDetail() {
         ))}
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Step {step + 1} of {STEPS.length}: <span className="text-foreground font-medium">{STEPS[step]}</span>
+        {' — '}
+        Connections store credentials only. Mapping, dry-run, and execution happen in these wizard steps.
+      </p>
+
+      {step === 0 && !design && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">No design yet</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Analyze a requirement first, or go to Connections and choose your CrowdStrike / Mockoon
+              source, then continue the wizard.
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/vis/new">Describe integration</Link>
+            </Button>
+            <Button onClick={() => setStep(1)}>Go to Connections step</Button>
+          </CardContent>
+        </Card>
+      )}
+
       {step === 0 && design && (
         <div className="space-y-4">
           <Card>
@@ -529,6 +613,7 @@ export default function VisIntegrationDetail() {
                       .map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.name}
+                          {c.baseUrl ? ` · ${c.baseUrl}` : ''}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -598,6 +683,9 @@ export default function VisIntegrationDetail() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Sample source JSON</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Used for mapping suggestions and dry-run when Nest cannot pull live Mockoon data.
+              </p>
             </CardHeader>
             <CardContent className="space-y-3">
               <Textarea
@@ -606,9 +694,19 @@ export default function VisIntegrationDetail() {
                 onChange={(e) => setSampleJson(e.target.value)}
                 className="font-mono text-xs"
               />
-              <Button size="sm" variant="outline" onClick={applySample} disabled={busy}>
-                Use sample for mapping
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={applySample} disabled={busy}>
+                  Use sample for mapping
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSampleJson(CROWDSTRIKE_SAMPLE)}
+                  disabled={busy}
+                >
+                  CrowdStrike device sample
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { visApi } from '@/lib/vis/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Plus, Plug } from 'lucide-react';
+import { ArrowRight, Loader2, Plus, Plug } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { VisPageHeader, VisPageShell, VisSubnav } from '@/components/vis/VisPageShell';
 
@@ -60,11 +60,13 @@ const EMPTY_FORM: FormState = {
 
 export default function VisConnections() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(false);
+  const [startingId, setStartingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   async function reload() {
@@ -80,11 +82,71 @@ export default function VisConnections() {
       const res = await visApi.testConnection(id);
       toast({
         title: res.ok ? 'Connection OK' : 'Connection failed',
-        description: res.error || `HTTP ${res.status ?? 'n/a'}`,
+        description: res.error || res.data?.note || `HTTP ${res.status ?? 'n/a'}`,
         variant: res.ok ? 'default' : 'destructive',
       });
     } catch (e: any) {
       toast({ title: 'Test failed', description: e.message, variant: 'destructive' });
+    }
+  }
+
+  /**
+   * Connections alone do not map/execute. Start (or reopen) an integration wizard
+   * with this REST connection bound as source + Internal App as target.
+   */
+  async function useAsSource(connectionId: string) {
+    setStartingId(connectionId);
+    try {
+      let list = await visApi.listConnections();
+      let source = list.find((c: any) => c.id === connectionId);
+      if (!source) throw new Error('Connection not found');
+      if (source.kind !== 'REST_API' && source.kind !== 'DATABASE') {
+        throw new Error('Only REST/Database connections can be used as source');
+      }
+
+      let target = list.find((c: any) => c.kind === 'INTERNAL_APPLICATION_API');
+      if (!target) {
+        await visApi.bootstrapDemo();
+        list = await visApi.listConnections();
+        source = list.find((c: any) => c.id === connectionId) || source;
+        target = list.find((c: any) => c.kind === 'INTERNAL_APPLICATION_API');
+      }
+      if (!target) throw new Error('Need an Internal Application connection as target');
+
+      const isCrowd =
+        /crowdstrike|falcon|mockoon|device/i.test(String(source.name || ''))
+        || /crowdstrike|falcon/i.test(String(source.baseUrl || ''));
+      const prompt = isCrowd
+        ? `Sync CrowdStrike Falcon devices from ${source.name} at ${source.baseUrl || 'REST'} every 15 minutes into our internal Vulnerability form. Create or update by device_id / external_id. Map hostname into description and keep status.`
+        : `Sync records from ${source.name} (${source.baseUrl || 'REST API'}) into our internal form. Create or update by external id every 15 minutes.`;
+
+      const created = await visApi.createIntegration({
+        name: `${source.name} → Internal Form`,
+        promptText: prompt,
+      });
+      const analyzed: any = await visApi.analyze(created.id, prompt, {
+        q_source: isCrowd ? 'REST API' : 'REST API',
+        q_frequency: '15_MINUTES',
+      });
+      const integrationId = analyzed?.id || analyzed?.integration?.id || created.id;
+      await visApi.bindConnections(integrationId, {
+        sourceConnectionId: source.id,
+        targetConnectionId: target.id,
+        selectedFormId: 'form-vulnerability',
+      });
+      toast({
+        title: 'Integration ready',
+        description: 'Continue the wizard: Form & Schema → Mapping → Dry Run → Approval → Execute',
+      });
+      navigate(`/vis/integrations/${integrationId}?step=1`);
+    } catch (e: any) {
+      toast({
+        title: 'Could not start integration',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setStartingId(null);
     }
   }
 
@@ -224,6 +286,27 @@ export default function VisConnections() {
       />
       <VisSubnav active="connections" />
 
+      <div className="rounded-md border border-border bg-muted/30 px-3.5 py-3 text-sm space-y-2">
+        <p className="font-medium text-foreground">How mapping &amp; execute work</p>
+        <ol className="list-decimal pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
+          <li>Connections only store endpoints (CrowdStrike Mockoon, Form API).</li>
+          <li>
+            Click <span className="text-foreground font-medium">Map &amp; execute</span> on a REST
+            source — that opens an Integration wizard with source + target already bound.
+          </li>
+          <li>
+            In the wizard walk: Form &amp; Schema → Mapping → Matching → Validate → Dry Run →
+            Approval → Start Execution.
+          </li>
+        </ol>
+        <Button variant="link" className="h-auto p-0 text-xs" asChild>
+          <Link to="/vis/integrations">
+            Open Integrations list
+            <ArrowRight className="h-3 w-3 ml-1 inline" />
+          </Link>
+        </Button>
+      </div>
+
       <Card className="border-border/70 shadow-none">
         <CardContent className="p-0">
           {rows.length === 0 ? (
@@ -263,7 +346,7 @@ export default function VisConnections() {
                       {c.baseUrl ? ` · ${c.baseUrl}` : ''}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <Badge variant="outline" className="font-normal text-[10px]">
                       {c.environment}
                     </Badge>
@@ -275,6 +358,20 @@ export default function VisConnections() {
                     <Button size="sm" variant="outline" onClick={() => test(c.id)}>
                       Test
                     </Button>
+                    {(c.kind === 'REST_API' || c.kind === 'DATABASE') && (
+                      <Button
+                        size="sm"
+                        onClick={() => void useAsSource(c.id)}
+                        disabled={startingId === c.id}
+                      >
+                        {startingId === c.id ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        Map &amp; execute
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}
