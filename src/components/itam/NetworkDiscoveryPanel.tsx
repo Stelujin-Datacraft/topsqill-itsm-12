@@ -49,7 +49,8 @@ type DiscoveredRow = {
 };
 
 async function itamFetch(path: string, init?: RequestInit) {
-  const base = import.meta.env.VITE_API_URL || '';
+  const { getApiBaseUrl } = await import('@/services/api/apiClient');
+  const base = getApiBaseUrl();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init?.headers as Record<string, string> || {}),
@@ -58,7 +59,14 @@ async function itamFetch(path: string, init?: RequestInit) {
   const org = localStorage.getItem('current_organization_id') || '';
   if (org) headers['x-organization-id'] = org;
   headers['x-itam-roles'] = 'ITAM_ADMIN';
-  const res = await fetch(`${base}/api/itam${path}`, { ...init, headers });
+  try {
+    const { rawSupabase } = await import('@/integrations/supabase/rawClient');
+    const { data: { session } } = await rawSupabase.auth.getSession();
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+  } catch {
+    /* optional auth */
+  }
+  const res = await fetch(`${base}/itam${path}`, { ...init, headers });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || res.statusText);
