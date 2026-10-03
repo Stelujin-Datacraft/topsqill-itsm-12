@@ -165,8 +165,39 @@ export class VisController {
   }
 
   @Post('integrations/:id/executions')
-  createExecution(@Param('id') id: string) {
-    return this.vis.createExecution(id);
+  createExecution(
+    @Param('id') id: string,
+    @Body() body?: { awaitCompletion?: boolean; maxPages?: number; workers?: number; concurrency?: number },
+  ) {
+    return this.vis.createExecution(id, body || {});
+  }
+
+  @Post('executions/:id/cancel')
+  cancelExecution(@Param('id') id: string) {
+    return this.vis.cancelExecution(id);
+  }
+
+  @Post('executions/:id/retry-failed')
+  retryFailed(@Param('id') id: string, @Body() body?: { awaitCompletion?: boolean }) {
+    return this.vis.retryFailedRecords(id, body);
+  }
+
+  @Get('executions/:id/records/:recordId/trace')
+  recordTrace(@Param('id') id: string, @Param('recordId') recordId: string) {
+    return this.vis.getRecordTrace(id, recordId);
+  }
+
+  @Get('dead-letters')
+  listDeadLetters(
+    @Query('executionId') executionId?: string,
+    @Query('integrationId') integrationId?: string,
+  ) {
+    return this.vis.listDeadLetters({ executionId, integrationId });
+  }
+
+  @Post('dead-letters/:id/ignore')
+  ignoreDeadLetter(@Param('id') id: string) {
+    return this.vis.ignoreDeadLetter(id);
   }
 
   @Get('connections')

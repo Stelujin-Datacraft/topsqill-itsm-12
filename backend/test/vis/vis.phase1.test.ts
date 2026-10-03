@@ -110,10 +110,12 @@ async function main() {
   assert(validated.ok === true, 'validated ok');
   assert(validated.integration.status === 'VALIDATED', 'status validated');
 
-  const exec = vis.createExecution(created.id);
+  const exec = await vis.createExecution(created.id, { awaitCompletion: true });
   assert(exec.correlationId, 'correlation id');
+  assert(['SUCCESS', 'PARTIAL_SUCCESS', 'FAILED'].includes(String(exec.status)), 'terminal status');
   const detail = vis.getExecution(String(exec.id));
   assert((detail.logs || []).length >= 1, 'logs present');
+  assert(Number(detail.recordsRead) >= 1, 'records read');
 
   const dash = vis.getDashboard();
   assert(dash.totalIntegrations >= 1, 'dashboard count');

@@ -134,3 +134,5 @@ export interface IApiDiscovery {
   }>;
   fromManual(definition: unknown): Promise<unknown>;
 }
+
+export * from './capabilities';

@@ -48,7 +48,9 @@ export class MockAIProvider implements IAIProvider {
     const every5 = /5\s*min|every\s*5/.test(p) || answers?.frequency === '5_MINUTES';
     const hourly = /hourly|every\s*hour/.test(p) || answers?.frequency === 'HOURLY';
     const daily = /daily|every\s*day/.test(p) || answers?.frequency === 'DAILY';
-    const realtime = /real.?time|webhook|event/.test(p) || answers?.frequency === 'REALTIME';
+    const realtime = /real.?time|webhook|event|immediately|whenever|when\s+a\s+\w+\s+is\s+created|when\s+a\s+\w+\s+is\s+updated/.test(p)
+      || answers?.frequency === 'REALTIME'
+      || answers?.executionMode === 'REAL_TIME';
     const scheduled = every15 || every5 || hourly || daily || /every|schedule|cron|minute/.test(p);
     const upsert = /create\s+or\s+update|upsert|sync/.test(p);
     const servicenow =
@@ -58,11 +60,12 @@ export class MockAIProvider implements IAIProvider {
     const database = /database|sql|jdbc/.test(p) || answers?.source === 'Database' || answers?.q_source === 'Database';
     const vuln = /vulnerabilit/.test(p);
     const internal = /internal|form|topsqill|our\s+app/.test(p);
+    const envSync = /dev.*uat|uat.*dev|environment/.test(p);
 
     let schedule: AiDesignProposal['schedule'] | undefined;
     let executionMode: AiDesignProposal['executionMode'] = 'MANUAL';
     if (realtime && !scheduled) {
-      executionMode = 'EVENT_DRIVEN';
+      executionMode = 'REAL_TIME';
       schedule = { type: 'MANUAL', value: null, unit: null };
     } else if (every15) {
       executionMode = 'SCHEDULED';
@@ -89,12 +92,16 @@ export class MockAIProvider implements IAIProvider {
         : answers?.source || answers?.q_source || 'Generic REST';
 
     const proposal: AiDesignProposal = {
-      name: vuln ? 'ServiceNow Vulnerabilities → Internal Form' : 'Prompt Integration',
+      name: envSync
+        ? 'DEV → UAT Vulnerability Real-Time Sync'
+        : vuln
+          ? 'ServiceNow Vulnerabilities → Internal Form'
+          : 'Prompt Integration',
       summary: prompt.trim().slice(0, 500) || 'Integration from natural-language requirement',
       source: { type: sourceType, system: String(sourceSystem) },
       target: {
-        type: internal || vuln ? 'INTERNAL_APPLICATION_API' : 'REST_API',
-        formName: vuln ? 'Vulnerability' : undefined,
+        type: internal || vuln || envSync ? 'INTERNAL_APPLICATION_API' : 'REST_API',
+        formName: vuln || envSync ? 'Vulnerability' : undefined,
       },
       direction: /bidirectional|two.?way|↔/.test(p) ? 'BIDIRECTIONAL' : 'UNIDIRECTIONAL',
       executionMode,
@@ -172,11 +179,11 @@ export class MockAIProvider implements IAIProvider {
     const questions: ClarificationQuestion[] = [];
 
     const hasSource =
-      /servicenow|snow\b|rest\s*api|database|sql|jdbc|jira|salesforce|oracle|splunk/.test(p)
+      /servicenow|snow\b|rest\s*api|database|sql|jdbc|jira|salesforce|oracle|splunk|\bdev\b|\buat\b|\bprod\b|environment/.test(p)
       || /\bfrom\s+[a-z0-9_\- ]+/.test(p);
     const hasFrequency =
-      /every|schedule|cron|hourly|daily|minute|real.?time|webhook|on\s+demand|manual/.test(p);
-    const mentionsSync = /sync|integrat|pull|push|get|create|update|map/.test(p);
+      /every|schedule|cron|hourly|daily|minute|real.?time|webhook|on\s+demand|manual|immediately|whenever|when\s+a\s+\w+\s+is\s+(created|updated|deleted)/.test(p);
+    const mentionsSync = /sync|integrat|pull|push|get|create|update|map|whenever|when\s+a/.test(p);
 
     if (mentionsSync && !hasSource) {
       questions.push({

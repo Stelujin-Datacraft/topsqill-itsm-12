@@ -238,10 +238,73 @@ export const visApi = {
       () => nestVis(`/integrations/${id}/suggest-mappings`, { method: 'POST', body }),
       () => visClientEngine.suggestMappings(id),
     ),
-  createExecution: (id: string) =>
+  createExecution: (id: string, body: Record<string, unknown> = {}) =>
     withFallback(
-      () => nestVis(`/integrations/${id}/executions`, { method: 'POST', body: {} }),
+      () => nestVis(`/integrations/${id}/executions`, { method: 'POST', body }),
       () => visClientEngine.createExecution(id),
+    ),
+  cancelExecution: (executionId: string) =>
+    withFallback(
+      () => nestVis(`/executions/${executionId}/cancel`, { method: 'POST', body: {} }),
+      () => visClientEngine.cancelExecution(executionId),
+    ),
+  retryFailedExecution: (executionId: string) =>
+    withFallback(
+      () => nestVis(`/executions/${executionId}/retry-failed`, { method: 'POST', body: {} }),
+      () => visClientEngine.retryFailedExecution(executionId),
+    ),
+  activateIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/activate`, { method: 'POST', body: {} }),
+      async () => {
+        throw new Error('Activate requires Nest backend');
+      },
+    ),
+  pauseIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/pause`, { method: 'POST', body: {} }),
+      async () => {
+        throw new Error('Pause requires Nest backend');
+      },
+    ),
+  resumeIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/resume`, { method: 'POST', body: {} }),
+      async () => {
+        throw new Error('Resume requires Nest backend');
+      },
+    ),
+  getRealtimeStatus: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/event-status`),
+      async () => ({ health: 'DISCONNECTED', metrics: {} }),
+    ),
+  listEvents: (integrationId?: string) =>
+    withFallback(
+      () => nestVis(`/events${integrationId ? `?integrationId=${integrationId}` : ''}`),
+      async () => [],
+    ),
+  getEvent: (id: string) =>
+    withFallback(
+      () => nestVis(`/events/${id}`),
+      async () => {
+        throw new Error('Event detail requires Nest backend');
+      },
+    ),
+  setEventConfig: (id: string, body: Record<string, unknown>) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/event-config`, { method: 'POST', body }),
+      async () => body,
+    ),
+  testEvent: (id: string, body: Record<string, unknown>) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}/test-event`, { method: 'POST', body }),
+      async () => ({ dryRun: true }),
+    ),
+  listDeadLetters: (executionId?: string) =>
+    withFallback(
+      () => nestVis(`/dead-letters${executionId ? `?executionId=${executionId}` : ''}`),
+      () => visClientEngine.listDeadLetters(executionId),
     ),
   listExecutions: (integrationId?: string) =>
     withFallback(
@@ -263,6 +326,64 @@ export const visApi = {
       () => nestVis('/audit'),
       () => visClientEngine.listAudit(),
     ),
+
+  // ── Phase 5–10 enterprise ──────────────────────────────────────────────
+  enterpriseDashboard: () =>
+    withFallback(
+      () => nestVis('/enterprise/dashboard'),
+      async () => ({
+        metrics: {},
+        health: { status: 'DISABLED', reasons: ['Nest backend offline'] },
+        alerts: [],
+        recommendations: [],
+        connectors: 0,
+        drift: [],
+        healing: [],
+        __clientMode: true,
+      }),
+    ),
+  enterpriseHealth: (integrationId?: string) =>
+    withFallback(
+      () => nestVis(`/enterprise/health${integrationId ? `?integrationId=${integrationId}` : ''}`),
+      async () => ({ status: 'DISABLED', reasons: ['offline'], metrics: {} }),
+    ),
+  enterpriseMetrics: () =>
+    withFallback(
+      () => nestVis('/enterprise/metrics'),
+      async () => ({}),
+    ),
+  generateCode: (integrationId: string, language?: string) =>
+    withFallback(
+      () => nestVis(`/enterprise/codegen/${integrationId}`, { method: 'POST', body: { language } }),
+      async () => {
+        throw new Error('Code generation requires Nest backend');
+      },
+    ),
+  listConnectors: () =>
+    withFallback(
+      () => nestVis('/enterprise/connectors'),
+      async () => [],
+    ),
+  listRecommendations: (integrationId?: string) =>
+    withFallback(
+      () =>
+        nestVis(
+          `/enterprise/ai/recommendations${integrationId ? `?integrationId=${integrationId}` : ''}`,
+        ),
+      async () => [],
+    ),
+  promoteIntegration: (id: string, targetEnvironment: string) =>
+    withFallback(
+      () =>
+        nestVis(`/enterprise/integrations/${id}/promote`, {
+          method: 'POST',
+          body: { targetEnvironment },
+        }),
+      async () => {
+        throw new Error('Promotion requires Nest backend');
+      },
+    ),
+
   mockForms: () =>
     withFallback(
       () => nestVis('/mocks/forms'),
