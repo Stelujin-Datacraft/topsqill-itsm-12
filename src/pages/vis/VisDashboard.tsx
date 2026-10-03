@@ -89,9 +89,15 @@ export default function VisDashboard() {
     <VisPageShell>
       <VisPageHeader
         title="Dashboard"
-        description="Prompt-first orchestration — never the system of record for target forms."
+        description="New Integration opens an AI prompt to design a flow. To add Mockoon / API credentials first, use Connections — that is separate from the prompt box."
         actions={
           <>
+            <Button variant="outline" asChild>
+              <Link to="/vis/connections">
+                <Cable className="h-4 w-4 mr-1.5" />
+                Connections
+              </Link>
+            </Button>
             {primaryIntegrationId && (
               <Button variant="outline" asChild>
                 <Link to={`/vis/integrations/${primaryIntegrationId}`}>

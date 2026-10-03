@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { visApi } from '@/lib/vis/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Cable } from 'lucide-react';
 import { VisPageHeader, VisPageShell } from '@/components/vis/VisPageShell';
 
 const EXAMPLE =
@@ -54,11 +54,27 @@ export default function VisDescribe() {
       <div className="max-w-3xl space-y-5">
         <VisPageHeader
           title="Describe your integration"
-          description="Explain source, target, schedule, and operations in natural language. AI proposes a structured design — it asks only when critical details are missing."
+          description="This prompt box is intentional — New Integration is AI-assisted design, not a blank connection form. To register Mockoon or API credentials first, open Connections."
           backTo="/vis"
           backLabel="Dashboard"
           eyebrow="Screen 1 · Prompt-first"
+          actions={
+            <Button variant="outline" asChild>
+              <Link to="/vis/connections">
+                <Cable className="h-4 w-4 mr-1.5" />
+                New Connection
+              </Link>
+            </Button>
+          }
         />
+
+        <div className="rounded-md border border-border bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground">
+          Looking for a connection form? Use{' '}
+          <Link to="/vis/connections" className="text-foreground underline underline-offset-2">
+            /vis/connections → New Connection
+          </Link>
+          . Come back here after the source/target endpoints exist.
+        </div>
 
         <Card className="border-border/70 shadow-none">
           <CardHeader className="px-5 py-4">

@@ -465,6 +465,18 @@ export const visClientEngine = {
 
   createConnection(body: Record<string, unknown>) {
     const store = loadStore();
+    let credentialRefId: string | null = null;
+    if (body.secret || body.credentials) {
+      credentialRefId = uid();
+      store.credentials = store.credentials || [];
+      store.credentials.push({
+        id: credentialRefId,
+        name: `${body.name || 'connection'}-secret`,
+        type: body.authType || 'API_KEY',
+        _secretPayload: body.secret || body.credentials,
+        createdAt: new Date().toISOString(),
+      });
+    }
     const row: Row = {
       id: uid(),
       name: body.name || 'Connection',
@@ -472,7 +484,7 @@ export const visClientEngine = {
       environment: body.environment || 'DEV',
       baseUrl: body.baseUrl || null,
       authType: body.authType || 'NONE',
-      credentialRefId: null,
+      credentialRefId,
       config: body.config || {},
       allowPrivateNetwork: Boolean(body.allowPrivateNetwork),
       createdAt: new Date().toISOString(),
@@ -481,7 +493,7 @@ export const visClientEngine = {
     store.connections.push(row);
     audit(store, null, 'CONNECTION_CREATED', { id: row.id, name: row.name, mode: 'client' });
     save(store);
-    return { ...row, hasCredential: false };
+    return { ...row, hasCredential: Boolean(credentialRefId) };
   },
 
   bootstrapDemo() {
