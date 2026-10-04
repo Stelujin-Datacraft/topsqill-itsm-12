@@ -487,7 +487,8 @@ export class VisService {
     await connector.connect(ctx);
     const schema = await connector.getFormSchema(body.formId, ctx);
     if (!schema.ok) throw new BadRequestException(schema.error || 'Schema discovery failed');
-    const fields = (schema.data as any)?.fields || [];
+    const rawFields = (schema.data as any)?.fields;
+    const fields = Array.isArray(rawFields) ? rawFields : [];
     const hash = createHash('sha256').update(JSON.stringify(fields)).digest('hex').slice(0, 16);
     const existing = this.store
       .list('schemaCache')

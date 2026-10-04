@@ -49,6 +49,54 @@ const CROWDSTRIKE_SAMPLE = `{
   "status": "active"
 }`;
 
+function normalizeFormsList(res: any): Array<{ id: string; name: string; description?: string | null }> {
+  const raw = Array.isArray(res?.items)
+    ? res.items
+    : Array.isArray(res?.data?.items)
+      ? res.data.items
+      : Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res)
+          ? res
+          : [];
+  return raw
+    .map((f: any) => ({
+      id: String(f?.id || f?.formId || f?.reference_id || '').trim(),
+      name: String(f?.name || f?.title || f?.reference_id || f?.id || 'Form'),
+      description: f?.description || null,
+    }))
+    .filter((f: { id: string }) => Boolean(f.id));
+}
+
+function normalizeMappingsList(res: any): any[] {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.mappings)) return res.mappings;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
+}
+
+/** Safe label list for schema choice columns — never call .map on non-arrays. */
+function formatFieldChoices(raw: unknown): string {
+  if (raw == null) return '—';
+  const list = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as any)?.choices)
+      ? (raw as any).choices
+      : Array.isArray((raw as any)?.options)
+        ? (raw as any).options
+        : null;
+  if (!list || !list.length) {
+    if (typeof raw === 'string' || typeof raw === 'number') return String(raw);
+    return '—';
+  }
+  const labels = list.map((c: any) => {
+    if (c == null) return '';
+    if (typeof c === 'string' || typeof c === 'number' || typeof c === 'boolean') return String(c);
+    return String(c.label ?? c.name ?? c.value ?? '');
+  }).filter(Boolean);
+  return labels.length ? labels.join(', ') : '—';
+}
+
 function SeverityIcon({ severity }: { severity: string }) {
   if (severity === 'PASS') return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
   if (severity === 'WARNING' || severity === 'warning') {
@@ -95,9 +143,9 @@ export default function VisIntegrationDetail() {
       visApi.listAuditFor(id).catch(() => []),
     ]);
     setIntegration(integ);
-    setConnections(conns);
+    setConnections(Array.isArray(conns) ? conns : []);
     setAudits(Array.isArray(auditRows) ? auditRows : []);
-    setMappings(integ.directions?.[0]?.mappings || []);
+    setMappings(normalizeMappingsList(integ?.directions?.[0]?.mappings));
     setSourceConnectionId(integ.directions?.[0]?.sourceConnectionId || '');
     setTargetConnectionId(integ.directions?.[0]?.targetConnectionId || '');
     setSelectedFormId(integ.directions?.[0]?.selectedFormId || '');
@@ -117,9 +165,9 @@ export default function VisIntegrationDetail() {
         if (targetId) {
           try {
             const res = await visApi.discoverForms(targetId);
-            setForms(res.items || res.data?.items || res.data || []);
+            setForms(normalizeFormsList(res));
           } catch {
-            /* ignore until Nest/client ready */
+            setForms([]);
           }
         }
         // Prefill CrowdStrike sample when source looks like Falcon/Mockoon
@@ -141,16 +189,32 @@ export default function VisIntegrationDetail() {
   const matching = direction?.matchingStrategy;
 
   const filteredMappings = useMemo(() => {
+    const list = Array.isArray(mappings) ? mappings : [];
     if (mapFilter === 'HIGH') {
-      return mappings.filter((m) => m.confidence === 'HIGH' || (m.confidencePercent || 0) >= 90);
+      return list.filter((m) => m.confidence === 'HIGH' || (m.confidencePercent || 0) >= 90);
     }
     if (mapFilter === 'NEEDS_REVIEW') {
-      return mappings.filter(
+      return list.filter(
         (m) => m.confidence !== 'HIGH' || (m.confidencePercent || 100) < 90 || m.enabled === false,
       );
     }
-    return mappings;
+    return list;
   }, [mappings, mapFilter]);
+
+  // Radix Select crashes the whole page if value is set but not present in items
+  const formSelectValue = forms.some((f: any) => f.id === selectedFormId)
+    ? selectedFormId
+    : undefined;
+  const sourceSelectValue = connections.some((c: any) => c.id === sourceConnectionId)
+    ? sourceConnectionId
+    : undefined;
+  const targetSelectValue = connections.some((c: any) => c.id === targetConnectionId)
+    ? targetConnectionId
+    : undefined;
+  const schemaFields = Array.isArray(schema?.fields) ? schema.fields : [];
+  const schemaAdded = Array.isArray(schema?.schemaDiff?.added) ? schema.schemaDiff.added : [];
+  const schemaRemoved = Array.isArray(schema?.schemaDiff?.removed) ? schema.schemaDiff.removed : [];
+  const safeMappings = Array.isArray(mappings) ? mappings : [];
 
   async function changeLanguage(language: string) {
     if (!id) return;
@@ -221,21 +285,10 @@ export default function VisIntegrationDetail() {
         await visApi.bindConnections(id, { targetConnectionId: connectionId });
       }
       const res = await visApi.discoverForms(connectionId);
-      const items = Array.isArray(res?.items)
-        ? res.items
-        : Array.isArray(res?.data?.items)
-          ? res.data.items
-          : Array.isArray(res?.data)
-            ? res.data
-            : Array.isArray(res)
-              ? res
-              : [];
-      const normalized = items.map((f: any) => ({
-        id: String(f.id || f.formId || f.reference_id || ''),
-        name: String(f.name || f.title || f.reference_id || f.id || 'Form'),
-        description: f.description || null,
-      })).filter((f: any) => f.id);
+      const normalized = normalizeFormsList(res);
       setForms(normalized);
+      // Keep selection only if it still exists; otherwise clear to avoid Select crash
+      setSelectedFormId((prev) => (normalized.some((f) => f.id === prev) ? prev : ''));
       if (!normalized.length) {
         toast({
           title: 'No forms found',
@@ -249,14 +302,26 @@ export default function VisIntegrationDetail() {
         });
       }
     } catch (e: any) {
-      toast({ title: 'Discover forms failed', description: e.message, variant: 'destructive' });
+      setForms([]);
+      toast({
+        title: 'Discover forms failed',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
     } finally {
       setBusy(false);
     }
   }
 
   async function discoverSchema(refresh = false) {
-    if (!id || !targetConnectionId || !selectedFormId) return;
+    if (!id || !targetConnectionId || !selectedFormId) {
+      toast({
+        title: 'Select a form first',
+        description: 'Discover Forms, pick a form, then Discover Schema.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setBusy(true);
     try {
       await visApi.bindConnections(id, {
@@ -267,21 +332,39 @@ export default function VisIntegrationDetail() {
       const result = refresh
         ? await visApi.refreshSchema(id, { connectionId: targetConnectionId, formId: selectedFormId })
         : await visApi.discoverSchema(id, { connectionId: targetConnectionId, formId: selectedFormId });
-      setSchema(result);
-      const suggested = await visApi.suggestMappings(id, {
-        connectionId: targetConnectionId,
-        formId: selectedFormId,
-      });
-      setMappings(suggested);
-      await reload();
+      const safeSchema = result && typeof result === 'object'
+        ? {
+            ...result,
+            fields: Array.isArray((result as any).fields) ? (result as any).fields : [],
+          }
+        : { fields: [] };
+      setSchema(safeSchema);
+      try {
+        const suggested = await visApi.suggestMappings(id, {
+          connectionId: targetConnectionId,
+          formId: selectedFormId,
+        });
+        setMappings(normalizeMappingsList(suggested));
+      } catch {
+        setMappings([]);
+      }
+      try {
+        await reload();
+      } catch {
+        /* keep current UI state */
+      }
       toast({
-        title: result.changed ? 'Target form schema has changed.' : 'Schema discovered',
-        description: result.changed
-          ? `Added: ${(result.schemaDiff?.added || []).join(', ') || '—'}; Removed: ${(result.schemaDiff?.removed || []).join(', ') || '—'}`
-          : `${(result.fields || []).length} fields`,
+        title: safeSchema.changed ? 'Target form schema has changed.' : 'Schema discovered',
+        description: safeSchema.changed
+          ? `Added: ${(safeSchema.schemaDiff?.added || []).join(', ') || '—'}; Removed: ${(safeSchema.schemaDiff?.removed || []).join(', ') || '—'}`
+          : `${(safeSchema.fields || []).length} fields`,
       });
     } catch (e: any) {
-      toast({ title: 'Schema discovery failed', description: e.message, variant: 'destructive' });
+      toast({
+        title: 'Schema discovery failed',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
     } finally {
       setBusy(false);
     }
@@ -708,7 +791,7 @@ export default function VisIntegrationDetail() {
               <div className="space-y-2">
                 <Label>Source connection (REST)</Label>
                 <Select
-                  value={sourceConnectionId}
+                  value={sourceSelectValue}
                   onValueChange={async (v) => {
                     setSourceConnectionId(v);
                     if (id) {
@@ -735,7 +818,7 @@ export default function VisIntegrationDetail() {
               <div className="space-y-2">
                 <Label>Target connection (Internal Application)</Label>
                 <Select
-                  value={targetConnectionId}
+                  value={targetSelectValue}
                   onValueChange={(v) => loadForms(v)}
                 >
                   <SelectTrigger>
@@ -856,9 +939,12 @@ export default function VisIntegrationDetail() {
           <CardContent className="space-y-4">
             <div className="space-y-2 max-w-md">
               <Label>Form</Label>
-              <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+              <Select
+                value={formSelectValue}
+                onValueChange={(v) => setSelectedFormId(v)}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select form" />
+                  <SelectValue placeholder={forms.length ? 'Select form' : 'Discover Forms first'} />
                 </SelectTrigger>
                 <SelectContent>
                   {forms.map((f: any) => (
@@ -868,15 +954,20 @@ export default function VisIntegrationDetail() {
                   ))}
                 </SelectContent>
               </Select>
+              {!forms.length && (
+                <p className="text-xs text-muted-foreground">
+                  No forms loaded yet. Click Discover Forms (requires at least one form in Form builder).
+                </p>
+              )}
             </div>
             {schema?.changed && (
               <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                Target form schema has changed. Added: {(schema.schemaDiff?.added || []).join(', ') || '—'}.
-                Removed: {(schema.schemaDiff?.removed || []).join(', ') || '—'}. Existing mappings were not
+                Target form schema has changed. Added: {schemaAdded.join(', ') || '—'}.
+                Removed: {schemaRemoved.join(', ') || '—'}. Existing mappings were not
                 silently cleared.
               </p>
             )}
-            {(schema?.fields || []).length > 0 && (
+            {schemaFields.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -890,8 +981,8 @@ export default function VisIntegrationDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {schema.fields.map((f: any) => (
-                      <tr key={f.name} className="border-b border-border/40">
+                    {schemaFields.map((f: any, idx: number) => (
+                      <tr key={f.name || f.id || `field-${idx}`} className="border-b border-border/40">
                         <td className="py-2 pr-3 font-mono text-xs">{f.name}</td>
                         <td className="py-2 pr-3">{f.label}</td>
                         <td className="py-2 pr-3">{f.type}</td>
@@ -900,7 +991,7 @@ export default function VisIntegrationDetail() {
                         <td className="py-2 text-xs text-muted-foreground">
                           {f.reference
                             ? `ref:${f.reference.formId || '—'}`
-                            : (f.choices || []).map((c: any) => c.label || c.value).join(', ') || '—'}
+                            : formatFieldChoices(f.choices ?? f.options)}
                         </td>
                       </tr>
                     ))}
@@ -940,7 +1031,7 @@ export default function VisIntegrationDetail() {
           <CardContent className="space-y-4">
             <div className="grid gap-3">
               {filteredMappings.map((m, idx) => {
-                const realIdx = mappings.findIndex((x) => x.id === m.id);
+                const realIdx = safeMappings.findIndex((x) => x.id === m.id);
                 return (
                   <div
                     key={m.id || idx}
@@ -949,7 +1040,8 @@ export default function VisIntegrationDetail() {
                     <Input
                       value={m.sourceField}
                       onChange={(e) => {
-                        const next = [...mappings];
+                        if (realIdx < 0) return;
+                        const next = [...safeMappings];
                         next[realIdx] = { ...next[realIdx], sourceField: e.target.value };
                         setMappings(next);
                       }}
@@ -959,7 +1051,8 @@ export default function VisIntegrationDetail() {
                     <Input
                       value={m.targetField}
                       onChange={(e) => {
-                        const next = [...mappings];
+                        if (realIdx < 0) return;
+                        const next = [...safeMappings];
                         next[realIdx] = { ...next[realIdx], targetField: e.target.value };
                         setMappings(next);
                       }}
@@ -973,7 +1066,8 @@ export default function VisIntegrationDetail() {
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          const next = [...mappings];
+                          if (realIdx < 0) return;
+                          const next = [...safeMappings];
                           next[realIdx] = { ...next[realIdx], enabled: next[realIdx].enabled === false };
                           setMappings(next);
                         }}
@@ -1020,7 +1114,7 @@ export default function VisIntegrationDetail() {
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {mappings
+            {safeMappings
               .filter((m) => m.transformation && m.enabled !== false)
               .map((m) => (
                 <div key={m.id} className="border border-border/50 rounded-md p-3 space-y-2">
@@ -1030,7 +1124,7 @@ export default function VisIntegrationDetail() {
                   <Input
                     value={m.transformation || ''}
                     onChange={(e) => {
-                      const next = mappings.map((x) =>
+                      const next = safeMappings.map((x) =>
                         x.id === m.id ? { ...x, transformation: e.target.value } : x,
                       );
                       setMappings(next);
@@ -1040,7 +1134,7 @@ export default function VisIntegrationDetail() {
                   {m.reason && <p className="text-xs text-muted-foreground">{m.reason}</p>}
                 </div>
               ))}
-            {mappings.filter((m) => m.transformation && m.enabled !== false).length === 0 && (
+            {safeMappings.filter((m) => m.transformation && m.enabled !== false).length === 0 && (
               <p className="text-sm text-muted-foreground">No transformations proposed yet.</p>
             )}
             <Button size="sm" onClick={saveMappings} disabled={busy}>
