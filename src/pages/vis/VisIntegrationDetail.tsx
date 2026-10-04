@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { visApi, LANGUAGES } from '@/lib/vis/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -59,6 +60,7 @@ function SeverityIcon({ severity }: { severity: string }) {
 
 export default function VisIntegrationDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const initialStep = Math.min(
@@ -390,6 +392,26 @@ export default function VisIntegrationDetail() {
     }
   }
 
+  async function removeIntegration() {
+    if (!id) return;
+    if (
+      !window.confirm(
+        `Delete integration “${integration?.name || id}”? Connections stay; this design and its runs are removed.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await visApi.deleteIntegration(id);
+      toast({ title: 'Integration deleted' });
+      navigate('/vis/integrations');
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+      setBusy(false);
+    }
+  }
+
   async function saveMatching(patch: Partial<{ sourceFields: string; targetFields: string; mode: string }>) {
     if (!id) return;
     const strategy = {
@@ -454,6 +476,15 @@ export default function VisIntegrationDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => void removeIntegration()}
+            title="Delete this integration"
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> Delete
+          </Button>
           <Button variant="outline" size="sm" disabled={busy || step === 0} onClick={() => setStep((s) => s - 1)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
