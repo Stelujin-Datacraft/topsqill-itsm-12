@@ -406,23 +406,34 @@ export class VisService {
           baseUrl: String(conn.baseUrl || ''),
           apiVersion: cfg.apiVersion || 'v1',
           paths: cfg.paths || {
-            formsPath: '/api/forms',
-            formFieldsPath: '/api/forms/{formId}/fields',
-            recordsPath: '/api/forms/{formId}/records',
-            recordByIdPath: '/api/forms/{formId}/records/{recordId}',
+            formsPath: '/forms',
+            formFieldsPath: '/forms/{formId}/fields',
+            recordsPath: '/forms/{formId}/records',
+            recordByIdPath: '/forms/{formId}/records/{recordId}',
           },
         },
         { allowPrivateNetwork: allowPrivate },
       );
       await connector.connect(ctx);
+      // Attach bearer if stored (opaque handle resolution is client-side only in pilot)
       return connector.testConnection(ctx);
     }
+    const cfg = (conn.config || {}) as any;
+    const listPath = String(cfg.listPath || '/');
     const connector = new RestConnector(
       { baseUrl: String(conn.baseUrl || ''), timeoutMs: 10000 },
       { allowPrivateNetwork: allowPrivate },
     );
     await connector.connect(ctx);
-    return connector.testConnection(ctx);
+    // Probe configured list path (CrowdStrike Mockoon devices), not bare /
+    const res = await connector.read({ path: listPath }, ctx);
+    return {
+      ok: res.status !== undefined && res.status < 500,
+      status: res.status,
+      data: res.data,
+      error: res.error,
+      probed: listPath,
+    };
   }
 
   // ── Schema discovery ───────────────────────────────────────────────────
@@ -432,10 +443,10 @@ export class VisService {
     const baseUrl = baseUrlOverride || String(conn?.baseUrl || '');
     const cfg = ((conn?.config || {}) as any);
     const paths = cfg.paths || {
-      formsPath: '/api/forms',
-      formFieldsPath: '/api/forms/{formId}/fields',
-      recordsPath: '/api/forms/{formId}/records',
-      recordByIdPath: '/api/forms/{formId}/records/{recordId}',
+      formsPath: '/forms',
+      formFieldsPath: '/forms/{formId}/fields',
+      recordsPath: '/forms/{formId}/records',
+      recordByIdPath: '/forms/{formId}/records/{recordId}',
     };
     const connector = new InternalApplicationConnector(
       { baseUrl, apiVersion: cfg.apiVersion || 'v1', paths },
@@ -453,10 +464,10 @@ export class VisService {
     if (!conn) throw new NotFoundException('Connection not found');
     const cfg = (conn.config || {}) as any;
     const paths = cfg.paths || {
-      formsPath: '/api/forms',
-      formFieldsPath: '/api/forms/{formId}/fields',
-      recordsPath: '/api/forms/{formId}/records',
-      recordByIdPath: '/api/forms/{formId}/records/{recordId}',
+      formsPath: '/forms',
+      formFieldsPath: '/forms/{formId}/fields',
+      recordsPath: '/forms/{formId}/records',
+      recordByIdPath: '/forms/{formId}/records/{recordId}',
     };
     const connector = new InternalApplicationConnector(
       { baseUrl: String(conn.baseUrl), apiVersion: cfg.apiVersion || 'v1', paths },

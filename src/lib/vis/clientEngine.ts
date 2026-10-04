@@ -629,10 +629,15 @@ export const visClientEngine = {
     if (!baseUrl || baseUrl.startsWith('client://')) {
       return { ok: true, status: 200, data: { mode: 'client', name: conn.name } };
     }
-    // Real HTTP (Mockoon / localhost): attempt a lightweight reachability probe
+    // Real HTTP (Mockoon / Form API): lightweight reachability probe from this browser
     if (/^https?:\/\//i.test(baseUrl)) {
       try {
-        const listPath = String((conn.config as any)?.listPath || '/');
+        const cfg = (conn.config || {}) as any;
+        // Form API: probe /forms. CrowdStrike: probe listPath. Never bare / when we know better.
+        const listPath =
+          conn.kind === 'INTERNAL_APPLICATION_API'
+            ? String(cfg.paths?.formsPath || '/forms')
+            : String(cfg.listPath || '/');
         const url = `${baseUrl.replace(/\/$/, '')}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
@@ -646,25 +651,28 @@ export const visClientEngine = {
         }
         const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
         clearTimeout(timer);
+        const authChallenge = res.status === 401 || res.status === 403;
         return {
-          ok: res.ok || res.status === 401 || res.status === 403,
+          ok: res.ok || authChallenge,
           status: res.status,
           data: {
             mode: 'client-http',
             name: conn.name,
             probed: url,
             note: res.ok
-              ? 'Mockoon/API reachable from this browser'
-              : `HTTP ${res.status} — endpoint responded (auth may still be required)`,
+              ? 'Endpoint reachable from this browser'
+              : authChallenge
+                ? `HTTP ${res.status} — host reachable; paste a valid API key/Bearer secret and re-test`
+                : `HTTP ${res.status} — endpoint responded`,
           },
-          error: res.ok ? undefined : `HTTP ${res.status}`,
+          error: res.ok || authChallenge ? undefined : `HTTP ${res.status}`,
         };
       } catch (e: any) {
         return {
           ok: false,
           status: 0,
           error: e?.name === 'AbortError'
-            ? 'Timed out reaching Mockoon — is it running on that port?'
+            ? 'Timed out — is Mockoon running, or is Form API URL wrong?'
             : (e?.message || 'Failed to reach connection URL'),
           data: { mode: 'client-http', name: conn.name, baseUrl },
         };
