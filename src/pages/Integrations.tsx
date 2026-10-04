@@ -105,8 +105,8 @@ const Integrations: React.FC = () => {
 
   return (
     <DashboardLayout
-      title="Integrations"
-      description="Outbound connectors and inbound API keys"
+      title="API keys & connectors"
+      description="Outbound connectors and inbound API keys — separate from Integration Studio (/vis)"
       actions={headerActions}
     >
       <Tabs value={activeTab} onValueChange={setTab} className="space-y-4">

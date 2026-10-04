@@ -21,6 +21,7 @@ interface Store {
   deadLetters: Row[];
   mockForms: Row[];
   mockRecords: Row[];
+  credentials?: Row[];
 }
 
 const MOCK_FORMS: Row[] = [
@@ -218,9 +219,9 @@ function buildDesign(prompt: string, answers?: Record<string, string>) {
   const internal = /internal|form|topsqill|our\s+app/.test(p);
 
   const crowdstrikeMappings = [
-    { sourceField: 'device_id', targetField: 'vulnerability_id', confidence: 'HIGH', reason: 'Device id used as record key in lab form.' },
+    { sourceField: 'device_id', targetField: 'vulnerability_id', confidence: 'HIGH', reason: 'Device id used as Vulnerability form record key.' },
     { sourceField: 'device_id', targetField: 'external_id', confidence: 'HIGH', reason: 'Idempotency key from CrowdStrike device id.' },
-    { sourceField: 'hostname', targetField: 'description', confidence: 'MEDIUM', reason: 'Hostname carried into description for lab Vulnerability form.' },
+    { sourceField: 'hostname', targetField: 'description', confidence: 'MEDIUM', reason: 'Hostname carried into description for the Vulnerability form.' },
     { sourceField: 'status', targetField: 'status', confidence: 'HIGH', reason: 'Exact field name match.' },
     { sourceField: 'platform_name', targetField: 'assignment_group', confidence: 'LOW', reason: 'Platform hint — review before execute.' },
   ];
@@ -444,10 +445,10 @@ export const visClientEngine = {
       retryMaxAttempts: 3,
       rateLimitPerMinute: design.rateLimitPerMinute,
       idempotencyStrategy: design.idempotencyStrategy,
-      matchingKeys: ['external_id'],
+      matchingKeys: crowdstrike ? ['external_id'] : ['external_id'],
       matchingStrategy: {
         mode: 'SINGLE',
-        sourceFields: ['id'],
+        sourceFields: crowdstrike ? ['device_id'] : ['id'],
         targetFields: ['external_id'],
         ifFound: 'UPDATE',
         ifNotFound: 'CREATE',
@@ -672,33 +673,176 @@ export const visClientEngine = {
     return { ok: true, status: 200, data: { mode: 'client', name: conn.name } };
   },
 
-  discoverForms(connectionId: string) {
+  async discoverForms(connectionId: string) {
     const store = loadStore();
     const conn = store.connections.find((c) => c.id === connectionId);
     if (!conn) throw new Error('Connection not found');
-    return {
-      items: store.mockForms.map((f) => ({
-        id: f.id,
-        name: f.name,
-        description: f.description,
-      })),
-    };
+    const baseUrl = String(conn.baseUrl || '').replace(/\/$/, '');
+
+    // Prefer live Form API when Base URL is real HTTP
+    if (/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('client://')) {
+      const formsPath = String((conn.config as any)?.paths?.formsPath || '/forms');
+      const url = `${baseUrl}${formsPath.startsWith('/') ? formsPath : `/${formsPath}`}`;
+      const headers: Record<string, string> = { Accept: 'application/json' };
+      if (conn.authType && conn.authType !== 'NONE' && conn.credentialRefId) {
+        const cred = (store.credentials || []).find((c) => c.id === conn.credentialRefId);
+        const secret = cred?._secretPayload;
+        if (typeof secret === 'string' && secret) {
+          headers.Authorization = `Bearer ${secret}`;
+        }
+      }
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) {
+          throw new Error(`Form API discover failed: HTTP ${res.status} at ${url}`);
+        }
+        const data = await res.json();
+        const raw = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data?.forms)
+              ? data.forms
+              : Array.isArray(data?.data)
+                ? data.data
+                : [];
+        const items = raw.map((f: any) => ({
+          id: String(f.id || f.formId || f.slug || f.name),
+          name: String(f.name || f.title || f.id || 'Form'),
+          description: f.description || null,
+        })).filter((f: any) => f.id);
+        if (!items.length) {
+          throw new Error(`Form API returned no forms at ${url}`);
+        }
+        // Cache for schema discover when Nest is offline
+        for (const item of items) {
+          if (!store.mockForms.some((m) => m.id === item.id)) {
+            store.mockForms.push({
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              fields: [
+                { name: 'external_id', label: 'External ID', type: 'text', required: false, unique: true },
+                { name: 'description', label: 'Description', type: 'textarea', required: false },
+                { name: 'status', label: 'Status', type: 'text', required: false },
+              ],
+            });
+          }
+        }
+        save(store);
+        return { items, source: 'form-api', __clientMode: true };
+      } catch (e: any) {
+        if (conn.kind === 'INTERNAL_APPLICATION_API') {
+          throw new Error(
+            e?.name === 'AbortError'
+              ? `Timed out reaching Form API at ${url}`
+              : (e?.message || `Failed to discover forms at ${url}`),
+          );
+        }
+      }
+    }
+
+    // Non-Form-API connections: no mock forms — return empty
+    if (conn.kind === 'INTERNAL_APPLICATION_API') {
+      throw new Error(
+        'Form API Base URL missing or unreachable. Fix the Form API connection, then Discover Forms again.',
+      );
+    }
+    return { items: [], source: 'none', __clientMode: true };
   },
 
-  discoverSchema(integrationId: string, body: { connectionId: string; formId: string }) {
+  async discoverSchema(integrationId: string, body: { connectionId: string; formId: string }) {
     const store = loadStore();
     if (!store.integrations.some((i) => i.id === integrationId)) {
       throw new Error('Integration not found');
     }
-    const form = store.mockForms.find((f) => f.id === body.formId);
-    if (!form) throw new Error('Form not found');
-    const fields = form.fields || [];
+    const conn = store.connections.find((c) => c.id === body.connectionId);
+    const baseUrl = String(conn?.baseUrl || '').replace(/\/$/, '');
+
+    // Try live Form API fields endpoint
+    if (conn && /^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('client://')) {
+      const fieldsTpl = String(
+        (conn.config as any)?.paths?.formFieldsPath || '/forms/{formId}/fields',
+      );
+      const fieldsPath = fieldsTpl.replace('{formId}', encodeURIComponent(body.formId));
+      const url = `${baseUrl}${fieldsPath.startsWith('/') ? fieldsPath : `/${fieldsPath}`}`;
+      const headers: Record<string, string> = { Accept: 'application/json' };
+      if (conn.authType && conn.authType !== 'NONE' && conn.credentialRefId) {
+        const cred = (store.credentials || []).find((c) => c.id === conn.credentialRefId);
+        const secret = cred?._secretPayload;
+        if (typeof secret === 'string' && secret) {
+          headers.Authorization = `Bearer ${secret}`;
+        }
+      }
+      try {
+        const res = await fetch(url, { method: 'GET', headers });
+        if (res.ok) {
+          const data = await res.json();
+          const raw = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.fields)
+              ? data.fields
+              : Array.isArray(data?.items)
+                ? data.items
+                : [];
+          const fields = raw.map((f: any) => ({
+            name: String(f.name || f.key || f.id),
+            label: String(f.label || f.name || f.key || f.id),
+            type: String(f.type || f.dataType || 'text'),
+            required: Boolean(f.required),
+            unique: Boolean(f.unique),
+            choices: f.choices || f.options || undefined,
+          })).filter((f: any) => f.name);
+          if (fields.length) {
+            const hash = String(JSON.stringify(fields).length);
+            const payload = {
+              id: uid(),
+              connectionId: body.connectionId,
+              formId: body.formId,
+              formName: body.formId,
+              fields,
+              apiVersion: 'v1',
+              schemaVersion: hash,
+              schemaHash: hash,
+              retrievedAt: new Date().toISOString(),
+              changed: false,
+              source: 'form-api',
+            };
+            const existing = store.schemaCache.find(
+              (s) => s.connectionId === body.connectionId && s.formId === body.formId,
+            );
+            if (existing) Object.assign(existing, payload, { id: existing.id });
+            else store.schemaCache.push(payload as Row);
+            // Keep cached form fields for execute
+            const cachedForm = store.mockForms.find((f) => f.id === body.formId);
+            if (cachedForm) cachedForm.fields = fields;
+            else store.mockForms.push({ id: body.formId, name: body.formId, fields });
+            save(store);
+            return payload;
+          }
+        }
+      } catch {
+        /* fall through to cache */
+      }
+    }
+
+    const form = store.mockForms.find((f) => f.id === body.formId)
+      || store.schemaCache.find((s) => s.formId === body.formId);
+    if (!form) {
+      throw new Error(
+        `Form "${body.formId}" not found. Run Discover Forms against your Form API connection first.`,
+      );
+    }
+    const fields = (form as any).fields || [];
     const hash = String(JSON.stringify(fields).length);
     const payload = {
       id: uid(),
       connectionId: body.connectionId,
       formId: body.formId,
-      formName: form.name,
+      formName: (form as any).name || body.formId,
       fields,
       apiVersion: 'v1',
       schemaVersion: hash,
@@ -847,15 +991,17 @@ export const visClientEngine = {
   dryRun(id: string, sample?: Record<string, unknown>[]) {
     const integ = this.getIntegration(id);
     const mappings = ((integ.directions || [])[0]?.mappings || []).filter((m: any) => m.enabled !== false);
-    const records = sample || [
-      {
-        id: 'VUL-1001',
-        severity: 'Critical',
-        description: 'Apache vulnerability',
-        team: 'Infrastructure',
-        status: 'Open',
-      },
-    ];
+    const storedSample = integ.sourceSample;
+    const defaultCrowd = {
+      device_id: 'd-1001',
+      hostname: 'WIN-ENDPOINT-01',
+      status: 'normal',
+      platform_name: 'Windows',
+    };
+    const fromStored = storedSample
+      ? (Array.isArray(storedSample) ? storedSample : [storedSample as Record<string, unknown>])
+      : null;
+    const records = sample || fromStored || [defaultCrowd];
     const previews = records.map((source) => {
       const target: Record<string, unknown> = {};
       for (const m of mappings) {
@@ -983,11 +1129,19 @@ export const visClientEngine = {
     return integrationId ? all.filter((a) => a.integrationId === integrationId) : all;
   },
 
-  createExecution(integrationId: string) {
+  async createExecution(integrationId: string) {
     const store = loadStore();
     const integration = store.integrations.find((i) => i.id === integrationId);
     if (!integration) throw new Error('Integration not found');
-    const correlationId = `INT-VUL-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${uid().slice(0, 5).toUpperCase()}`;
+    const version = store.versions.find((v) => v.id === integration.currentVersionId);
+    const direction = ((version as any)?.directions || [])[0];
+    const mappings = ((direction?.mappings || []) as any[]).filter((m) => m.enabled !== false);
+    const formId = direction?.selectedFormId;
+    if (!formId) {
+      throw new Error('Select a target form (Discover Forms) before starting execution.');
+    }
+
+    const correlationId = `INT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${uid().slice(0, 5).toUpperCase()}`;
     const execution: Row = {
       id: uid(),
       integrationId,
@@ -1002,51 +1156,155 @@ export const visClientEngine = {
       retryCount: 0,
       errorMessage: null,
       correlationId,
+      targetFormId: formId,
       createdAt: new Date().toISOString(),
     };
     store.executions.push(execution);
-    // Client fallback: deterministic mini-run against mock vulnerabilities without Nest workers
-    const vulns = [
-      { id: 'VUL-1001', severity: 'Critical', description: 'Apache vulnerability', team: 'Infrastructure' },
-      { id: 'VUL-1002', severity: 'High', description: 'Outdated OpenSSL', team: 'Platform' },
-    ];
-    const version = store.versions.find((v) => v.id === integration.currentVersionId);
-    const direction = ((version as any)?.directions || [])[0];
-    const mappings = (direction?.mappings || []) as any[];
-    let created = 0;
-    for (const src of vulns) {
+
+    // Resolve source records: saved sample → fetch Mockoon → CrowdStrike default (never invent VUL-*)
+    const sourceConn = direction?.sourceConnectionId
+      ? store.connections.find((c) => c.id === direction.sourceConnectionId)
+      : null;
+    const targetConn = direction?.targetConnectionId
+      ? store.connections.find((c) => c.id === direction.targetConnectionId)
+      : null;
+
+    let sources: Record<string, unknown>[] = [];
+    const sample = (version as any)?.sourceSample;
+    if (sample) {
+      sources = Array.isArray(sample) ? sample : [sample];
+    } else if (sourceConn && /^https?:\/\//i.test(String(sourceConn.baseUrl || ''))) {
+      try {
+        const base = String(sourceConn.baseUrl).replace(/\/$/, '');
+        const listPath = String((sourceConn.config as any)?.listPath || '/devices/queries/devices/v1');
+        const url = `${base}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
+        const headers: Record<string, string> = { Accept: 'application/json' };
+        if (sourceConn.authType && sourceConn.authType !== 'NONE' && sourceConn.credentialRefId) {
+          const cred = (store.credentials || []).find((c) => c.id === sourceConn.credentialRefId);
+          const secret = cred?._secretPayload;
+          if (typeof secret === 'string' && secret) headers.Authorization = `Bearer ${secret}`;
+        }
+        const res = await fetch(url, { method: 'GET', headers });
+        if (res.ok) {
+          const data = await res.json();
+          const rows = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.resources)
+              ? data.resources
+              : Array.isArray(data?.devices)
+                ? data.devices
+                : Array.isArray(data?.items)
+                  ? data.items
+                  : [data];
+          sources = rows.filter((r: any) => r && typeof r === 'object').slice(0, 25);
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    if (!sources.length) {
+      sources = [
+        {
+          device_id: 'd-1001',
+          hostname: 'WIN-ENDPOINT-01',
+          status: 'normal',
+          platform_name: 'Windows',
+        },
+      ];
+    }
+
+    const mapRecord = (src: Record<string, unknown>) => {
       const data: Record<string, unknown> = {};
       for (const m of mappings) {
-        if (m.enabled === false) continue;
-        data[m.targetField] = src[m.sourceField as keyof typeof src];
+        data[m.targetField] = src[m.sourceField];
       }
       if (!Object.keys(data).length) {
-        data.vulnerability_id = src.id;
-        data.description = src.description;
-        data.priority = src.severity === 'Critical' ? '1' : '2';
+        if (src.device_id) {
+          data.external_id = src.device_id;
+          data.vulnerability_id = src.device_id;
+          data.description = src.hostname || String(src.device_id);
+          data.status = src.status || 'Open';
+        }
       }
-      store.mockRecords.push({
-        id: uid(),
-        formId: direction?.selectedFormId || 'form-vulnerability',
-        data,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-      created += 1;
+      return data;
+    };
+
+    let created = 0;
+    let failed = 0;
+    const createdIds: string[] = [];
+    const targetBase = String(targetConn?.baseUrl || '').replace(/\/$/, '');
+    const canWriteFormApi =
+      targetConn
+      && targetConn.kind === 'INTERNAL_APPLICATION_API'
+      && /^https?:\/\//i.test(targetBase)
+      && !targetBase.startsWith('client://');
+
+    for (const src of sources) {
+      const data = mapRecord(src);
+      if (canWriteFormApi) {
+        try {
+          const recordsTpl = String(
+            (targetConn!.config as any)?.paths?.recordsPath || '/forms/{formId}/records',
+          );
+          const recordsPath = recordsTpl.replace('{formId}', encodeURIComponent(formId));
+          const url = `${targetBase}${recordsPath.startsWith('/') ? recordsPath : `/${recordsPath}`}`;
+          const headers: Record<string, string> = {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          };
+          if (targetConn!.authType && targetConn!.authType !== 'NONE' && targetConn!.credentialRefId) {
+            const cred = (store.credentials || []).find((c) => c.id === targetConn!.credentialRefId);
+            const secret = cred?._secretPayload;
+            if (typeof secret === 'string' && secret) headers.Authorization = `Bearer ${secret}`;
+          }
+          const res = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ data }),
+          });
+          if (!res.ok) {
+            failed += 1;
+            continue;
+          }
+          const body = await res.json().catch(() => ({}));
+          const rid = String(body?.id || body?.recordId || uid());
+          createdIds.push(rid);
+          created += 1;
+        } catch {
+          failed += 1;
+        }
+      } else {
+        const rid = uid();
+        store.mockRecords.push({
+          id: rid,
+          formId,
+          data,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        createdIds.push(rid);
+        created += 1;
+      }
     }
-    execution.status = 'SUCCESS';
+
+    execution.status = failed && !created ? 'FAILED' : failed ? 'PARTIAL' : 'SUCCESS';
     execution.completedAt = new Date().toISOString();
-    execution.recordsRead = vulns.length;
+    execution.recordsRead = sources.length;
     execution.recordsCreated = created;
-    execution.recordsProcessed = vulns.length;
+    execution.recordsFailed = failed;
+    execution.recordsProcessed = created + failed;
+    (execution as any).createdRecordIds = createdIds;
+    (execution as any).targetBaseUrl = canWriteFormApi ? targetBase : null;
     store.logs.push({
       id: uid(),
       executionId: execution.id,
       integrationId,
       correlationId,
-      level: 'INFO',
+      level: failed && !created ? 'ERROR' : 'INFO',
       step: 'complete',
-      message: `Client-mode execution completed — ${created} records (Nest /api/vis unavailable)`,
+      message: canWriteFormApi
+        ? `Client execution wrote ${created} record(s) to Form API form ${formId}${failed ? ` (${failed} failed)` : ''}`
+        : `Client execution completed — ${created} record(s) for form ${formId} (Form API write skipped — target unreachable or not HTTP)`,
       timestamp: new Date().toISOString(),
     });
     save(store);

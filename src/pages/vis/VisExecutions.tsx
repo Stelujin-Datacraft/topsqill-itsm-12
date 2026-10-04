@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { visApi } from '@/lib/vis/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ function formatElapsed(startedAt?: string | null, completedAt?: string | null) {
 
 export default function VisExecutions() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [rows, setRows] = useState<any[]>([]);
   const [detail, setDetail] = useState<any>(null);
@@ -78,7 +79,7 @@ export default function VisExecutions() {
     try {
       const next = await visApi.retryFailedExecution(id);
       toast({ title: 'Retry started', description: `Execution ${next.id}` });
-      window.location.href = `/vis/executions/${next.id}`;
+      navigate(`/vis/executions/${next.id}`);
     } catch (e: any) {
       toast({ title: 'Retry failed', description: e?.message, variant: 'destructive' });
     } finally {
@@ -112,7 +113,7 @@ export default function VisExecutions() {
           title="Execution Details"
           backTo="/vis/executions"
           backLabel="All executions"
-          eyebrow="Versatile Integration Studio"
+          eyebrow="Integration Studio"
           actions={
             <>
               <Badge>{detail.status}</Badge>
@@ -150,6 +151,34 @@ export default function VisExecutions() {
           <Stat label="Updated" value={detail.recordsUpdated ?? 0} />
           <Stat label="Failed" value={detail.recordsFailed ?? 0} />
         </div>
+
+        {(detail.targetFormId || detail.targetBaseUrl || (detail.createdRecordIds || []).length > 0) && (
+          <Card className="border-border/70 mb-4 shadow-none">
+            <CardContent className="px-5 py-3 text-sm space-y-1">
+              {detail.targetFormId && (
+                <div>
+                  <span className="text-muted-foreground">Target form: </span>
+                  <code className="font-mono text-xs">{detail.targetFormId}</code>
+                </div>
+              )}
+              {detail.targetBaseUrl && (
+                <div>
+                  <span className="text-muted-foreground">Form API: </span>
+                  <code className="font-mono text-xs break-all">{detail.targetBaseUrl}</code>
+                </div>
+              )}
+              {(detail.createdRecordIds || []).length > 0 && (
+                <div>
+                  <span className="text-muted-foreground">Record ids: </span>
+                  <code className="font-mono text-xs">
+                    {(detail.createdRecordIds as string[]).slice(0, 8).join(', ')}
+                    {(detail.createdRecordIds as string[]).length > 8 ? '…' : ''}
+                  </code>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {detail.errorMessage && (
           <Card className="border-destructive/40 mb-4 shadow-none">
