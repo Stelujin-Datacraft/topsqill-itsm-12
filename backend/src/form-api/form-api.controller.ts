@@ -1,8 +1,10 @@
 import {
   All,
+  Body,
   Controller,
   Get,
   Param,
+  Post,
   Query,
   Req,
   Res,
@@ -77,7 +79,33 @@ export class FormApiController implements OnModuleInit {
     return { success: true, data: result.data || [] };
   }
 
-  /** Catch-all for remaining Form API routes (records create/update/etc.). */
+  /** Create a form submission — used by Integration Studio execution. */
+  @Post('forms/:formId/records')
+  async createRecord(@Param('formId') formId: string, @Body() body: Record<string, unknown>) {
+    try {
+      const result = await this.formApi.createRecord(formId, body || {});
+      return { success: true, data: result.data };
+    } catch (e: any) {
+      const status =
+        e?.status === 404 || e?.statusCode === 404
+          ? HttpStatus.NOT_FOUND
+          : e?.status === 400 || e?.statusCode === 400
+            ? HttpStatus.BAD_REQUEST
+            : HttpStatus.INTERNAL_SERVER_ERROR;
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: status === 404 ? 'FORM_NOT_FOUND' : 'CREATE_ERROR',
+            message: e?.message || 'Failed to create record',
+          },
+        },
+        status,
+      );
+    }
+  }
+
+  /** Catch-all for remaining Form API routes (records update/delete/etc.). */
   @All('*')
   async handle(@Req() req: Request, @Res() res: Response) {
     const original = String(req.originalUrl || req.url || '/');

@@ -299,9 +299,12 @@ async function handleCreateRecord(supabase: any, formIdOrRef: string, body: any)
   
   let submissionData = body.data || body;
   
-  // If useLabels flag is set, convert labels to field IDs
-  if (body.useLabels) {
-    submissionData = await mapLabelsToFieldIds(supabase, formId, body.data || {});
+  // If useLabels flag is set — or payload keys look like labels — convert to field IDs
+  const looksLikeLabels = Object.keys(submissionData || {}).some(
+    (k) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k),
+  );
+  if (body.useLabels || looksLikeLabels) {
+    submissionData = await mapLabelsToFieldIds(supabase, formId, body.data || body || {});
   }
   
   // Validate required fields if validate flag is set
