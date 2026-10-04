@@ -210,6 +210,11 @@ export class VisController {
     return this.vis.createConnection(body);
   }
 
+  @Delete('connections/:id')
+  deleteConnection(@Param('id') id: string) {
+    return this.vis.deleteConnection(id);
+  }
+
   @Post('connections/:id/test')
   testConnection(@Param('id') id: string) {
     return this.vis.testConnection(id);
@@ -251,9 +256,15 @@ export class VisController {
     return this.vis.listAudit(integrationId);
   }
 
-  /** Create demo source + internal-app connections pointed at this Nest process. */
+  /** @deprecated Built-in demo seeding disabled — returns empty create result. */
   @Post('demo/bootstrap')
   bootstrapDemo() {
     return this.vis.bootstrapDemoConnections();
+  }
+
+  /** Remove lab/demo stub connections left from earlier internal testing. */
+  @Post('demo/purge')
+  purgeDemo() {
+    return this.vis.purgeLabConnections();
   }
 }

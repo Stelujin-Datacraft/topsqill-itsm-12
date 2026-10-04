@@ -13,25 +13,29 @@ import {
   XCircle,
   ArrowRight,
   Cable,
+  Trash2,
 } from 'lucide-react';
 import { VisPageHeader, VisPageShell, VisSubnav } from '@/components/vis/VisPageShell';
+import { useToast } from '@/hooks/use-toast';
 
 async function loadStudio() {
-  const sample = await visApi.ensureSampleStudio();
-  const dashboard = sample?.dashboard || (await visApi.dashboard());
-  const integrations = sample?.integrations || (await visApi.listIntegrations());
+  const [dashboard, integrations] = await Promise.all([
+    visApi.dashboard(),
+    visApi.listIntegrations(),
+  ]);
   return {
     ...dashboard,
     integrations,
-    sampleIntegrationId: sample?.integration?.id || integrations?.[0]?.id || null,
-    __clientMode: Boolean(dashboard?.__clientMode || sample?.__clientMode),
+    __clientMode: Boolean(dashboard?.__clientMode),
   };
 }
 
 export default function VisDashboard() {
+  const { toast } = useToast();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     loadStudio()
@@ -39,6 +43,29 @@ export default function VisDashboard() {
       .catch((e) => setError(e.message || 'Failed to load Integration Studio'))
       .finally(() => setLoading(false));
   }, []);
+
+  async function resetLabData() {
+    if (
+      !window.confirm(
+        'Clear lab/demo studio data (local mocks + stub connections)? Your real CrowdStrike / Form API connections you re-create will stay only if you create them again after this wipe.',
+      )
+    ) {
+      return;
+    }
+    setResetting(true);
+    try {
+      await visApi.resetStudio();
+      toast({ title: 'Studio cleared', description: 'Ready for external third-party testing.' });
+      setLoading(true);
+      const next = await loadStudio();
+      setData(next);
+    } catch (e: any) {
+      toast({ title: 'Reset failed', description: e?.message || String(e), variant: 'destructive' });
+    } finally {
+      setResetting(false);
+      setLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -83,13 +110,12 @@ export default function VisDashboard() {
   ];
 
   const integrations = Array.isArray(data.integrations) ? data.integrations : [];
-  const primaryIntegrationId = data.sampleIntegrationId || integrations[0]?.id;
 
   return (
     <VisPageShell>
       <VisPageHeader
         title="Dashboard"
-        description="New Integration opens an AI prompt to design a flow. To add Mockoon / API credentials first, use Connections — that is separate from the prompt box."
+        description="Create a Connection to your external system (e.g. CrowdStrike Mockoon), then New Integration to map and execute. No built-in demo data is seeded."
         actions={
           <>
             <Button variant="outline" asChild>
@@ -98,14 +124,20 @@ export default function VisDashboard() {
                 Connections
               </Link>
             </Button>
-            {primaryIntegrationId && (
-              <Button variant="outline" asChild>
-                <Link to={`/vis/integrations/${primaryIntegrationId}`}>
-                  Open demo
-                  <ArrowRight className="h-4 w-4 ml-1.5" />
-                </Link>
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void resetLabData()}
+              disabled={resetting}
+              title="Clear leftover lab/demo studio data"
+            >
+              {resetting ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1.5" />
+              )}
+              Clear lab data
+            </Button>
             <Button asChild>
               <Link to="/vis/new">
                 <Plus className="h-4 w-4 mr-1.5" />
@@ -123,7 +155,7 @@ export default function VisDashboard() {
           <Cable className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <p>
             Local studio mode — Nest <code className="font-mono text-[11px]">/api/vis</code> is
-            offline. Data stays in this browser until the API is available.
+            offline. Create real HTTP connections (Mockoon / Form API); built-in demo stubs are disabled.
           </p>
         </div>
       )}
@@ -158,14 +190,21 @@ export default function VisDashboard() {
           </CardHeader>
           <CardContent className="px-5 pb-5 pt-0">
             {integrations.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border/80 px-4 py-8 text-center">
-                <p className="text-sm text-muted-foreground mb-3">No integrations yet.</p>
-                <Button size="sm" asChild>
-                  <Link to="/vis/new">
-                    <Plus className="h-4 w-4 mr-1.5" />
-                    Create one
-                  </Link>
-                </Button>
+              <div className="rounded-md border border-dashed border-border/80 px-4 py-8 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  No integrations yet. Add an external connection first, then create an integration.
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/vis/connections">Add connection</Link>
+                  </Button>
+                  <Button size="sm" asChild>
+                    <Link to="/vis/new">
+                      <Plus className="h-4 w-4 mr-1.5" />
+                      New Integration
+                    </Link>
+                  </Button>
+                </div>
               </div>
             ) : (
               <ul className="divide-y divide-border/60 -mx-1">

@@ -354,60 +354,44 @@ export class VisService {
   }
 
   /**
-   * Create demo REST source + Internal App connections that call this Nest
-   * process's /api/vis/mocks/* endpoints (loopback, allowPrivateNetwork).
+   * Built-in demo seeding is disabled — use real external / Form API connections.
    */
   bootstrapDemoConnections() {
-    const port = process.env.PORT || '3001';
-    const mockBase = `http://127.0.0.1:${port}/api/vis/mocks`;
-    const existing = this.store.list('connections');
-    const hasInternal = existing.some(
-      (c) => c.kind === 'INTERNAL_APPLICATION_API' && String(c.baseUrl || '').includes('/vis/mocks'),
-    );
-    const hasSource = existing.some(
-      (c) => c.kind === 'REST_API' && String(c.name || '').toLowerCase().includes('vulnerability'),
-    );
-
-    const created: VisRecord[] = [];
-    if (!hasInternal) {
-      created.push(
-        this.createConnection({
-          name: 'Mock Internal Application',
-          kind: 'INTERNAL_APPLICATION_API',
-          baseUrl: mockBase,
-          authType: 'NONE',
-          allowPrivateNetwork: true,
-          environment: 'DEV',
-          config: {
-            apiVersion: 'v1',
-            paths: {
-              formsPath: '/forms',
-              formFieldsPath: '/forms/{formId}/fields',
-              recordsPath: '/forms/{formId}/records',
-              recordByIdPath: '/forms/{formId}/records/{recordId}',
-            },
-          },
-        }) as VisRecord,
-      );
-    }
-    if (!hasSource) {
-      created.push(
-        this.createConnection({
-          name: 'Mock Vulnerability Source',
-          kind: 'REST_API',
-          baseUrl: mockBase,
-          authType: 'NONE',
-          allowPrivateNetwork: true,
-          environment: 'DEV',
-          config: { listPath: '/vulnerabilities' },
-        }) as VisRecord,
-      );
-    }
     return {
-      mockBaseUrl: mockBase,
-      connections: created.length ? created : this.listConnections(),
-      created: created.length,
+      created: 0,
+      deprecated: true,
+      message: 'Built-in demo connections are disabled. Create real REST / Form API connections.',
+      connections: this.listConnections(),
     };
+  }
+
+  deleteConnection(id: string) {
+    const existing = this.store.get('connections', id);
+    if (!existing) throw new NotFoundException('Connection not found');
+    this.store.remove('connections', id);
+    this.audit(null, null, 'CONNECTION_DELETED', { id, name: existing.name });
+    return { ok: true, id };
+  }
+
+  /** Remove lab/demo stub connections (mocks + client:// style). */
+  purgeLabConnections() {
+    const all = this.store.list('connections');
+    const removed: string[] = [];
+    for (const c of all) {
+      const base = String(c.baseUrl || '');
+      const name = String(c.name || '').toLowerCase();
+      const isLab =
+        base.includes('/vis/mocks')
+        || base.startsWith('client://')
+        || name.includes('mock internal')
+        || name.includes('mock vulnerability');
+      if (isLab) {
+        this.store.remove('connections', c.id);
+        removed.push(String(c.id));
+      }
+    }
+    this.audit(null, null, 'LAB_CONNECTIONS_PURGED', { removed: removed.length });
+    return { ok: true, removed: removed.length, connections: this.listConnections() };
   }
 
   async testConnection(id: string) {

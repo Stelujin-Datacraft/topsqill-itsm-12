@@ -167,26 +167,23 @@ export default function VisIntegrationDetail() {
     }
   }
 
-  async function bootstrapConnections() {
+  async function refreshBoundConnections() {
     setBusy(true);
     try {
-      const boot = await visApi.bootstrapDemo();
-      const list = boot.connections || (await visApi.listConnections());
+      const list = await visApi.listConnections();
       setConnections(list);
-      // Prefer an existing CrowdStrike/Mockoon REST source over generic demo REST
       const source =
         list.find(
           (c: any) =>
             c.kind === 'REST_API'
             && /crowdstrike|falcon|mockoon|device/i.test(String(c.name || '')),
         )
-        || list.find(
-          (c: any) =>
-            c.kind === 'REST_API'
-            && !String(c.name || '').toLowerCase().includes('vulnerability'),
-        )
-        || list.find((c: any) => c.kind === 'REST_API');
-      const target = list.find((c: any) => c.kind === 'INTERNAL_APPLICATION_API');
+        || list.find((c: any) => c.kind === 'REST_API' && !String(c.baseUrl || '').startsWith('client://'));
+      const target = list.find((c: any) => {
+        if (c.kind !== 'INTERNAL_APPLICATION_API') return false;
+        const base = String(c.baseUrl || '');
+        return !base.startsWith('client://') && !base.includes('/vis/mocks');
+      });
       if (id && source && target) {
         const updated = await visApi.bindConnections(id, {
           sourceConnectionId: source.id,
@@ -199,13 +196,17 @@ export default function VisIntegrationDetail() {
           setSampleJson(CROWDSTRIKE_SAMPLE);
         }
         await loadForms(target.id);
+        toast({
+          title: 'Connections bound',
+          description: `Source: ${source.name} → Target: ${target.name}`,
+        });
+      } else {
+        toast({
+          title: 'Add real connections first',
+          description: 'Create CrowdStrike (REST) + Form API (Internal Application) under Connections.',
+          variant: 'destructive',
+        });
       }
-      toast({
-        title: 'Connections ready',
-        description: source
-          ? `Source: ${source.name}. Continue to Form & Schema.`
-          : 'Demo connections created.',
-      });
     } catch (e: any) {
       toast({ title: 'Failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -584,12 +585,17 @@ export default function VisIntegrationDetail() {
               <div>
                 <CardTitle className="text-base">Connections</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Select source and Internal Application connections. Secrets stay in credential handles.
+                  Select your external source and Internal Application (Form API) connections.
                 </p>
               </div>
-              <Button size="sm" onClick={bootstrapConnections} disabled={busy}>
-                Create demo connections
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <Link to="/vis/connections">Manage connections</Link>
+                </Button>
+                <Button size="sm" onClick={refreshBoundConnections} disabled={busy}>
+                  Bind from Connections
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
