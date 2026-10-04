@@ -24,10 +24,11 @@ import {
 import { ArrowRight, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { VisPageHeader, VisPageShell, VisSubnav } from '@/components/vis/VisPageShell';
+import { getFormApiUrl } from '@/services/api/apiClient';
 
 const KINDS = [
-  { value: 'REST_API', label: 'REST API (external source)' },
-  { value: 'INTERNAL_APPLICATION_API', label: 'Internal Application API (TopSqill forms)' },
+  { value: 'REST_API', label: 'REST API (external source — e.g. CrowdStrike)' },
+  { value: 'INTERNAL_APPLICATION_API', label: 'Form API (TopSqill target — where records are written)' },
 ] as const;
 
 const AUTH_TYPES = [
@@ -47,6 +48,8 @@ type FormState = {
   listPath: string;
 };
 
+type PresetId = 'crowdstrike' | 'form-api' | null;
+
 const EMPTY_FORM: FormState = {
   name: '',
   kind: 'REST_API',
@@ -57,6 +60,17 @@ const EMPTY_FORM: FormState = {
   allowPrivateNetwork: true,
   listPath: '',
 };
+
+/** Absolute Form API base — never CrowdStrike/Mockoon host. */
+function resolveFormApiBaseUrl(): string {
+  const configured = getFormApiUrl(); // e.g. /api/form-api or http://host/api/form-api
+  if (/^https?:\/\//i.test(configured)) return configured.replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const path = configured.startsWith('/') ? configured : `/${configured}`;
+    return `${window.location.origin}${path}`.replace(/\/$/, '');
+  }
+  return configured.replace(/\/$/, '');
+}
 
 export default function VisConnections() {
   const { toast } = useToast();
@@ -69,13 +83,32 @@ export default function VisConnections() {
   const [startingId, setStartingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [activePreset, setActivePreset] = useState<PresetId>(null);
 
   async function reload() {
     setRows(await visApi.listConnections());
   }
 
   useEffect(() => {
-    reload().finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      try {
+        // Drop leftover built-in mock stubs from earlier lab testing
+        await visApi.purgeLabConnections();
+      } catch {
+        /* Nest may be offline — client purge still runs via fallback */
+      }
+      if (!cancelled) {
+        try {
+          await reload();
+        } finally {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function test(id: string) {
@@ -118,11 +151,10 @@ export default function VisConnections() {
         toast({
           title: 'Form API connection required',
           description:
-            'Create an Internal Application connection pointing at your real Form API, then click Map & execute again.',
+            'First create a Form API target (not CrowdStrike). The Form API preset fills the correct …/api/form-api URL.',
           variant: 'destructive',
         });
-        setOpen(true);
-        applyInternalFormApiPreset();
+        openNewConnection('form-api');
         return;
       }
 
@@ -164,6 +196,7 @@ export default function VisConnections() {
   }
 
   function applyMockoonCrowdStrikePreset() {
+    setActivePreset('crowdstrike');
     setForm({
       name: 'CrowdStrike Mockoon',
       kind: 'REST_API',
@@ -177,16 +210,33 @@ export default function VisConnections() {
   }
 
   function applyInternalFormApiPreset() {
+    setActivePreset('form-api');
+    const baseUrl = resolveFormApiBaseUrl();
     setForm({
       name: 'TopSqill Form API',
       kind: 'INTERNAL_APPLICATION_API',
       environment: 'DEV',
-      baseUrl: '',
+      baseUrl,
       authType: 'API_KEY',
       secret: '',
-      allowPrivateNetwork: true,
+      // Form API is usually same-origin / public HTTPS — only allow private if URL is localhost
+      allowPrivateNetwork: /localhost|127\.0\.0\.1/.test(baseUrl),
       listPath: '',
     });
+  }
+
+  function openNewConnection(preset?: PresetId) {
+    setOpen(true);
+    if (preset === 'crowdstrike') {
+      applyMockoonCrowdStrikePreset();
+      return;
+    }
+    if (preset === 'form-api') {
+      applyInternalFormApiPreset();
+      return;
+    }
+    setForm(EMPTY_FORM);
+    setActivePreset(null);
   }
 
   async function removeConnection(id: string) {
@@ -220,6 +270,24 @@ export default function VisConnections() {
     if (!form.name.trim() || !form.baseUrl.trim()) {
       toast({
         title: 'Name and Base URL required',
+        description:
+          form.kind === 'INTERNAL_APPLICATION_API'
+            ? 'Use Form API preset — Base URL should be your TopSqill Form API (…/api/form-api), not the CrowdStrike Mockoon port.'
+            : 'Use CrowdStrike Mockoon preset or enter the Mockoon base URL (e.g. http://127.0.0.1:3000).',
+        variant: 'destructive',
+      });
+      return;
+    }
+    // Guard: Form API target must not point at the CrowdStrike Mockoon host by mistake
+    if (
+      form.kind === 'INTERNAL_APPLICATION_API'
+      && /:3000\b|:3002\b/.test(form.baseUrl)
+      && !/form-api/i.test(form.baseUrl)
+    ) {
+      toast({
+        title: 'Wrong Base URL for Form API',
+        description:
+          'That looks like CrowdStrike Mockoon. Click “Form API preset” again — it fills …/api/form-api automatically.',
         variant: 'destructive',
       });
       return;
@@ -252,9 +320,16 @@ export default function VisConnections() {
         body.secret = form.secret.trim();
       }
       await visApi.createConnection(body);
-      toast({ title: 'Connection created' });
+      toast({
+        title: 'Connection saved',
+        description:
+          form.kind === 'REST_API'
+            ? 'Source ready. Next: add Form API target (if missing), then Map & execute.'
+            : 'Form API target ready. On your CrowdStrike row, click Map & execute.',
+      });
       setOpen(false);
       setForm(EMPTY_FORM);
+      setActivePreset(null);
       await reload();
     } catch (e: any) {
       toast({
@@ -281,7 +356,7 @@ export default function VisConnections() {
     <VisPageShell>
       <VisPageHeader
         title="Connections"
-        description="Add external REST sources (CrowdStrike Mockoon, etc.) and your real TopSqill Form API target. Built-in demo stubs are disabled."
+        description="A Connection is only the login/endpoint to a system. An Integration (next step) is the mapping + run that uses two connections."
         actions={
           <>
             <Button variant="ghost" onClick={() => void clearLabData()} disabled={clearing}>
@@ -292,12 +367,7 @@ export default function VisConnections() {
               )}
               Clear lab data
             </Button>
-            <Button
-              onClick={() => {
-                setForm(EMPTY_FORM);
-                setOpen(true);
-              }}
-            >
+            <Button onClick={() => openNewConnection()}>
               <Plus className="h-4 w-4 mr-1.5" />
               New Connection
             </Button>
@@ -307,13 +377,34 @@ export default function VisConnections() {
       <VisSubnav active="connections" />
 
       <div className="rounded-md border border-border bg-muted/30 px-3.5 py-3 text-sm space-y-2">
-        <p className="font-medium text-foreground">Proper external test flow</p>
-        <ol className="list-decimal pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
-          <li>New Connection → CrowdStrike Mockoon (source) with your real Mockoon base URL.</li>
-          <li>New Connection → TopSqill Form API (target) with your Form API base URL + credential.</li>
+        <p className="font-medium text-foreground">Simple words</p>
+        <ul className="list-disc pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
           <li>
-            On the source row click <span className="text-foreground font-medium">Map &amp; execute</span>,
-            then walk Form &amp; Schema → Mapping → Dry Run → Approval → Start Execution.
+            <span className="text-foreground font-medium">Connection</span> = phone number / login to a
+            system (CrowdStrike or Form API).
+          </li>
+          <li>
+            <span className="text-foreground font-medium">Integration</span> = the job that reads from
+            one connection and writes to another (map fields, dry-run, execute). Delete integrations on
+            the Integrations tab.
+          </li>
+        </ul>
+        <p className="font-medium text-foreground pt-1">What to create (in order)</p>
+        <ol className="list-decimal pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
+          <li>
+            <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => openNewConnection('crowdstrike')}>
+              CrowdStrike Mockoon
+            </button>{' '}
+            — source REST API (usually http://127.0.0.1:3000).
+          </li>
+          <li>
+            <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => openNewConnection('form-api')}>
+              TopSqill Form API
+            </button>{' '}
+            — target where records are saved (auto-fills …/api/form-api — not port 3000).
+          </li>
+          <li>
+            On the CrowdStrike row click <span className="text-foreground font-medium">Map &amp; execute</span>.
           </li>
         </ol>
       </div>
@@ -326,17 +417,12 @@ export default function VisConnections() {
                 No connections yet. Add your CrowdStrike Mockoon source and TopSqill Form API target to begin.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
-                <Button
-                  onClick={() => {
-                    setForm(EMPTY_FORM);
-                    setOpen(true);
-                  }}
-                >
+                <Button onClick={() => openNewConnection('crowdstrike')}>
                   <Plus className="h-4 w-4 mr-1.5" />
-                  New Connection
+                  CrowdStrike source
                 </Button>
-                <Button variant="ghost" asChild>
-                  <Link to="/vis/new">Or describe an integration (AI)</Link>
+                <Button variant="outline" onClick={() => openNewConnection('form-api')}>
+                  Form API target
                 </Button>
               </div>
             </div>
@@ -401,24 +487,53 @@ export default function VisConnections() {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setActivePreset(null);
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>New Connection</DialogTitle>
             <DialogDescription>
-              Point at a real API or a local Mockoon sandbox. Secrets are stored as opaque credential
-              handles — they are never returned by the API.
+              Pick a preset first. CrowdStrike = where data comes from. Form API = where TopSqill stores
+              records. Secrets are stored as opaque handles and never shown again.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="secondary" onClick={applyMockoonCrowdStrikePreset}>
-              CrowdStrike Mockoon preset
+            <Button
+              type="button"
+              size="sm"
+              variant={activePreset === 'crowdstrike' ? 'default' : 'outline'}
+              onClick={applyMockoonCrowdStrikePreset}
+            >
+              1. CrowdStrike Mockoon
             </Button>
-            <Button type="button" size="sm" variant="secondary" onClick={applyInternalFormApiPreset}>
-              Form API preset
+            <Button
+              type="button"
+              size="sm"
+              variant={activePreset === 'form-api' ? 'default' : 'outline'}
+              onClick={applyInternalFormApiPreset}
+            >
+              2. Form API target
             </Button>
           </div>
+
+          {activePreset === 'form-api' && (
+            <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
+              Form API Base URL is auto-filled to <code className="font-mono">{resolveFormApiBaseUrl()}</code>.
+              Do <span className="font-medium text-foreground">not</span> use Mockoon port 3000 here.
+            </p>
+          )}
+          {activePreset === 'crowdstrike' && (
+            <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
+              Point Base URL at your Mockoon CrowdStrike host (default http://127.0.0.1:3000). Keep Kind =
+              REST API.
+            </p>
+          )}
 
           <div className="grid gap-3 py-1">
             <div className="space-y-1.5">
@@ -426,7 +541,10 @@ export default function VisConnections() {
               <Input
                 id="conn-name"
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) => {
+                  setActivePreset(null);
+                  setForm((f) => ({ ...f, name: e.target.value }));
+                }}
                 placeholder="CrowdStrike Mockoon"
               />
             </div>
@@ -435,7 +553,10 @@ export default function VisConnections() {
                 <Label>Kind</Label>
                 <Select
                   value={form.kind}
-                  onValueChange={(v) => setForm((f) => ({ ...f, kind: v }))}
+                  onValueChange={(v) => {
+                    setActivePreset(null);
+                    setForm((f) => ({ ...f, kind: v }));
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -471,9 +592,21 @@ export default function VisConnections() {
               <Input
                 id="conn-base"
                 value={form.baseUrl}
-                onChange={(e) => setForm((f) => ({ ...f, baseUrl: e.target.value }))}
-                placeholder="http://127.0.0.1:3000"
+                onChange={(e) => {
+                  setActivePreset(null);
+                  setForm((f) => ({ ...f, baseUrl: e.target.value }));
+                }}
+                placeholder={
+                  form.kind === 'INTERNAL_APPLICATION_API'
+                    ? resolveFormApiBaseUrl()
+                    : 'http://127.0.0.1:3000'
+                }
               />
+              <p className="text-[11px] text-muted-foreground">
+                {form.kind === 'INTERNAL_APPLICATION_API'
+                  ? 'Must end with /form-api (or your Form API gateway). Not the same as Mockoon.'
+                  : 'Mockoon / external REST root only — no /form-api path.'}
+              </p>
             </div>
             {form.kind === 'REST_API' && (
               <div className="space-y-1.5">
@@ -526,7 +659,7 @@ export default function VisConnections() {
                   setForm((f) => ({ ...f, allowPrivateNetwork: e.target.checked }))
                 }
               />
-              Allow private / localhost URLs (required for Mockoon)
+              Allow private / localhost URLs (required for Mockoon on your PC)
             </label>
           </div>
 

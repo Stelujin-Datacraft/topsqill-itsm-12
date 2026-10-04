@@ -389,6 +389,18 @@ export const visClientEngine = {
     return hydrate(store, integration);
   },
 
+  deleteIntegration(id: string) {
+    const store = loadStore();
+    const before = store.integrations.length;
+    store.integrations = store.integrations.filter((i) => i.id !== id);
+    if (store.integrations.length === before) throw new Error('Integration not found');
+    store.versions = store.versions.filter((v) => v.integrationId !== id);
+    store.executions = store.executions.filter((e) => e.integrationId !== id);
+    audit(store, id, 'INTEGRATION_DELETED', { mode: 'client' });
+    save(store);
+    return { ok: true, id };
+  },
+
   analyze(id: string, promptText?: string, answers?: Record<string, string>) {
     const store = loadStore();
     const integration = store.integrations.find((i) => i.id === id);

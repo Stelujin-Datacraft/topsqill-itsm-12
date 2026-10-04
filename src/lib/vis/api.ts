@@ -104,6 +104,11 @@ export const visApi = {
       () => nestVis('/integrations', { method: 'POST', body }),
       () => visClientEngine.createIntegration(body),
     ),
+  deleteIntegration: (id: string) =>
+    withFallback(
+      () => nestVis(`/integrations/${id}`, { method: 'DELETE' }),
+      () => visClientEngine.deleteIntegration(id),
+    ),
   updateIntegration: (id: string, body: Record<string, unknown>) =>
     withFallback(
       () => nestVis(`/integrations/${id}`, { method: 'PUT', body }),
