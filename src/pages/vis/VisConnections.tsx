@@ -211,7 +211,7 @@ export default function VisConnections() {
       kind: 'REST_API',
       environment: 'DEV',
       baseUrl: 'http://127.0.0.1:3000',
-      authType: 'API_KEY',
+      authType: 'NONE',
       secret: '',
       allowPrivateNetwork: true,
       listPath: '/devices/queries/devices/v1',
@@ -500,8 +500,8 @@ export default function VisConnections() {
           <DialogHeader>
             <DialogTitle>New Connection</DialogTitle>
             <DialogDescription>
-              Pick a preset first. CrowdStrike = where data comes from. Form API = where TopSqill stores
-              records. Secrets are stored as opaque handles and never shown again.
+              Use the presets. CrowdStrike = Mockoon on your PC. Form API = this TopSqill app
+              (…/api/form-api). Secrets are stored as opaque handles and never shown again.
             </DialogDescription>
           </DialogHeader>
 
@@ -525,15 +525,31 @@ export default function VisConnections() {
           </div>
 
           {activePreset === 'form-api' && (
-            <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
-              Form API Base URL is auto-filled to <code className="font-mono">{resolveFormApiBaseUrl()}</code>.
-              Do <span className="font-medium text-foreground">not</span> use Mockoon port 3000 here.
+            <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2 space-y-1">
+              <span className="block">
+                Base URL auto-fills to{' '}
+                <code className="font-mono">{resolveFormApiBaseUrl()}</code> — not Mockoon port 3000.
+              </span>
+              <span className="block">
+                Auth: leave secret empty for a first reachability test, or paste a Bearer token from{' '}
+                <Link to="/integrations?tab=api-keys" className="underline text-foreground">
+                  API keys &amp; connectors
+                </Link>
+                .
+              </span>
             </p>
           )}
           {activePreset === 'crowdstrike' && (
-            <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
-              Point Base URL at your Mockoon CrowdStrike host (default http://127.0.0.1:3000). Keep Kind =
-              REST API.
+            <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2 space-y-1">
+              <span className="block">
+                Start Mockoon first. Base URL = Mockoon host (default{' '}
+                <code className="font-mono">http://127.0.0.1:3000</code>). Kind = REST API.
+              </span>
+              <span className="block">
+                List path must exist in your Mockoon env:{' '}
+                <code className="font-mono">/devices/queries/devices/v1</code>. Auth can be None if
+                Mockoon has no auth.
+              </span>
             </p>
           )}
 

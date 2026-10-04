@@ -38,7 +38,8 @@ export class InternalApplicationConnector implements IInternalApplicationConnect
     return this.rest.authenticate(auth, ctx);
   }
   testConnection(ctx: ConnectorContext) {
-    return this.rest.testConnection(ctx);
+    // Probe forms list — not bare `/` (Form API has no useful root route)
+    return this.rest.request('GET', this.config.paths.formsPath || '/forms', {}, ctx);
   }
   read(options: ReadOptions, ctx: ConnectorContext) {
     return this.rest.read(options, ctx);
