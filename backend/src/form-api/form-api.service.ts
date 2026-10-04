@@ -54,15 +54,36 @@ export class FormApiService {
       .limit(500);
     if (error) throw new Error(error.message);
     // Normalize to Integration Studio schema shape
-    const fields = (data || []).map((f: any) => ({
-      id: f.id,
-      name: f.label || f.id,
-      label: f.label || f.id,
-      type: f.field_type || 'text',
-      required: Boolean(f.required),
-      choices: f.options || undefined,
-      field_order: f.field_order,
-    }));
+    const fields = (data || []).map((f: any) => {
+      const rawChoices = f.options;
+      let choices: Array<{ label: string; value: string }> | undefined;
+      if (Array.isArray(rawChoices)) {
+        choices = rawChoices.map((c: any) => {
+          if (c == null) return { label: '', value: '' };
+          if (typeof c === 'string' || typeof c === 'number' || typeof c === 'boolean') {
+            return { label: String(c), value: String(c) };
+          }
+          return {
+            label: String(c.label ?? c.name ?? c.value ?? ''),
+            value: String(c.value ?? c.id ?? c.label ?? c.name ?? ''),
+          };
+        }).filter((c: { label: string; value: string }) => c.label || c.value);
+      } else if (rawChoices && typeof rawChoices === 'object' && Array.isArray(rawChoices.choices)) {
+        choices = rawChoices.choices.map((c: any) => ({
+          label: String(typeof c === 'object' ? (c.label ?? c.value ?? '') : c),
+          value: String(typeof c === 'object' ? (c.value ?? c.label ?? '') : c),
+        }));
+      }
+      return {
+        id: f.id,
+        name: f.label || f.id,
+        label: f.label || f.id,
+        type: f.field_type || 'text',
+        required: Boolean(f.required),
+        choices,
+        field_order: f.field_order,
+      };
+    });
     return { data: fields };
   }
 

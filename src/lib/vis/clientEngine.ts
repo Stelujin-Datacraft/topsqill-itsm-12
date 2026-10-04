@@ -928,7 +928,22 @@ export const visClientEngine = {
             type: String(f.type || f.field_type || f.dataType || 'text'),
             required: Boolean(f.required),
             unique: Boolean(f.unique),
-            choices: f.choices || f.options || undefined,
+            choices: (() => {
+              const rawChoices = f.choices || f.options;
+              if (Array.isArray(rawChoices)) {
+                return rawChoices.map((c: any) => {
+                  if (c == null) return { label: '', value: '' };
+                  if (typeof c === 'string' || typeof c === 'number' || typeof c === 'boolean') {
+                    return { label: String(c), value: String(c) };
+                  }
+                  return {
+                    label: String(c.label ?? c.name ?? c.value ?? ''),
+                    value: String(c.value ?? c.id ?? c.label ?? c.name ?? ''),
+                  };
+                }).filter((c: { label: string; value: string }) => c.label || c.value);
+              }
+              return undefined;
+            })(),
           })).filter((f: any) => f.name);
           if (fields.length) {
             return persistSchema(store, body, fields, 'form-api');
@@ -953,7 +968,18 @@ export const visClientEngine = {
           label: String(f.label || f.id),
           type: String(f.field_type || 'text'),
           required: Boolean(f.required),
-          choices: f.options || undefined,
+          choices: Array.isArray(f.options)
+            ? f.options.map((c: any) => {
+                if (c == null) return { label: '', value: '' };
+                if (typeof c === 'string' || typeof c === 'number' || typeof c === 'boolean') {
+                  return { label: String(c), value: String(c) };
+                }
+                return {
+                  label: String(c.label ?? c.name ?? c.value ?? ''),
+                  value: String(c.value ?? c.id ?? c.label ?? c.name ?? ''),
+                };
+              }).filter((c: { label: string; value: string }) => c.label || c.value)
+            : undefined,
         }));
         return persistSchema(store, body, fields, 'app-db');
       }

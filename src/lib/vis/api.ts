@@ -188,11 +188,20 @@ export const visApi = {
       () => nestVis(`/integrations/${id}/openapi/select`, { method: 'POST', body }),
       () => visClientEngine.selectOpenApiEndpoint(id, body),
     ),
-  refreshSchema: (id: string, body: { connectionId: string; formId: string }) =>
-    withFallback(
-      () => nestVis(`/integrations/${id}/refresh-schema`, { method: 'POST', body }),
-      () => visClientEngine.discoverSchema(id, body),
-    ),
+  refreshSchema: async (id: string, body: { connectionId: string; formId: string }) => {
+    try {
+      return await withFallback(
+        () => nestVis(`/integrations/${id}/refresh-schema`, { method: 'POST', body }),
+        () => visClientEngine.discoverSchema(id, body),
+      );
+    } catch (nestErr) {
+      try {
+        return await visClientEngine.discoverSchema(id, body);
+      } catch {
+        throw nestErr;
+      }
+    }
+  },
   listAuditFor: (integrationId?: string) =>
     withFallback(
       () => nestVis(`/audit${integrationId ? `?integrationId=${integrationId}` : ''}`),
@@ -310,16 +319,54 @@ export const visApi = {
       () => visClientEngine.testConnection(id),
     );
   },
-  discoverForms: (connectionId: string) =>
-    withFallback(
-      () => nestVis(`/connections/${connectionId}/forms`),
-      () => visClientEngine.discoverForms(connectionId),
-    ),
-  discoverSchema: (integrationId: string, body: { connectionId: string; formId: string }) =>
-    withFallback(
-      () => nestVis(`/integrations/${integrationId}/discover-schema`, { method: 'POST', body }),
-      () => visClientEngine.discoverSchema(integrationId, body),
-    ),
+  discoverForms: async (connectionId: string) => {
+    try {
+      const nestResult = await withFallback(
+        () => nestVis(`/connections/${connectionId}/forms`),
+        () => visClientEngine.discoverForms(connectionId),
+      );
+      const items = Array.isArray((nestResult as any)?.items)
+        ? (nestResult as any).items
+        : Array.isArray((nestResult as any)?.data)
+          ? (nestResult as any).data
+          : Array.isArray(nestResult)
+            ? nestResult
+            : null;
+      // Nest/Form API returned empty — still try browser app-DB forms
+      if (items && items.length === 0) {
+        try {
+          const client = await visClientEngine.discoverForms(connectionId);
+          const clientItems = Array.isArray((client as any)?.items) ? (client as any).items : [];
+          if (clientItems.length) return client;
+        } catch {
+          /* keep nest empty result */
+        }
+      }
+      return nestResult;
+    } catch (nestErr) {
+      // Nest may be up but Form API unreachable from the server — still try
+      // browser client engine (Form API from the browser + app DB forms).
+      try {
+        return await visClientEngine.discoverForms(connectionId);
+      } catch {
+        throw nestErr;
+      }
+    }
+  },
+  discoverSchema: async (integrationId: string, body: { connectionId: string; formId: string }) => {
+    try {
+      return await withFallback(
+        () => nestVis(`/integrations/${integrationId}/discover-schema`, { method: 'POST', body }),
+        () => visClientEngine.discoverSchema(integrationId, body),
+      );
+    } catch (nestErr) {
+      try {
+        return await visClientEngine.discoverSchema(integrationId, body);
+      } catch {
+        throw nestErr;
+      }
+    }
+  },
   getMappings: (id: string) =>
     withFallback(
       () => nestVis(`/integrations/${id}/mappings`),
