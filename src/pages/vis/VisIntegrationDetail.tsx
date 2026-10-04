@@ -29,17 +29,26 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const STEPS = [
-  'Design',
-  'Connections',
-  'Form & Schema',
-  'Mapping',
-  'Transforms',
-  'Matching',
-  'Validation',
-  'Dry Run',
-  'Approval',
-] as const;
+const STEPS = ['Form & Schema', 'Mapping', 'Dry Run', 'Run'] as const;
+
+/** Remap bookmarks/links from the old 9-step wizard onto the simplified flow. */
+function normalizeWizardStep(raw: number): number {
+  if (!Number.isFinite(raw) || raw < 0) return 0;
+  // Old: 0 Design, 1 Conn, 2 Form, 3 Map, 4 Trans, 5 Match, 6 Val, 7 Dry, 8 Approval
+  const legacy: Record<number, number> = {
+    0: 0, 1: 0, 2: 0, 3: 1, 4: 1, 5: 1, 6: 3, 7: 2, 8: 3,
+  };
+  if (raw in legacy) return legacy[raw];
+  return Math.min(STEPS.length - 1, raw);
+}
+
+const CROWDSTRIKE_DEVICE_FIELDS = [
+  { name: 'id' },
+  { name: 'hostname' },
+  { name: 'os' },
+  { name: 'serialNumber' },
+  { name: 'status' },
+];
 
 const CROWDSTRIKE_SAMPLE = `{
   "id": "CS-1001",
@@ -48,6 +57,25 @@ const CROWDSTRIKE_SAMPLE = `{
   "serialNumber": "SN001",
   "status": "active"
 }`;
+
+function sourceFieldsFromSampleJson(sampleJson: string): Array<{ name: string }> {
+  try {
+    const parsed = JSON.parse(sampleJson);
+    const row = Array.isArray(parsed)
+      ? parsed[0]
+      : Array.isArray(parsed?.devices)
+        ? parsed.devices[0]
+        : parsed;
+    if (row && typeof row === 'object' && !Array.isArray(row)) {
+      return Object.keys(row)
+        .filter((k) => typeof (row as any)[k] !== 'object')
+        .map((name) => ({ name }));
+    }
+  } catch {
+    /* ignore */
+  }
+  return CROWDSTRIKE_DEVICE_FIELDS;
+}
 
 function normalizeFormsList(res: any): Array<{ id: string; name: string; description?: string | null }> {
   const raw = Array.isArray(res?.items)
@@ -110,9 +138,8 @@ export default function VisIntegrationDetail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const initialStep = Math.min(
-    STEPS.length - 1,
-    Math.max(0, Number(searchParams.get('step') || 0) || 0),
+  const initialStep = normalizeWizardStep(
+    Number(searchParams.get('step') || 0) || 0,
   );
   const [step, setStep] = useState(initialStep);
   const [integration, setIntegration] = useState<any>(null);
@@ -157,7 +184,7 @@ export default function VisIntegrationDetail() {
       .then(async () => {
         const stepParam = searchParams.get('step');
         if (stepParam != null && !Number.isNaN(Number(stepParam))) {
-          setStep(Math.min(STEPS.length - 1, Math.max(0, Number(stepParam))));
+          setStep(normalizeWizardStep(Number(stepParam)));
         }
         // If opened from Connections "Map & execute", ensure forms load for bound target
         const integ = id ? await visApi.getIntegration(id) : null;
@@ -327,13 +354,7 @@ export default function VisIntegrationDetail() {
       const suggested = await visApi.suggestMappings(id, {
         connectionId: targetConnectionId,
         formId: selectedFormId,
-        sourceFields: [
-          { name: 'id' },
-          { name: 'hostname' },
-          { name: 'os' },
-          { name: 'serialNumber' },
-          { name: 'status' },
-        ],
+        sourceFields: sourceFieldsFromSampleJson(sampleJson),
       });
       const normalized = normalizeMappingsList(suggested);
       setMappings(normalized);
@@ -345,6 +366,56 @@ export default function VisIntegrationDetail() {
     } catch (e: any) {
       toast({
         title: 'Remap failed',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function selectFormAndDiscover(formId: string) {
+    setSelectedFormId(formId);
+    if (!id || !targetConnectionId || !formId) return;
+    setBusy(true);
+    try {
+      await visApi.bindConnections(id, {
+        sourceConnectionId: sourceConnectionId || undefined,
+        targetConnectionId,
+        selectedFormId: formId,
+      });
+      const result = await visApi.discoverSchema(id, {
+        connectionId: targetConnectionId,
+        formId,
+      });
+      const safeSchema = result && typeof result === 'object'
+        ? {
+            ...result,
+            fields: Array.isArray((result as any).fields) ? (result as any).fields : [],
+          }
+        : { fields: [] };
+      setSchema(safeSchema);
+      const suggested = await visApi.suggestMappings(id, {
+        connectionId: targetConnectionId,
+        formId,
+        sourceFields: sourceFieldsFromSampleJson(sampleJson),
+      });
+      const normalized = normalizeMappingsList(suggested);
+      setMappings(normalized);
+      if (normalized.length) {
+        try {
+          await visApi.saveMappings(id, normalized);
+        } catch {
+          /* keep UI */
+        }
+      }
+      toast({
+        title: 'Form ready',
+        description: `${(safeSchema.fields || []).length} field(s), ${normalized.length} mapping(s). Continue to Mapping or Dry Run.`,
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Could not load form schema',
         description: e?.message || String(e),
         variant: 'destructive',
       });
@@ -383,13 +454,7 @@ export default function VisIntegrationDetail() {
         const suggested = await visApi.suggestMappings(id, {
           connectionId: targetConnectionId,
           formId: selectedFormId,
-          sourceFields: [
-            { name: 'id' },
-            { name: 'hostname' },
-            { name: 'os' },
-            { name: 'serialNumber' },
-            { name: 'status' },
-          ],
+          sourceFields: sourceFieldsFromSampleJson(sampleJson),
         });
         const normalized = normalizeMappingsList(suggested);
         setMappings(normalized);
@@ -731,10 +796,10 @@ export default function VisIntegrationDetail() {
       <p className="text-xs text-muted-foreground">
         Step {step + 1} of {STEPS.length}: <span className="text-foreground font-medium">{STEPS[step]}</span>
         {' — '}
-        Connections store credentials only. Mapping, dry-run, and execution happen in these wizard steps.
+        Pick your form, review mappings, dry-run, then run. Connections live under Integration Studio → Connections.
       </p>
 
-      {step === 0 && !design && (
+      {false && !design && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">No design yet</CardTitle>
@@ -752,7 +817,7 @@ export default function VisIntegrationDetail() {
         </Card>
       )}
 
-      {step === 0 && design && (
+      {false && design && (
         <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -824,7 +889,7 @@ export default function VisIntegrationDetail() {
         </div>
       )}
 
-      {step === 1 && (
+      {false && (
         <div className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -970,22 +1035,18 @@ export default function VisIntegrationDetail() {
         </div>
       )}
 
-      {step === 2 && (
+      {step === 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base">Target form & schema</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Click Discover Forms to load forms from TopSqill Form API (or your project forms).
-                Select a form, then Discover Schema. You do not enter a form id on the connection.
+                Discover Forms, then select a form — schema and mappings load automatically.
               </p>
             </div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" disabled={!targetConnectionId || busy} onClick={() => loadForms(targetConnectionId)}>
                 Discover Forms
-              </Button>
-              <Button size="sm" disabled={!selectedFormId || busy} onClick={() => discoverSchema(false)}>
-                Discover Schema
               </Button>
               <Button size="sm" variant="outline" disabled={!selectedFormId || busy} onClick={() => discoverSchema(true)}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh Schema
@@ -993,11 +1054,59 @@ export default function VisIntegrationDetail() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-3 max-w-3xl">
+              <div className="space-y-2">
+                <Label>Source connection</Label>
+                <Select
+                  value={sourceSelectValue}
+                  onValueChange={async (v) => {
+                    setSourceConnectionId(v);
+                    if (id) {
+                      const updated = await visApi.bindConnections(id, { sourceConnectionId: v });
+                      setIntegration(updated);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="CrowdStrike / Mockoon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {connections
+                      .filter((c) => c.kind === 'REST_API' || c.kind === 'DATABASE')
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target connection</Label>
+                <Select
+                  value={targetSelectValue}
+                  onValueChange={(v) => loadForms(v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Form API" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {connections
+                      .filter((c) => c.kind === 'INTERNAL_APPLICATION_API')
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-2 max-w-md">
               <Label>Form</Label>
               <Select
                 value={formSelectValue}
-                onValueChange={(v) => setSelectedFormId(v)}
+                onValueChange={(v) => void selectFormAndDiscover(v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={forms.length ? 'Select form' : 'Discover Forms first'} />
@@ -1059,7 +1168,7 @@ export default function VisIntegrationDetail() {
         </Card>
       )}
 
-      {step === 3 && (
+      {step === 1 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3">
             <div>
@@ -1153,7 +1262,7 @@ export default function VisIntegrationDetail() {
                 <Input
                   value={nlInstruction}
                   onChange={(e) => setNlInstruction(e.target.value)}
-                  placeholder='e.g. "Map CVSS score to priority" or "Don&apos;t map the status field"'
+                  placeholder='e.g. "Map hostname to Host Name" or "Don&apos;t map the status field"'
                 />
               </div>
               <Button onClick={runNlMapping} disabled={busy || !nlInstruction.trim()}>
@@ -1164,7 +1273,7 @@ export default function VisIntegrationDetail() {
         </Card>
       )}
 
-      {step === 4 && (
+      {false && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Transformations</CardTitle>
@@ -1203,7 +1312,7 @@ export default function VisIntegrationDetail() {
         </Card>
       )}
 
-      {step === 5 && (
+      {false && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">CREATE / UPDATE matching strategy</CardTitle>
@@ -1267,7 +1376,7 @@ export default function VisIntegrationDetail() {
         </Card>
       )}
 
-      {step === 6 && (
+      {false && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Design validation</CardTitle>
@@ -1294,7 +1403,7 @@ export default function VisIntegrationDetail() {
         </Card>
       )}
 
-      {step === 7 && (
+      {step === 2 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -1334,32 +1443,30 @@ export default function VisIntegrationDetail() {
         </Card>
       )}
 
-      {step === 8 && (
+      {step === 3 && (
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Approval</CardTitle>
+              <CardTitle className="text-base">Run</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Approve the design, then run once against your CrowdStrike and Form API connections.
+                Writes mapped CrowdStrike devices into your selected form. Dry Run never writes — this step does.
               </p>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
-              <Button variant="outline" onClick={saveDraft} disabled={busy}>
-                Save Draft
-              </Button>
-              <Button variant="outline" onClick={runValidate} disabled={busy}>
-                Validate
-              </Button>
-              <Button onClick={approve} disabled={busy || integration.status !== 'VALIDATED'}>
-                Approve Design
-              </Button>
               <Button
-                variant="secondary"
-                disabled={busy || !['APPROVED', 'ACTIVE', 'VALIDATED', 'PAUSED'].includes(integration.status)}
+                disabled={busy || !selectedFormId}
                 onClick={async () => {
                   if (!id) return;
                   setBusy(true);
                   try {
+                    // Soft validate so status moves forward, then execute
+                    try {
+                      const res = await visApi.validate(id);
+                      setValidation(res);
+                      if (res.integration) setIntegration(res.integration);
+                    } catch {
+                      /* client validate is best-effort */
+                    }
                     const exec = await visApi.createExecution(id, { awaitCompletion: false });
                     toast({
                       title: 'Execution started',
@@ -1379,74 +1486,37 @@ export default function VisIntegrationDetail() {
               >
                 <Play className="h-4 w-4 mr-1" /> Start Execution
               </Button>
-              <Button
-                variant="outline"
-                disabled={busy || !['APPROVED', 'PAUSED', 'DISABLED'].includes(integration.status)}
-                onClick={async () => {
-                  if (!id) return;
-                  setBusy(true);
-                  try {
-                    await visApi.activateIntegration(id);
-                    const st = await visApi.getRealtimeStatus(id);
-                    toast({
-                      title: 'Integration activated',
-                      description: `Health: ${st.health || 'ACTIVE'}`,
-                    });
-                    const updated = await visApi.getIntegration(id);
-                    setIntegration(updated);
-                  } catch (e: any) {
-                    toast({
-                      title: 'Activate failed',
-                      description: e?.message,
-                      variant: 'destructive',
-                    });
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              >
-                Activate Real-Time
+              <Button variant="outline" onClick={saveDraft} disabled={busy}>
+                Save Draft
               </Button>
-              {integration.status === 'ACTIVE' && (
+              {!integration.__clientMode && (
                 <Button
                   variant="outline"
-                  disabled={busy}
+                  disabled={busy || !['APPROVED', 'PAUSED', 'DISABLED', 'VALIDATED'].includes(integration.status)}
                   onClick={async () => {
                     if (!id) return;
                     setBusy(true);
                     try {
-                      const updated = await visApi.pauseIntegration(id);
+                      await visApi.activateIntegration(id);
+                      const st = await visApi.getRealtimeStatus(id);
+                      toast({
+                        title: 'Integration activated',
+                        description: `Health: ${st.health || 'ACTIVE'}`,
+                      });
+                      const updated = await visApi.getIntegration(id);
                       setIntegration(updated);
-                      toast({ title: 'Paused' });
                     } catch (e: any) {
-                      toast({ title: 'Pause failed', description: e?.message, variant: 'destructive' });
+                      toast({
+                        title: 'Activate failed',
+                        description: e?.message,
+                        variant: 'destructive',
+                      });
                     } finally {
                       setBusy(false);
                     }
                   }}
                 >
-                  Pause
-                </Button>
-              )}
-              {integration.status === 'PAUSED' && (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={async () => {
-                    if (!id) return;
-                    setBusy(true);
-                    try {
-                      const updated = await visApi.resumeIntegration(id);
-                      setIntegration(updated);
-                      toast({ title: 'Resumed' });
-                    } catch (e: any) {
-                      toast({ title: 'Resume failed', description: e?.message, variant: 'destructive' });
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  Resume
+                  Activate Real-Time
                 </Button>
               )}
             </CardContent>
@@ -1454,19 +1524,16 @@ export default function VisIntegrationDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Approved configuration</CardTitle>
+              <CardTitle className="text-base">Configuration snapshot</CardTitle>
             </CardHeader>
             <CardContent>
               <pre className="text-xs bg-muted/50 rounded-md p-3 overflow-auto max-h-80">
                 {JSON.stringify(
                   {
                     status: integration.status,
-                    design: integration.design,
-                    matchingStrategy: direction?.matchingStrategy,
+                    selectedFormId: direction?.selectedFormId,
                     mappings: direction?.mappings,
-                    aiProposal: integration.aiProposal,
-                    userChanges: integration.userChanges,
-                    finalConfiguration: integration.finalConfiguration,
+                    matchingStrategy: direction?.matchingStrategy,
                   },
                   null,
                   2,

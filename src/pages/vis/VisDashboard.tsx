@@ -141,10 +141,13 @@ export default function VisDashboard() {
               </Button>
             )}
             <Button asChild>
-              <Link to="/vis/new">
+              <Link to="/vis/connections">
                 <Plus className="h-4 w-4 mr-1.5" />
-                New Integration
+                Connections
               </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/vis/new">Describe (advanced)</Link>
             </Button>
           </>
         }

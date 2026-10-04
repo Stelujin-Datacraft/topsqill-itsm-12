@@ -196,9 +196,9 @@ export default function VisConnections() {
       }
       toast({
         title: 'Integration ready',
-        description: 'Next: Discover Forms on Form & Schema, then Mapping → Dry Run → Execute',
+        description: 'Next: Discover Forms → select form (schema loads) → Mapping → Dry Run → Run',
       });
-      navigate(`/vis/integrations/${integrationId}?step=2`);
+      navigate(`/vis/integrations/${integrationId}?step=0`);
     } catch (e: any) {
       toast({
         title: 'Could not start integration',

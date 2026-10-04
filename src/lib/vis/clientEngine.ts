@@ -235,19 +235,15 @@ async function buildAuthHeaders(conn: Row, store: Store): Promise<Record<string,
 /** True when Form API Base URL points at this TopSqill app (not an external host). */
 function isSameAppFormApi(baseUrl: string): boolean {
   const base = String(baseUrl || '').replace(/\/$/, '');
-  if (!base) return false;
-  if (/\/api\/form-api$/i.test(base)) {
-    try {
-      if (typeof window !== 'undefined' && window.location?.origin) {
-        if (base.startsWith(window.location.origin)) return true;
-        // localhost / 127.0.0.1 interchangeably
-        const u = new URL(base);
-        if (['localhost', '127.0.0.1'].includes(u.hostname)) return true;
-      }
-    } catch {
-      /* ignore */
+  if (!base || !/\/api\/form-api$/i.test(base)) return false;
+  try {
+    const u = new URL(base);
+    if (['localhost', '127.0.0.1'].includes(u.hostname)) return true;
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return base.startsWith(window.location.origin);
     }
-    return true;
+  } catch {
+    /* ignore */
   }
   return false;
 }
@@ -336,11 +332,8 @@ function cacheForms(store: Store, items: Array<{ id: string; name: string; descr
         id: item.id,
         name: item.name,
         description: item.description,
-        fields: [
-          { name: 'external_id', label: 'External ID', type: 'text', required: false, unique: true },
-          { name: 'description', label: 'Description', type: 'textarea', required: false },
-          { name: 'status', label: 'Status', type: 'text', required: false },
-        ],
+        // Empty until Discover Schema — never seed Vulnerability placeholder fields
+        fields: [],
       });
     }
   }
@@ -1543,19 +1536,17 @@ export const visClientEngine = {
       ];
     }
 
+    if (!mappings.length) {
+      throw new Error(
+        'No field mappings enabled. Open Mapping → Remap from form → Save mappings, then run again.',
+      );
+    }
+
     const mapRecord = (src: Record<string, unknown>) => {
       const data: Record<string, unknown> = {};
       for (const m of mappings) {
-        data[m.targetField] = src[m.sourceField];
-      }
-      if (!Object.keys(data).length) {
-        const key = src.id || src.device_id;
-        if (key) {
-          data.external_id = key;
-          data.vulnerability_id = key;
-          data.description = src.hostname || String(key);
-          data.status = src.status || 'Open';
-        }
+        if (m.enabled === false) continue;
+        if (m.targetField) data[m.targetField] = src[m.sourceField];
       }
       return data;
     };
