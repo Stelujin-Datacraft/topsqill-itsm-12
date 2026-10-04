@@ -655,6 +655,18 @@ export function createFormApiHandler(supabase: SupabaseClient, _ctx: EngineConte
     const segments = path.split('/').filter(Boolean);
     
     console.log(`${req.method} ${path} - Segments:`, segments);
+
+    // Lightweight health — no DB (used by Integration Studio Connection Test)
+    if (
+      (segments.length === 0 || (segments.length === 1 && (segments[0] === 'health' || segments[0] === 'ping')))
+      && req.method === 'GET'
+    ) {
+      return successResponse({
+        ok: true,
+        service: 'form-api',
+        path,
+      });
+    }
     
     // Parse request body for POST/PUT/PATCH/DELETE
     let body = {};

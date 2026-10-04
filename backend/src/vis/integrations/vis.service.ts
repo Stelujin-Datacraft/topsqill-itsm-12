@@ -406,6 +406,7 @@ export class VisService {
           baseUrl: String(conn.baseUrl || ''),
           apiVersion: cfg.apiVersion || 'v1',
           paths: cfg.paths || {
+            healthPath: '/health',
             formsPath: '/forms',
             formFieldsPath: '/forms/{formId}/fields',
             recordsPath: '/forms/{formId}/records',

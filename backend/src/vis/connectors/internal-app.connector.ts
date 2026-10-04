@@ -38,8 +38,13 @@ export class InternalApplicationConnector implements IInternalApplicationConnect
     return this.rest.authenticate(auth, ctx);
   }
   testConnection(ctx: ConnectorContext) {
-    // Probe forms list — not bare `/` (Form API has no useful root route)
-    return this.rest.request('GET', this.config.paths.formsPath || '/forms', {}, ctx);
+    // Probe health first (no DB). Fall back to forms list for older deployments.
+    return this.rest
+      .request('GET', (this.config.paths as any)?.healthPath || '/health', {}, ctx)
+      .then(async (res) => {
+        if (res.ok || (res.status !== undefined && res.status < 500)) return res;
+        return this.rest.request('GET', this.config.paths.formsPath || '/forms', {}, ctx);
+      });
   }
   read(options: ReadOptions, ctx: ConnectorContext) {
     return this.rest.read(options, ctx);
