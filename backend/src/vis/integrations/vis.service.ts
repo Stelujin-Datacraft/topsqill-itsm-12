@@ -578,19 +578,78 @@ export class VisService {
         .find((s) => s.connectionId === body.connectionId && s.formId === body.formId);
       targetFields = (cached?.fields as any[]) || [];
     }
-    const sourceFields = body.sourceFields || [
-      { name: 'id' },
-      { name: 'severity' },
-      { name: 'description' },
-      { name: 'team' },
-      { name: 'status' },
-    ];
+    const design = h.design || ({} as any);
+    const crowdstrike =
+      design?.sourceHints?.system === 'CrowdStrike'
+      || /crowdstrike|falcon|mockoon|device/i.test(String(h.name || '') + String(h.promptText || ''));
+    const defaultSource = crowdstrike
+      ? [
+          { name: 'id' },
+          { name: 'hostname' },
+          { name: 'os' },
+          { name: 'serialNumber' },
+          { name: 'status' },
+        ]
+      : [
+          { name: 'id' },
+          { name: 'severity' },
+          { name: 'description' },
+          { name: 'team' },
+          { name: 'status' },
+        ];
+    const sampleRow = Array.isArray((h as any).sourceSample)
+      ? (h as any).sourceSample[0]
+      : (h as any).sourceSample;
+    const fromSample =
+      sampleRow && typeof sampleRow === 'object'
+        ? Object.keys(sampleRow)
+            .filter((k) => typeof sampleRow[k] !== 'object')
+            .map((name: string) => ({ name }))
+        : Array.isArray((h as any).sourceFields)
+          ? (h as any).sourceFields
+          : [];
+    const sourceFields = body.sourceFields?.length
+      ? body.sourceFields
+      : fromSample.length
+        ? fromSample
+        : defaultSource;
     let mappings = await this.assistant.suggestMappings({
       sourceFields,
       targetFields,
       design: h.design || undefined,
     });
     mappings = await this.assistant.suggestTransformations(mappings);
+
+    // Persist remapped mappings onto the direction when schema is known
+    if (targetFields.length && mappings.length) {
+      const direction = (h.directions || [])[0];
+      if (direction) {
+        const preferred = ['external_id', 'id', 'device_id', 'asset_id', 'hostname', 'serial_number', 'name'];
+        const targetNames = targetFields.map((f: any) => String(f.name));
+        const matchTarget =
+          preferred.find((p) => targetNames.some((n) => n.toLowerCase() === p.toLowerCase()))
+          || targetNames[0]
+          || 'id';
+        const directions = (h.directions || []).map((d: any, idx: number) =>
+          idx === 0
+            ? {
+                ...d,
+                mappings,
+                selectedFormId: body.formId || d.selectedFormId,
+                matchingStrategy: {
+                  ...(d.matchingStrategy || {}),
+                  mode: d.matchingStrategy?.mode || 'SINGLE',
+                  sourceFields: crowdstrike ? ['id'] : (d.matchingStrategy?.sourceFields || ['id']),
+                  targetFields: [matchTarget],
+                  ifFound: d.matchingStrategy?.ifFound || 'UPDATE',
+                  ifNotFound: d.matchingStrategy?.ifNotFound || 'CREATE',
+                },
+              }
+            : d,
+        );
+        this.patchCurrentVersion(integrationId, { directions });
+      }
+    }
     return mappings;
   }
 

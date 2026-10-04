@@ -58,9 +58,10 @@ export class MockAIProvider implements IAIProvider {
       || answers?.source === 'ServiceNow'
       || answers?.q_source === 'ServiceNow';
     const database = /database|sql|jdbc/.test(p) || answers?.source === 'Database' || answers?.q_source === 'Database';
-    const vuln = /vulnerabilit/.test(p);
+    const crowdstrike = /crowdstrike|falcon|edr|device|host\b|endpoint|mockoon/.test(p);
+    const vuln = /vulnerabilit/.test(p) && !crowdstrike;
     const internal = /internal|form|topsqill|our\s+app/.test(p);
-    const envSync = /dev.*uat|uat.*dev|environment/.test(p);
+    const envSync = /dev.*uat|uat.*dev|environment/.test(p) && !crowdstrike;
 
     let schedule: AiDesignProposal['schedule'] | undefined;
     let executionMode: AiDesignProposal['executionMode'] = 'MANUAL';
@@ -85,23 +86,28 @@ export class MockAIProvider implements IAIProvider {
     }
 
     const sourceType = database ? 'DATABASE' : 'REST_API';
-    const sourceSystem = servicenow
-      ? 'ServiceNow'
-      : database
-        ? 'Database'
-        : answers?.source || answers?.q_source || 'Generic REST';
+    const sourceSystem = crowdstrike
+      ? 'CrowdStrike'
+      : servicenow
+        ? 'ServiceNow'
+        : database
+          ? 'Database'
+          : answers?.source || answers?.q_source || 'Generic REST';
 
     const proposal: AiDesignProposal = {
-      name: envSync
-        ? 'DEV → UAT Vulnerability Real-Time Sync'
-        : vuln
-          ? 'ServiceNow Vulnerabilities → Internal Form'
-          : 'Prompt Integration',
+      name: crowdstrike
+        ? 'CrowdStrike Devices → Internal Form'
+        : envSync
+          ? 'DEV → UAT Vulnerability Real-Time Sync'
+          : vuln
+            ? 'ServiceNow Vulnerabilities → Internal Form'
+            : 'Prompt Integration',
       summary: prompt.trim().slice(0, 500) || 'Integration from natural-language requirement',
       source: { type: sourceType, system: String(sourceSystem) },
       target: {
-        type: internal || vuln || envSync ? 'INTERNAL_APPLICATION_API' : 'REST_API',
-        formName: vuln || envSync ? 'Vulnerability' : undefined,
+        type: internal || vuln || envSync || crowdstrike ? 'INTERNAL_APPLICATION_API' : 'REST_API',
+        // CrowdStrike uses the form selected in Discover Forms — not Vulnerability
+        formName: crowdstrike ? undefined : vuln || envSync ? 'Vulnerability' : undefined,
       },
       direction: /bidirectional|two.?way|↔/.test(p) ? 'BIDIRECTIONAL' : 'UNIDIRECTIONAL',
       executionMode,
@@ -120,9 +126,12 @@ export class MockAIProvider implements IAIProvider {
       retryPolicy: 'EXPONENTIAL',
       rateLimitPerMinute: 120,
       idempotencyStrategy: 'EXTERNAL_ID',
-      authHint: database ? 'DATABASE' : 'OAUTH2',
-      suggestedMappings: vuln
-        ? [
+      authHint: crowdstrike ? 'API_KEY' : database ? 'DATABASE' : 'OAUTH2',
+      // CrowdStrike: wait for Discover Schema to score against real form fields
+      suggestedMappings: crowdstrike
+        ? []
+        : vuln
+          ? [
             {
               sourceField: 'id',
               targetField: 'vulnerability_id',
@@ -301,7 +310,13 @@ export class VisAssistant implements IAssistant {
     targetFields: DiscoveredField[];
     design?: IntegrationDesign;
   }): Promise<FieldMappingSpec[]> {
+    const crowdstrike =
+      (input.design as any)?.sourceHints?.system === 'CrowdStrike'
+      || /crowdstrike|falcon|mockoon|device/i.test(String(input.design?.name || ''));
+
+    // Without a discovered form schema, never invent Vulnerability targets for CrowdStrike
     if (input.design?.suggestedMappings?.length && input.targetFields.length === 0) {
+      if (crowdstrike) return [];
       return input.design.suggestedMappings.map((m, i) => ({
         id: `map_${i}`,
         sourceField: m.sourceField,
@@ -322,7 +337,7 @@ export class VisAssistant implements IAssistant {
         sourceFields: input.sourceFields,
         targetFields: input.targetFields,
       });
-      // Merge design suggestions for known pairs
+      // Merge design suggestions only when both sides exist on this form
       if (input.design?.suggestedMappings?.length) {
         for (const suggested of input.design.suggestedMappings) {
           const idx = mappings.findIndex(
