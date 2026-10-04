@@ -86,18 +86,21 @@ export class FormApiController implements OnModuleInit {
       const result = await this.formApi.createRecord(formId, body || {});
       return { success: true, data: result.data };
     } catch (e: any) {
+      const msg = String(e?.message || e?.response?.message || 'Failed to create record');
       const status =
-        e?.status === 404 || e?.statusCode === 404
+        e?.status === 404 || e?.statusCode === 404 || /not found/i.test(msg)
           ? HttpStatus.NOT_FOUND
           : e?.status === 400 || e?.statusCode === 400
             ? HttpStatus.BAD_REQUEST
             : HttpStatus.INTERNAL_SERVER_ERROR;
+      // Flat message + nested error so browser clients always surface something useful
       throw new HttpException(
         {
           success: false,
+          message: msg,
           error: {
             code: status === 404 ? 'FORM_NOT_FOUND' : 'CREATE_ERROR',
-            message: e?.message || 'Failed to create record',
+            message: msg,
           },
         },
         status,

@@ -232,6 +232,86 @@ async function buildAuthHeaders(conn: Row, store: Store): Promise<Record<string,
   return headers;
 }
 
+/** True when Form API Base URL points at this TopSqill app (not an external host). */
+function isSameAppFormApi(baseUrl: string): boolean {
+  const base = String(baseUrl || '').replace(/\/$/, '');
+  if (!base) return false;
+  if (/\/api\/form-api$/i.test(base)) {
+    try {
+      if (typeof window !== 'undefined' && window.location?.origin) {
+        if (base.startsWith(window.location.origin)) return true;
+        // localhost / 127.0.0.1 interchangeably
+        const u = new URL(base);
+        if (['localhost', '127.0.0.1'].includes(u.hostname)) return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Write a submission the same way Form Builder does: insert into form_submissions
+ * via the app DB client (Nest DB API with Supabase fallback). Maps label keys → field IDs.
+ */
+async function writeSubmissionViaAppDb(
+  formId: string,
+  labelKeyedData: Record<string, unknown>,
+): Promise<{ id: string }> {
+  const { backend } = await import('@/services/api');
+  const { data: fields, error: fieldsError } = await backend
+    .from('form_fields')
+    .select('id, label')
+    .eq('form_id', formId);
+  if (fieldsError) throw new Error(fieldsError.message || 'Could not load form fields');
+
+  const byLabel = new Map<string, string>();
+  for (const f of (fields as any[]) || []) {
+    byLabel.set(String(f.label || '').toLowerCase(), f.id);
+    byLabel.set(String(f.id), f.id);
+  }
+  const submissionData: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(labelKeyedData || {})) {
+    const fieldId = byLabel.get(key.toLowerCase()) || byLabel.get(key);
+    if (fieldId) submissionData[fieldId] = value;
+    else submissionData[key] = value; // keep unknown keys as-is
+  }
+
+  const { data, error } = await backend
+    .from('form_submissions')
+    .insert({
+      form_id: formId,
+      submission_data: submissionData,
+      submitted_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message || 'form_submissions insert failed');
+  const id = String((data as any)?.id || '');
+  if (!id) throw new Error('form_submissions insert returned no id');
+  return { id };
+}
+
+function extractFormApiError(body: any, status: number, url: string): string {
+  if (!body || typeof body !== 'object') {
+    return `HTTP ${status} posting to ${url}`;
+  }
+  // Nest HttpException({ success:false, error:{ message } })
+  if (body?.error?.message) return String(body.error.message);
+  // Nest default { statusCode, message, error }
+  if (typeof body.message === 'string') return body.message;
+  if (Array.isArray(body.message)) return body.message.join('; ');
+  if (typeof body.error === 'string') return body.error;
+  if (body?.error?.code) return `${body.error.code}: ${body.error.message || status}`;
+  try {
+    return `HTTP ${status}: ${JSON.stringify(body).slice(0, 300)}`;
+  } catch {
+    return `HTTP ${status} posting to ${url}`;
+  }
+}
+
 function extractFormsList(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -1484,19 +1564,57 @@ export const visClientEngine = {
     let failed = 0;
     const createdIds: string[] = [];
     const targetBase = String(targetConn?.baseUrl || '').replace(/\/$/, '');
-    const canWriteFormApi =
-      targetConn
+    const sameApp = Boolean(targetConn?.kind === 'INTERNAL_APPLICATION_API' && isSameAppFormApi(targetBase));
+    const canWriteFormApiHttp =
+      !sameApp
+      && targetConn
       && targetConn.kind === 'INTERNAL_APPLICATION_API'
       && /^https?:\/\//i.test(targetBase)
       && !targetBase.startsWith('client://');
-    const writeAuthHeaders = canWriteFormApi
+    const writeAuthHeaders = canWriteFormApiHttp
       ? await buildAuthHeaders(targetConn!, store)
       : {};
     if (!Array.isArray((store as any).deadLetters)) (store as any).deadLetters = [];
 
+    const recordFailure = (src: Record<string, unknown>, data: Record<string, unknown>, errMsg: string, code: string) => {
+      failed += 1;
+      (store as any).deadLetters.push({
+        id: uid(),
+        executionId: execution.id,
+        integrationId,
+        correlationId,
+        sourceRecord: src,
+        mappedPayload: data,
+        errorCode: code,
+        errorMessage: String(errMsg),
+        error: String(errMsg),
+        ignored: false,
+        createdAt: new Date().toISOString(),
+      });
+      store.logs.push({
+        id: uid(),
+        executionId: execution.id,
+        integrationId,
+        correlationId,
+        level: 'ERROR',
+        step: 'write',
+        message: `Form write failed for source ${String((src as any).id || (src as any).hostname || '?')}: ${errMsg}`,
+        timestamp: new Date().toISOString(),
+      });
+    };
+
     for (const src of sources) {
       const data = mapRecord(src);
-      if (canWriteFormApi) {
+      if (sameApp) {
+        // Same path as Form Builder — insert form_submissions via app DB (avoids Nest Form API 500)
+        try {
+          const written = await writeSubmissionViaAppDb(formId, data);
+          createdIds.push(written.id);
+          created += 1;
+        } catch (e: any) {
+          recordFailure(src, data, e?.message || String(e), 'APP_DB_WRITE');
+        }
+      } else if (canWriteFormApiHttp) {
         try {
           const recordsTpl = String(
             (targetConn!.config as any)?.paths?.recordsPath || '/forms/{formId}/records',
@@ -1508,7 +1626,6 @@ export const visClientEngine = {
             'Content-Type': 'application/json',
             ...writeAuthHeaders,
           };
-          // useLabels: mapped keys are form field labels/names from Discover Schema
           const res = await fetch(url, {
             method: 'POST',
             headers,
@@ -1516,35 +1633,7 @@ export const visClientEngine = {
           });
           const body = await res.json().catch(() => ({}));
           if (!res.ok || body?.success === false) {
-            failed += 1;
-            const errMsg =
-              body?.error?.message
-              || body?.message
-              || body?.error
-              || `HTTP ${res.status} posting to ${url}`;
-            (store as any).deadLetters.push({
-              id: uid(),
-              executionId: execution.id,
-              integrationId,
-              correlationId,
-              sourceRecord: src,
-              mappedPayload: data,
-              errorCode: 'FORM_API_WRITE',
-              errorMessage: String(errMsg),
-              error: String(errMsg),
-              ignored: false,
-              createdAt: new Date().toISOString(),
-            });
-            store.logs.push({
-              id: uid(),
-              executionId: execution.id,
-              integrationId,
-              correlationId,
-              level: 'ERROR',
-              step: 'write',
-              message: `Form API write failed for source ${String((src as any).id || (src as any).hostname || '?')}: ${errMsg}`,
-              timestamp: new Date().toISOString(),
-            });
+            recordFailure(src, data, extractFormApiError(body, res.status, url), 'FORM_API_WRITE');
             continue;
           }
           const rid = String(
@@ -1557,31 +1646,7 @@ export const visClientEngine = {
           createdIds.push(rid);
           created += 1;
         } catch (e: any) {
-          failed += 1;
-          const errMsg = e?.message || String(e);
-          (store as any).deadLetters.push({
-            id: uid(),
-            executionId: execution.id,
-            integrationId,
-            correlationId,
-            sourceRecord: src,
-            mappedPayload: data,
-            errorCode: 'FORM_API_EXCEPTION',
-            errorMessage: errMsg,
-            error: errMsg,
-            ignored: false,
-            createdAt: new Date().toISOString(),
-          });
-          store.logs.push({
-            id: uid(),
-            executionId: execution.id,
-            integrationId,
-            correlationId,
-            level: 'ERROR',
-            step: 'write',
-            message: `Form API write exception: ${errMsg}`,
-            timestamp: new Date().toISOString(),
-          });
+          recordFailure(src, data, e?.message || String(e), 'FORM_API_EXCEPTION');
         }
       } else {
         const rid = uid();
@@ -1604,7 +1669,8 @@ export const visClientEngine = {
     execution.recordsFailed = failed;
     execution.recordsProcessed = created + failed;
     (execution as any).createdRecordIds = createdIds;
-    (execution as any).targetBaseUrl = canWriteFormApi ? targetBase : null;
+    (execution as any).targetBaseUrl = sameApp || canWriteFormApiHttp ? targetBase : null;
+    (execution as any).writeMode = sameApp ? 'app-db' : canWriteFormApiHttp ? 'form-api-http' : 'mock';
     store.logs.push({
       id: uid(),
       executionId: execution.id,
@@ -1612,9 +1678,11 @@ export const visClientEngine = {
       correlationId,
       level: failed && !created ? 'ERROR' : 'INFO',
       step: 'complete',
-      message: canWriteFormApi
-        ? `Client execution wrote ${created} record(s) to Form API form ${formId}${failed ? ` (${failed} failed)` : ''}`
-        : `Client execution completed — ${created} record(s) for form ${formId} (Form API write skipped — target unreachable or not HTTP)`,
+      message: sameApp
+        ? `Client execution wrote ${created} record(s) to form ${formId} via app DB${failed ? ` (${failed} failed)` : ''}`
+        : canWriteFormApiHttp
+          ? `Client execution wrote ${created} record(s) to Form API form ${formId}${failed ? ` (${failed} failed)` : ''}`
+          : `Client execution completed — ${created} record(s) for form ${formId} (Form API write skipped — target unreachable or not HTTP)`,
       timestamp: new Date().toISOString(),
     });
     save(store);
