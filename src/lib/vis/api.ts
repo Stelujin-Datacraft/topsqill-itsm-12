@@ -203,9 +203,38 @@ export const visApi = {
       () => nestVis('/connections', { method: 'POST', body }),
       () => visClientEngine.createConnection(body),
     ),
+  deleteConnection: (id: string) =>
+    withFallback(
+      () => nestVis(`/connections/${id}`, { method: 'DELETE' }),
+      () => visClientEngine.deleteConnection(id),
+    ),
+  /** Remove built-in lab stubs (client:// mocks). Prefer resetStudio for a full wipe. */
+  purgeLabConnections: () =>
+    withFallback(
+      () => nestVis('/demo/purge', { method: 'POST', body: {} }),
+      () => visClientEngine.purgeLabConnections(),
+    ),
+  /** Wipe local browser studio state for a clean external third-party test. */
+  resetStudio: () =>
+    withFallback(
+      async () => {
+        // Nest may still hold demo rows — purge them, then clear client cache
+        await nestVis('/demo/purge', { method: 'POST', body: {} });
+        return { data: visClientEngine.resetStudio(), error: null };
+      },
+      () => visClientEngine.resetStudio(),
+    ),
   bootstrapDemo: () =>
     withFallback(
-      () => nestVis('/demo/bootstrap', { method: 'POST', body: {} }),
+      async () => ({
+        data: {
+          created: 0,
+          deprecated: true,
+          message: 'Built-in demo connections are disabled. Create real REST / Form API connections.',
+          connections: [],
+        },
+        error: null,
+      }),
       () => visClientEngine.bootstrapDemo(),
     ),
   testConnection: (id: string) =>
@@ -395,58 +424,23 @@ export const visApi = {
       () => visClientEngine.mockVulnerabilities(),
     ),
 
-  /** Seed the Phase-1 ServiceNow demo when the studio is empty. */
+  /** No longer seeds demo integrations — returns current studio state only. */
   ensureSampleStudio: () =>
     withFallback(
       async () => {
         const listed = await nestVis<any[]>('/integrations');
         if (listed.error) return listed;
         const items = Array.isArray(listed.data) ? listed.data : [];
-        if (items.length > 0) {
-          const dash = await nestVis('/dashboard');
-          if (dash.error) return dash;
-          return {
-            data: {
-              created: false,
-              integration: items[0],
-              dashboard: dash.data,
-              integrations: items,
-            },
-            error: null,
-          };
-        }
-
-        await nestVis('/demo/bootstrap', { method: 'POST', body: {} });
-        const prompt =
-          'Every 15 minutes, sync open ServiceNow vulnerabilities into our internal Vulnerability form. Create or update by external id. Map severity to priority (Critical→1, High→2, Medium→3, Low→4).';
-        const created = await nestVis<any>('/integrations', {
-          method: 'POST',
-          body: {
-            name: 'ServiceNow Vulnerabilities → Internal Form',
-            promptText: prompt,
-            description: 'Phase 1 demo — prompt-first orchestration into an internal form API',
-          },
-        });
-        if (created.error || !created.data?.id) {
-          return { data: null, error: created.error || 'Failed to create sample integration' };
-        }
-        const analyzed = await nestVis(`/integrations/${created.data.id}/analyze`, {
-          method: 'POST',
-          body: { promptText: prompt },
-        });
-        if (analyzed.error) return analyzed;
-        await nestVis(`/integrations/${created.data.id}/validate`, { method: 'POST', body: {} });
-        await nestVis(`/integrations/${created.data.id}/executions`, { method: 'POST', body: {} });
-        const integrations = await nestVis<any[]>('/integrations');
         const dash = await nestVis('/dashboard');
-        if (integrations.error) return integrations;
         if (dash.error) return dash;
+        const conns = await nestVis('/connections');
         return {
           data: {
-            created: true,
-            integration: analyzed.data,
+            created: false,
+            integration: items[0] || null,
             dashboard: dash.data,
-            integrations: integrations.data,
+            integrations: items,
+            connections: Array.isArray(conns.data) ? conns.data : [],
           },
           error: null,
         };

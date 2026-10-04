@@ -5,7 +5,8 @@
  * Persistence: localStorage (org-scoped later via Supabase tables).
  */
 
-const STORAGE_KEY = 'vis.studio.store.v1';
+const STORAGE_KEY = 'vis.studio.store.v2';
+const LEGACY_STORAGE_KEYS = ['vis.studio.store.v1'];
 
 type Row = Record<string, unknown> & { id: string };
 
@@ -98,6 +99,14 @@ function emptyStore(): Store {
 function load(): Store {
   try {
     if (typeof localStorage === 'undefined') return emptyStore();
+    // Drop legacy lab/demo stores so prior Mock Internal / sample integrations do not linger
+    for (const legacy of LEGACY_STORAGE_KEYS) {
+      try {
+        localStorage.removeItem(legacy);
+      } catch {
+        /* ignore */
+      }
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyStore();
     const parsed = JSON.parse(raw) as Partial<Store>;
@@ -524,42 +533,79 @@ export const visClientEngine = {
   },
 
   bootstrapDemo() {
+    // Kept for API compatibility — no longer seeds built-in mock connections.
+    return {
+      connections: this.listConnections(),
+      created: 0,
+      deprecated: true,
+      message: 'Built-in demo connections are disabled. Create real REST / Form API connections.',
+      __clientMode: true,
+    };
+  },
+
+  deleteConnection(id: string) {
     const store = loadStore();
-    const hasInternal = store.connections.some((c) => c.kind === 'INTERNAL_APPLICATION_API');
-    const hasSource = store.connections.some((c) =>
-      String(c.name || '').toLowerCase().includes('vulnerability'),
-    );
-    if (!hasInternal) {
-      this.createConnection({
-        name: 'Mock Internal Application',
-        kind: 'INTERNAL_APPLICATION_API',
-        baseUrl: 'client://mock-internal',
-        authType: 'NONE',
-        allowPrivateNetwork: true,
-        environment: 'DEV',
-        config: {
-          apiVersion: 'v1',
-          paths: {
-            formsPath: '/forms',
-            formFieldsPath: '/forms/{formId}/fields',
-            recordsPath: '/forms/{formId}/records',
-            recordByIdPath: '/forms/{formId}/records/{recordId}',
-          },
-        },
-      });
+    const before = store.connections.length;
+    store.connections = store.connections.filter((c) => c.id !== id);
+    if (store.connections.length === before) throw new Error('Connection not found');
+    audit(store, null, 'CONNECTION_DELETED', { id, mode: 'client' });
+    save(store);
+    return { ok: true, id };
+  },
+
+  /**
+   * Wipe local studio state (connections, integrations, executions) so external
+   * third-party testing starts from a clean slate.
+   */
+  resetStudio() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEY);
+        for (const legacy of LEGACY_STORAGE_KEYS) localStorage.removeItem(legacy);
+      }
+    } catch {
+      /* ignore */
     }
-    if (!hasSource) {
-      this.createConnection({
-        name: 'Mock Vulnerability Source',
-        kind: 'REST_API',
-        baseUrl: 'client://mock-source',
-        authType: 'NONE',
-        allowPrivateNetwork: true,
-        environment: 'DEV',
-        config: { listPath: '/vulnerabilities' },
-      });
-    }
-    return { connections: this.listConnections(), created: 2, __clientMode: true };
+    memoryStore = emptyStore();
+    save(memoryStore);
+    return {
+      ok: true,
+      cleared: true,
+      connections: 0,
+      integrations: 0,
+      __clientMode: true,
+    };
+  },
+
+  /** Remove known lab/demo connection stubs only (client:// and Mock * names). */
+  purgeLabConnections() {
+    const store = loadStore();
+    const before = store.connections.length;
+    store.connections = store.connections.filter((c) => {
+      const base = String(c.baseUrl || '');
+      const name = String(c.name || '').toLowerCase();
+      if (base.startsWith('client://')) return false;
+      if (name.includes('mock internal') || name.includes('mock vulnerability')) return false;
+      return true;
+    });
+    const removed = before - store.connections.length;
+    audit(store, null, 'LAB_CONNECTIONS_PURGED', { removed, mode: 'client' });
+    save(store);
+    return { ok: true, removed, connections: this.listConnections(), __clientMode: true };
+  },
+
+  /**
+   * @deprecated Sample studio seeding removed — returns current empty/real state only.
+   */
+  ensureSampleStudio() {
+    return {
+      created: false,
+      integration: this.listIntegrations()[0] || null,
+      dashboard: this.dashboard(),
+      integrations: this.listIntegrations(),
+      connections: this.listConnections(),
+      __clientMode: true,
+    };
   },
 
   async testConnection(id: string) {
@@ -1077,45 +1123,6 @@ export const visClientEngine = {
         },
       ],
       count: 2,
-    };
-  },
-
-  /**
-   * First-visit sample so /vis shows the Phase-1 ServiceNow → Internal Form demo
-   * instead of an empty studio.
-   */
-  ensureSampleStudio() {
-    this.bootstrapDemo();
-    const existing = this.listIntegrations();
-    if (existing.length > 0) {
-      return {
-        created: false,
-        integration: existing[0],
-        dashboard: this.dashboard(),
-        integrations: existing,
-        connections: this.listConnections(),
-        __clientMode: true,
-      };
-    }
-
-    const prompt =
-      'Every 15 minutes, sync open ServiceNow vulnerabilities into our internal Vulnerability form. Create or update by external id. Map severity to priority (Critical→1, High→2, Medium→3, Low→4).';
-    const created = this.createIntegration({
-      name: 'ServiceNow Vulnerabilities → Internal Form',
-      promptText: prompt,
-      description: 'Phase 1 demo — prompt-first orchestration into an internal form API',
-    });
-    this.analyze(created.id, prompt);
-    this.validate(created.id);
-    this.createExecution(created.id);
-
-    return {
-      created: true,
-      integration: this.getIntegration(created.id),
-      dashboard: this.dashboard(),
-      integrations: this.listIntegrations(),
-      connections: this.listConnections(),
-      __clientMode: true,
     };
   },
 };

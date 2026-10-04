@@ -52,10 +52,10 @@ export function FormSyncPanel() {
   const [assetLookup, setAssetLookup] = useState('');
 
   const [targetForm, setTargetForm] = useState({
-    name: 'Existing App ITAM',
-    baseUrl: 'mock://existing-app',
-    credentialReferenceId: 'cred-ref-lab',
-    targetFormId: 'form-itam-asset',
+    name: 'ITAM Form API',
+    baseUrl: '',
+    credentialReferenceId: '',
+    targetFormId: '',
   });
 
   const refresh = async () => {
@@ -237,8 +237,8 @@ export function FormSyncPanel() {
       {clientMode && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm flex gap-2 text-muted-foreground">
           <Cable className="h-4 w-4 shrink-0 mt-0.5" />
-          Local Form Sync lab mode — Nest <code className="font-mono text-xs">/api/itam/sync</code> is
-          offline. Targets and dry-runs run in this browser against <code className="font-mono text-xs">mock://existing-app</code>.
+          Local Form Sync mode — Nest <code className="font-mono text-xs">/api/itam/sync</code> is
+          offline. Point the target at your real Form API base URL (not a built-in mock).
         </div>
       )}
 
@@ -277,7 +277,7 @@ export function FormSyncPanel() {
             <CardHeader>
               <CardTitle className="text-base">Existing application target</CardTitle>
               <CardDescription>
-                Configure Form API base URL and credential reference. Use mock://existing-app for lab.
+                Configure your real Form API base URL and credentialReferenceId (no embedded secrets).
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">

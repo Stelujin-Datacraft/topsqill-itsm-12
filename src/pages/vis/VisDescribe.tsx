@@ -9,9 +9,9 @@ import { Loader2, Sparkles, Cable } from 'lucide-react';
 import { VisPageHeader, VisPageShell } from '@/components/vis/VisPageShell';
 
 const EXAMPLE =
-  'Get all open vulnerabilities from ServiceNow every 15 minutes, map them to our internal Vulnerability form, and create or update the records.';
+  'Sync CrowdStrike Falcon devices from our Mockoon REST API every 15 minutes into our internal Vulnerability form. Create or update by device_id as external_id.';
 
-const INCOMPLETE_EXAMPLE = 'Sync vulnerabilities to our internal form.';
+const INCOMPLETE_EXAMPLE = 'Sync CrowdStrike devices to our internal form.';
 
 export default function VisDescribe() {
   const navigate = useNavigate();

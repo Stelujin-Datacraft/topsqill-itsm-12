@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowRight, Loader2, Plus, Plug } from 'lucide-react';
+import { ArrowRight, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { VisPageHeader, VisPageShell, VisSubnav } from '@/components/vis/VisPageShell';
 
@@ -65,8 +65,9 @@ export default function VisConnections() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [bootstrapping, setBootstrapping] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [startingId, setStartingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   async function reload() {
@@ -104,14 +105,26 @@ export default function VisConnections() {
         throw new Error('Only REST/Database connections can be used as source');
       }
 
-      let target = list.find((c: any) => c.kind === 'INTERNAL_APPLICATION_API');
+      let target = list.find((c: any) => {
+        if (c.kind !== 'INTERNAL_APPLICATION_API') return false;
+        const base = String(c.baseUrl || '');
+        const name = String(c.name || '').toLowerCase();
+        // Prefer real Form API targets — skip leftover lab stubs
+        if (base.startsWith('client://') || base.includes('/vis/mocks')) return false;
+        if (name.includes('mock internal')) return false;
+        return true;
+      });
       if (!target) {
-        await visApi.bootstrapDemo();
-        list = await visApi.listConnections();
-        source = list.find((c: any) => c.id === connectionId) || source;
-        target = list.find((c: any) => c.kind === 'INTERNAL_APPLICATION_API');
+        toast({
+          title: 'Form API connection required',
+          description:
+            'Create an Internal Application connection pointing at your real Form API, then click Map & execute again.',
+          variant: 'destructive',
+        });
+        setOpen(true);
+        applyInternalFormApiPreset();
+        return;
       }
-      if (!target) throw new Error('Need an Internal Application connection as target');
 
       const isCrowd =
         /crowdstrike|falcon|mockoon|device/i.test(String(source.name || ''))
@@ -157,7 +170,7 @@ export default function VisConnections() {
       environment: 'DEV',
       baseUrl: 'http://127.0.0.1:3000',
       authType: 'API_KEY',
-      secret: 'mock-crowdstrike-token',
+      secret: '',
       allowPrivateNetwork: true,
       listPath: '/devices/queries/devices/v1',
     });
@@ -174,6 +187,33 @@ export default function VisConnections() {
       allowPrivateNetwork: true,
       listPath: '',
     });
+  }
+
+  async function removeConnection(id: string) {
+    setDeletingId(id);
+    try {
+      await visApi.deleteConnection(id);
+      toast({ title: 'Connection deleted' });
+      await reload();
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: e?.message || String(e), variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function clearLabData() {
+    if (!window.confirm('Remove leftover lab/demo connections and wipe local studio cache?')) return;
+    setClearing(true);
+    try {
+      await visApi.resetStudio();
+      toast({ title: 'Lab data cleared', description: 'Add your external connections to continue.' });
+      await reload();
+    } catch (e: any) {
+      toast({ title: 'Clear failed', description: e?.message || String(e), variant: 'destructive' });
+    } finally {
+      setClearing(false);
+    }
   }
 
   async function create() {
@@ -227,26 +267,6 @@ export default function VisConnections() {
     }
   }
 
-  async function bootstrapDemo() {
-    setBootstrapping(true);
-    try {
-      const res = await visApi.bootstrapDemo();
-      toast({
-        title: res.created ? 'Demo connections ready' : 'Demo connections already exist',
-        description: res.mockBaseUrl ? `Mock base: ${res.mockBaseUrl}` : undefined,
-      });
-      await reload();
-    } catch (e: any) {
-      toast({
-        title: 'Bootstrap failed',
-        description: e?.message || String(e),
-        variant: 'destructive',
-      });
-    } finally {
-      setBootstrapping(false);
-    }
-  }
-
   if (loading) {
     return (
       <VisPageShell>
@@ -261,16 +281,16 @@ export default function VisConnections() {
     <VisPageShell>
       <VisPageHeader
         title="Connections"
-        description="Add REST or Form API endpoints here (including local Mockoon). New Integration on the dashboard is the AI prompt flow — connections are managed on this page."
+        description="Add external REST sources (CrowdStrike Mockoon, etc.) and your real TopSqill Form API target. Built-in demo stubs are disabled."
         actions={
           <>
-            <Button variant="outline" onClick={bootstrapDemo} disabled={bootstrapping}>
-              {bootstrapping ? (
+            <Button variant="ghost" onClick={() => void clearLabData()} disabled={clearing}>
+              {clearing ? (
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
               ) : (
-                <Plug className="h-4 w-4 mr-1.5" />
+                <Trash2 className="h-4 w-4 mr-1.5" />
               )}
-              Demo connections
+              Clear lab data
             </Button>
             <Button
               onClick={() => {
@@ -287,24 +307,15 @@ export default function VisConnections() {
       <VisSubnav active="connections" />
 
       <div className="rounded-md border border-border bg-muted/30 px-3.5 py-3 text-sm space-y-2">
-        <p className="font-medium text-foreground">How mapping &amp; execute work</p>
+        <p className="font-medium text-foreground">Proper external test flow</p>
         <ol className="list-decimal pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
-          <li>Connections only store endpoints (CrowdStrike Mockoon, Form API).</li>
+          <li>New Connection → CrowdStrike Mockoon (source) with your real Mockoon base URL.</li>
+          <li>New Connection → TopSqill Form API (target) with your Form API base URL + credential.</li>
           <li>
-            Click <span className="text-foreground font-medium">Map &amp; execute</span> on a REST
-            source — that opens an Integration wizard with source + target already bound.
-          </li>
-          <li>
-            In the wizard walk: Form &amp; Schema → Mapping → Matching → Validate → Dry Run →
-            Approval → Start Execution.
+            On the source row click <span className="text-foreground font-medium">Map &amp; execute</span>,
+            then walk Form &amp; Schema → Mapping → Dry Run → Approval → Start Execution.
           </li>
         </ol>
-        <Button variant="link" className="h-auto p-0 text-xs" asChild>
-          <Link to="/vis/integrations">
-            Open Integrations list
-            <ArrowRight className="h-3 w-3 ml-1 inline" />
-          </Link>
-        </Button>
       </div>
 
       <Card className="border-border/70 shadow-none">
@@ -312,7 +323,7 @@ export default function VisConnections() {
           {rows.length === 0 ? (
             <div className="px-5 py-12 text-center space-y-4">
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                No connections yet. Create one for Mockoon / CrowdStrike / Form API, or load the built-in demo pair.
+                No connections yet. Add your CrowdStrike Mockoon source and TopSqill Form API target to begin.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 <Button
@@ -323,9 +334,6 @@ export default function VisConnections() {
                 >
                   <Plus className="h-4 w-4 mr-1.5" />
                   New Connection
-                </Button>
-                <Button variant="outline" onClick={bootstrapDemo} disabled={bootstrapping}>
-                  Demo connections
                 </Button>
                 <Button variant="ghost" asChild>
                   <Link to="/vis/new">Or describe an integration (AI)</Link>
@@ -372,6 +380,19 @@ export default function VisConnections() {
                         Map &amp; execute
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void removeConnection(c.id)}
+                      disabled={deletingId === c.id}
+                      title="Delete connection"
+                    >
+                      {deletingId === c.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
                   </div>
                 </li>
               ))}

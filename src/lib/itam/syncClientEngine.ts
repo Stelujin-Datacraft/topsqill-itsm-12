@@ -2,11 +2,12 @@
  * Browser fallback for ITAM Form Sync when Nest `/api/itam/sync` is unreachable
  * (published app / preview / backend down) — same resilience pattern as VIS clientEngine.
  *
- * Lab mode uses an in-memory mock of the existing application Form API
- * (`mock://existing-app`). Secrets are never stored; only credentialReferenceId.
+ * Lab mode can still hydrate schema from a seeded form catalog when Nest is offline.
+ * Secrets are never stored; only credentialReferenceId.
  */
 
-const STORAGE_KEY = 'itam.form-sync.store.v1';
+const STORAGE_KEY = 'itam.form-sync.store.v2';
+const LEGACY_STORAGE_KEYS = ['itam.form-sync.store.v1'];
 
 type Row = Record<string, unknown> & { id: string };
 
@@ -39,6 +40,13 @@ function loadStore(): SyncStore {
   if (memoryStore) return memoryStore;
   try {
     if (typeof localStorage !== 'undefined') {
+      for (const legacy of LEGACY_STORAGE_KEYS) {
+        try {
+          localStorage.removeItem(legacy);
+        } catch {
+          /* ignore */
+        }
+      }
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         memoryStore = { ...emptyStore(), ...JSON.parse(raw) };
