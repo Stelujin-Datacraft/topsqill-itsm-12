@@ -129,15 +129,22 @@ export class FormApiService {
     let payload = (body as any)?.data && typeof (body as any).data === 'object'
       ? { ...(body as any).data }
       : { ...(body || {}) };
-    // Integration Studio sends label/name keys — map to field IDs when requested or when keys aren't UUIDs
+    // Drop envelope keys if caller posted the whole body as data
+    delete (payload as any).useLabels;
+    delete (payload as any).validate;
+    delete (payload as any).data;
+    delete (payload as any).approval_status;
+
+    // Integration Studio sends label/name keys — map to field IDs (same shape Form Builder stores)
     const useLabels = Boolean((body as any)?.useLabels) || Object.keys(payload).some(
       (k) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k),
     );
     if (useLabels && Object.keys(payload).length) {
-      const { data: fields } = await supabase
+      const { data: fields, error: fieldsError } = await supabase
         .from('form_fields')
         .select('id, label')
         .eq('form_id', resolvedId);
+      if (fieldsError) throw new Error(`Failed to load form fields: ${fieldsError.message}`);
       const byLabel = new Map<string, string>();
       for (const f of fields || []) {
         byLabel.set(String(f.label || '').toLowerCase(), f.id);
@@ -150,16 +157,20 @@ export class FormApiService {
       }
       payload = mapped;
     }
+
+    // Match Form Builder insert shape (no approval_status required)
     const { data, error } = await supabase
       .from('form_submissions')
       .insert({
         form_id: resolvedId,
         submission_data: payload,
-        approval_status: (body as any)?.approval_status || 'pending',
+        submitted_at: new Date().toISOString(),
       })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      throw new Error(`form_submissions insert failed: ${error.message}`);
+    }
     return { data };
   }
 
