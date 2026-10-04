@@ -103,10 +103,10 @@ export default function VisEnterprise() {
     <VisPageShell>
       <VisPageHeader
         title="Enterprise admin"
-        description="Users, roles, credentials, connectors, governance, alerts, reconciliation, drift, and self-healing."
+        description="Advanced platform controls (OIDC, drift, self-healing). Not part of the CrowdStrike → Form API setup path — use Connections instead."
         actions={
           <Button asChild variant="outline" size="sm">
-            <Link to="/vis">Studio home</Link>
+            <Link to="/vis/connections">Back to Connections</Link>
           </Button>
         }
       />

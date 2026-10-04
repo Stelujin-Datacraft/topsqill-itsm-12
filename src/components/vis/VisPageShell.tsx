@@ -25,7 +25,7 @@ export function VisPageShell({
 }
 
 export function VisPageHeader({
-  eyebrow = 'Versatile Integration Studio',
+  eyebrow = 'Integration Studio',
   title,
   description,
   backTo,
@@ -78,12 +78,13 @@ export function VisSubnav({
 }: {
   active: 'dashboard' | 'integrations' | 'connections' | 'executions' | 'enterprise';
 }) {
+  // Enterprise admin stays at /vis/enterprise but is not in the main Studio path —
+  // it confuses external third-party testing (OIDC, HA, self-healing, etc.).
   const items = [
     { id: 'dashboard' as const, label: 'Dashboard', to: '/vis' },
     { id: 'integrations' as const, label: 'Integrations', to: '/vis/integrations' },
     { id: 'connections' as const, label: 'Connections', to: '/vis/connections' },
     { id: 'executions' as const, label: 'Executions', to: '/vis/executions' },
-    { id: 'enterprise' as const, label: 'Enterprise', to: '/vis/enterprise' },
   ];
 
   return (

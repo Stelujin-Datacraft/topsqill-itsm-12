@@ -170,20 +170,29 @@ export default function VisConnections() {
         promptText: prompt,
       });
       const analyzed: any = await visApi.analyze(created.id, prompt, {
-        q_source: isCrowd ? 'REST API' : 'REST API',
+        q_source: 'REST API',
         q_frequency: '15_MINUTES',
       });
       const integrationId = analyzed?.id || analyzed?.integration?.id || created.id;
+      // Bind connections only — do not hardcode a form id; user must Discover Forms
       await visApi.bindConnections(integrationId, {
         sourceConnectionId: source.id,
         targetConnectionId: target.id,
-        selectedFormId: 'form-vulnerability',
       });
+      if (isCrowd) {
+        await visApi.setMatchingStrategy(integrationId, {
+          mode: 'SINGLE',
+          sourceFields: ['device_id'],
+          targetFields: ['external_id'],
+          ifFound: 'UPDATE',
+          ifNotFound: 'CREATE',
+        });
+      }
       toast({
         title: 'Integration ready',
-        description: 'Continue the wizard: Form & Schema → Mapping → Dry Run → Approval → Execute',
+        description: 'Next: Discover Forms on Form & Schema, then Mapping → Dry Run → Execute',
       });
-      navigate(`/vis/integrations/${integrationId}?step=1`);
+      navigate(`/vis/integrations/${integrationId}?step=2`);
     } catch (e: any) {
       toast({
         title: 'Could not start integration',
@@ -252,15 +261,15 @@ export default function VisConnections() {
     }
   }
 
-  async function clearLabData() {
-    if (!window.confirm('Remove leftover lab/demo connections and wipe local studio cache?')) return;
+  async function resetStudio() {
+    if (!window.confirm('Reset local Integration Studio cache (connections, integrations, executions)? You will need to re-create your CrowdStrike and Form API connections.')) return;
     setClearing(true);
     try {
       await visApi.resetStudio();
-      toast({ title: 'Lab data cleared', description: 'Add your external connections to continue.' });
+      toast({ title: 'Studio reset', description: 'Add your external connections to continue.' });
       await reload();
     } catch (e: any) {
-      toast({ title: 'Clear failed', description: e?.message || String(e), variant: 'destructive' });
+      toast({ title: 'Reset failed', description: e?.message || String(e), variant: 'destructive' });
     } finally {
       setClearing(false);
     }
@@ -356,16 +365,16 @@ export default function VisConnections() {
     <VisPageShell>
       <VisPageHeader
         title="Connections"
-        description="A Connection is only the login/endpoint to a system. An Integration (next step) is the mapping + run that uses two connections."
+        description="A Connection is the endpoint/login to a system. An Integration is the job that reads from one connection and writes to another."
         actions={
           <>
-            <Button variant="ghost" onClick={() => void clearLabData()} disabled={clearing}>
+            <Button variant="ghost" onClick={() => void resetStudio()} disabled={clearing}>
               {clearing ? (
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
               ) : (
                 <Trash2 className="h-4 w-4 mr-1.5" />
               )}
-              Clear lab data
+              Reset studio
             </Button>
             <Button onClick={() => openNewConnection()}>
               <Plus className="h-4 w-4 mr-1.5" />
@@ -377,19 +386,7 @@ export default function VisConnections() {
       <VisSubnav active="connections" />
 
       <div className="rounded-md border border-border bg-muted/30 px-3.5 py-3 text-sm space-y-2">
-        <p className="font-medium text-foreground">Simple words</p>
-        <ul className="list-disc pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
-          <li>
-            <span className="text-foreground font-medium">Connection</span> = phone number / login to a
-            system (CrowdStrike or Form API).
-          </li>
-          <li>
-            <span className="text-foreground font-medium">Integration</span> = the job that reads from
-            one connection and writes to another (map fields, dry-run, execute). Delete integrations on
-            the Integrations tab.
-          </li>
-        </ul>
-        <p className="font-medium text-foreground pt-1">What to create (in order)</p>
+        <p className="font-medium text-foreground">Setup order</p>
         <ol className="list-decimal pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
           <li>
             <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => openNewConnection('crowdstrike')}>
@@ -401,10 +398,15 @@ export default function VisConnections() {
             <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => openNewConnection('form-api')}>
               TopSqill Form API
             </button>{' '}
-            — target where records are saved (auto-fills …/api/form-api — not port 3000).
+            — target where records are saved (auto-fills …/api/form-api — not port 3000). Paste a Bearer token from{' '}
+            <Link to="/integrations?tab=api-keys" className="underline underline-offset-2 text-foreground">
+              API keys &amp; connectors
+            </Link>{' '}
+            if required.
           </li>
           <li>
-            On the CrowdStrike row click <span className="text-foreground font-medium">Map &amp; execute</span>.
+            On the CrowdStrike row click <span className="text-foreground font-medium">Map &amp; execute</span>,
+            then Discover Forms and pick your real form.
           </li>
         </ol>
       </div>

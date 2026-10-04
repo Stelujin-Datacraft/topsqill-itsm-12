@@ -44,10 +44,10 @@ export default function VisDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function resetLabData() {
+  async function resetStudioData() {
     if (
       !window.confirm(
-        'Clear lab/demo studio data (local mocks + stub connections)? Your real CrowdStrike / Form API connections you re-create will stay only if you create them again after this wipe.',
+        'Reset local Integration Studio cache? You will need to re-create CrowdStrike and Form API connections afterward.',
       )
     ) {
       return;
@@ -55,7 +55,7 @@ export default function VisDashboard() {
     setResetting(true);
     try {
       await visApi.resetStudio();
-      toast({ title: 'Studio cleared', description: 'Ready for external third-party testing.' });
+      toast({ title: 'Studio reset', description: 'Ready for external third-party testing.' });
       setLoading(true);
       const next = await loadStudio();
       setData(next);
@@ -115,7 +115,7 @@ export default function VisDashboard() {
     <VisPageShell>
       <VisPageHeader
         title="Dashboard"
-        description="Create a Connection to your external system (e.g. CrowdStrike Mockoon), then New Integration to map and execute. No built-in demo data is seeded."
+        description="Primary path: Connections → CrowdStrike + Form API → Map & execute. Describe (/vis/new) is optional for natural-language design."
         actions={
           <>
             <Button variant="outline" asChild>
@@ -124,20 +124,22 @@ export default function VisDashboard() {
                 Connections
               </Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void resetLabData()}
-              disabled={resetting}
-              title="Clear leftover lab/demo studio data"
-            >
-              {resetting ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-1.5" />
-              )}
-              Clear lab data
-            </Button>
+            {integrations.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void resetStudioData()}
+                disabled={resetting}
+                title="Reset local studio cache"
+              >
+                {resetting ? (
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                )}
+                Reset studio
+              </Button>
+            )}
             <Button asChild>
               <Link to="/vis/new">
                 <Plus className="h-4 w-4 mr-1.5" />
@@ -154,12 +156,37 @@ export default function VisDashboard() {
         <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground">
           <Cable className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <p>
-            Local studio mode — Nest <code className="font-mono text-[11px]">/api/vis</code> is
-            offline. Create real HTTP connections (Mockoon / Form API); built-in demo stubs are disabled.
+            Browser fallback — Nest <code className="font-mono text-[11px]">/api/vis</code> is
+            offline. Connections still call your Mockoon / Form API URLs from this browser.
           </p>
         </div>
       )}
 
+      {integrations.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border/80 bg-card px-5 py-8 space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">Get started</p>
+            <p className="text-sm text-muted-foreground max-w-xl">
+              1) Add CrowdStrike Mockoon · 2) Add Form API target · 3) Map &amp; execute on the CrowdStrike row.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link to="/vis/connections">
+                <Cable className="h-4 w-4 mr-1.5" />
+                Open Connections
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/vis/new">
+                <Plus className="h-4 w-4 mr-1.5" />
+                Describe instead
+              </Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {tiles.map((t) => (
           <div
@@ -189,24 +216,6 @@ export default function VisDashboard() {
             </Button>
           </CardHeader>
           <CardContent className="px-5 pb-5 pt-0">
-            {integrations.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border/80 px-4 py-8 text-center space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  No integrations yet. Add an external connection first, then create an integration.
-                </p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button size="sm" variant="outline" asChild>
-                    <Link to="/vis/connections">Add connection</Link>
-                  </Button>
-                  <Button size="sm" asChild>
-                    <Link to="/vis/new">
-                      <Plus className="h-4 w-4 mr-1.5" />
-                      New Integration
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            ) : (
               <ul className="divide-y divide-border/60 -mx-1">
                 {integrations.slice(0, 6).map((row: any) => (
                   <li key={row.id}>
@@ -240,7 +249,6 @@ export default function VisDashboard() {
                   </li>
                 ))}
               </ul>
-            )}
           </CardContent>
         </Card>
 
@@ -306,6 +314,8 @@ export default function VisDashboard() {
           </Card>
         </div>
       </div>
+        </>
+      )}
     </VisPageShell>
   );
 }

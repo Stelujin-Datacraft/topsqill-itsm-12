@@ -78,9 +78,7 @@ export default function VisIntegrationDetail() {
   const [mappings, setMappings] = useState<any[]>([]);
   const [mapFilter, setMapFilter] = useState<'ALL' | 'HIGH' | 'NEEDS_REVIEW'>('ALL');
   const [nlInstruction, setNlInstruction] = useState('');
-  const [sampleJson, setSampleJson] = useState(
-    '{\n  "id": "VUL-1001",\n  "severity": "Critical",\n  "description": "Apache vulnerability",\n  "team": "Infrastructure",\n  "status": "Open"\n}',
-  );
+  const [sampleJson, setSampleJson] = useState(CROWDSTRIKE_SAMPLE);
   const [openApiText, setOpenApiText] = useState('');
   const [openApiEndpoints, setOpenApiEndpoints] = useState<any[]>([]);
   const [validation, setValidation] = useState<any>(null);
@@ -303,6 +301,59 @@ export default function VisIntegrationDetail() {
       await reload();
     } catch (e: any) {
       toast({ title: 'Invalid sample JSON', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function fetchSampleFromSource() {
+    if (!id || !sourceConnectionId) {
+      toast({
+        title: 'Bind a source connection first',
+        description: 'Select CrowdStrike / Mockoon on the Connections step.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      const conn = connections.find((c) => c.id === sourceConnectionId)
+        || (await visApi.listConnections()).find((c: any) => c.id === sourceConnectionId);
+      if (!conn) throw new Error('Source connection not found');
+      const baseUrl = String(conn.baseUrl || '').replace(/\/$/, '');
+      if (!/^https?:\/\//i.test(baseUrl)) {
+        throw new Error('Source Base URL must be an http(s) Mockoon/REST endpoint');
+      }
+      const listPath = String(conn.config?.listPath || '/devices/queries/devices/v1');
+      const url = `${baseUrl}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
+      const headers: Record<string, string> = { Accept: 'application/json' };
+      const res = await fetch(url, { method: 'GET', headers });
+      if (!res.ok) throw new Error(`Mockoon returned HTTP ${res.status} for ${url}`);
+      const data = await res.json();
+      // CrowdStrike-style resources array or plain object/array
+      const rows = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.resources)
+          ? data.resources
+          : Array.isArray(data?.devices)
+            ? data.devices
+            : Array.isArray(data?.items)
+              ? data.items
+              : [data];
+      const first = rows[0];
+      if (!first || typeof first !== 'object') {
+        throw new Error('No device records in Mockoon response — check list path');
+      }
+      setSampleJson(JSON.stringify(first, null, 2));
+      await visApi.setSampleSource(id, first);
+      toast({ title: 'Fetched sample from source', description: url });
+      await reload();
+    } catch (e: any) {
+      toast({
+        title: 'Fetch from Mockoon failed',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
     } finally {
       setBusy(false);
     }
@@ -681,7 +732,10 @@ export default function VisIntegrationDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">OpenAPI discovery (optional)</CardTitle>
+              <CardTitle className="text-base">Advanced: OpenAPI discovery</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Optional — skip for CrowdStrike Mockoon presets.
+              </p>
             </CardHeader>
             <CardContent className="space-y-3">
               <Textarea
@@ -721,7 +775,7 @@ export default function VisIntegrationDetail() {
             <CardHeader>
               <CardTitle className="text-base">Sample source JSON</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Used for mapping suggestions and dry-run when Nest cannot pull live Mockoon data.
+                Used for mapping suggestions and dry-run. Prefer Fetch from Mockoon when the source is reachable.
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -732,6 +786,9 @@ export default function VisIntegrationDetail() {
                 className="font-mono text-xs"
               />
               <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => void fetchSampleFromSource()} disabled={busy || !sourceConnectionId}>
+                  Fetch from Mockoon
+                </Button>
                 <Button size="sm" variant="outline" onClick={applySample} disabled={busy}>
                   Use sample for mapping
                 </Button>
@@ -1104,8 +1161,7 @@ export default function VisIntegrationDetail() {
             <CardHeader>
               <CardTitle className="text-base">Approval</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Explicit user approval required. After approval you can start a Phase 3 execution
-                against the mock source and Internal Application API.
+                Approve the design, then run once against your CrowdStrike and Form API connections.
               </p>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
@@ -1130,7 +1186,7 @@ export default function VisIntegrationDetail() {
                       title: 'Execution started',
                       description: exec.correlationId || exec.id,
                     });
-                    window.location.href = `/vis/executions/${exec.id}`;
+                    navigate(`/vis/executions/${exec.id}`);
                   } catch (e: any) {
                     toast({
                       title: 'Execution failed to start',

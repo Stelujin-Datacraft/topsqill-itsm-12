@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +16,7 @@ import { itamSyncApi, isItamSyncClientMode } from '@/lib/itam/api';
 /**
  * ITAM Form Sync UI — discovered assets → existing application Form API.
  * Existing application remains system of record. No secrets in payloads.
- * Uses Nest `/api/itam/sync` when available; falls back to browser lab engine.
+ * Uses Nest `/api/itam/sync` when available; falls back to browser client engine.
  */
 
 function statusBadge(status?: string) {
@@ -220,8 +221,12 @@ export function FormSyncPanel() {
             <Link2 className="h-5 w-5" /> Form Sync
           </h2>
           <p className="text-sm text-muted-foreground">
-            Sync discovered assets into the existing application ITAM forms via its API only.
-            Discovery metadata stays local; authoritative records remain in the existing application.
+            Sync discovered ITAM assets into application forms. For CrowdStrike Mockoon → Form API
+            device sync, use{' '}
+            <Link to="/vis/connections" className="underline underline-offset-2 text-foreground">
+              Integration Studio
+            </Link>{' '}
+            instead.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
