@@ -653,6 +653,24 @@ export const visClientEngine = {
         const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
         clearTimeout(timer);
         const authChallenge = res.status === 401 || res.status === 403;
+        let bodyNote: string | undefined;
+        try {
+          const text = await res.text();
+          if (text && text.length < 300) {
+            const parsed = JSON.parse(text);
+            bodyNote = parsed?.error?.message || parsed?.message || parsed?.error || undefined;
+          }
+        } catch {
+          /* ignore body parse */
+        }
+        // CrowdStrike: if list path 404, hint the common Mockoon path
+        const wrongPathHint =
+          !res.ok
+          && conn.kind === 'REST_API'
+          && (res.status === 404 || res.status === 500)
+          && !String(listPath).includes('/crowdstrike/devices')
+            ? ` — your Mockoon likely uses /crowdstrike/devices (delete & recreate with CrowdStrike preset)`
+            : '';
         return {
           ok: res.ok || authChallenge,
           status: res.status,
@@ -664,9 +682,9 @@ export const visClientEngine = {
               ? 'Endpoint reachable from this browser'
               : authChallenge
                 ? `HTTP ${res.status} — host reachable; paste a valid API key/Bearer secret and re-test`
-                : `HTTP ${res.status} — endpoint responded`,
+                : `HTTP ${res.status}${bodyNote ? `: ${bodyNote}` : ''}${wrongPathHint}`,
           },
-          error: res.ok || authChallenge ? undefined : `HTTP ${res.status}`,
+          error: res.ok || authChallenge ? undefined : `HTTP ${res.status}${bodyNote ? `: ${bodyNote}` : ''}${wrongPathHint}`,
         };
       } catch (e: any) {
         return {
@@ -1002,10 +1020,11 @@ export const visClientEngine = {
     const mappings = ((integ.directions || [])[0]?.mappings || []).filter((m: any) => m.enabled !== false);
     const storedSample = integ.sourceSample;
     const defaultCrowd = {
-      device_id: 'd-1001',
-      hostname: 'WIN-ENDPOINT-01',
-      status: 'normal',
-      platform_name: 'Windows',
+      id: 'CS-1001',
+      hostname: 'LAPTOP-001',
+      os: 'Windows 11',
+      serialNumber: 'SN001',
+      status: 'active',
     };
     const fromStored = storedSample
       ? (Array.isArray(storedSample) ? storedSample : [storedSample as Record<string, unknown>])
@@ -1185,7 +1204,7 @@ export const visClientEngine = {
     } else if (sourceConn && /^https?:\/\//i.test(String(sourceConn.baseUrl || ''))) {
       try {
         const base = String(sourceConn.baseUrl).replace(/\/$/, '');
-        const listPath = String((sourceConn.config as any)?.listPath || '/devices/queries/devices/v1');
+        const listPath = String((sourceConn.config as any)?.listPath || '/crowdstrike/devices');
         const url = `${base}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
         const headers: Record<string, string> = { Accept: 'application/json' };
         if (sourceConn.authType && sourceConn.authType !== 'NONE' && sourceConn.credentialRefId) {
@@ -1214,10 +1233,11 @@ export const visClientEngine = {
     if (!sources.length) {
       sources = [
         {
-          device_id: 'd-1001',
-          hostname: 'WIN-ENDPOINT-01',
-          status: 'normal',
-          platform_name: 'Windows',
+          id: 'CS-1001',
+          hostname: 'LAPTOP-001',
+          os: 'Windows 11',
+          serialNumber: 'SN001',
+          status: 'active',
         },
       ];
     }
@@ -1228,10 +1248,11 @@ export const visClientEngine = {
         data[m.targetField] = src[m.sourceField];
       }
       if (!Object.keys(data).length) {
-        if (src.device_id) {
-          data.external_id = src.device_id;
-          data.vulnerability_id = src.device_id;
-          data.description = src.hostname || String(src.device_id);
+        const key = src.id || src.device_id;
+        if (key) {
+          data.external_id = key;
+          data.vulnerability_id = key;
+          data.description = src.hostname || String(key);
           data.status = src.status || 'Open';
         }
       }
