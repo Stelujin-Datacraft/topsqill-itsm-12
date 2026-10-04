@@ -9,7 +9,7 @@ import { Loader2, Sparkles, Cable } from 'lucide-react';
 import { VisPageHeader, VisPageShell } from '@/components/vis/VisPageShell';
 
 const EXAMPLE =
-  'Sync CrowdStrike Falcon devices from our Mockoon REST API every 15 minutes into our internal Vulnerability form. Create or update by device_id as external_id.';
+  'Sync CrowdStrike devices from Mockoon GET /crowdstrike/devices every 15 minutes into our internal form. Create or update by id as external_id.';
 
 export default function VisDescribe() {
   const navigate = useNavigate();
