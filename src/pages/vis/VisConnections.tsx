@@ -233,7 +233,7 @@ export default function VisConnections() {
       kind: 'INTERNAL_APPLICATION_API',
       environment: 'DEV',
       baseUrl,
-      authType: 'API_KEY',
+      authType: 'NONE',
       secret: '',
       // Form API is usually same-origin / public HTTPS — only allow private if URL is localhost
       allowPrivateNetwork: /localhost|127\.0\.0\.1/.test(baseUrl),

@@ -455,7 +455,16 @@ export class VisService {
     );
     const ctx = { correlationId: randomUUID() };
     await connector.connect(ctx);
-    return connector.discoverForms(ctx);
+    const result = await connector.discoverForms(ctx);
+    if (!result.ok) {
+      throw new BadRequestException(result.error || 'Form discovery failed');
+    }
+    // Always return { items: [...] } for the Studio UI
+    const data = result.data as any;
+    if (Array.isArray(data?.items)) return data;
+    if (Array.isArray(data)) return { items: data };
+    if (Array.isArray(data?.data)) return { items: data.data };
+    return { items: [] };
   }
 
   async discoverSchema(integrationId: string, body: { connectionId: string; formId: string }) {
