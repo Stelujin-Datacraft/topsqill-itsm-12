@@ -221,7 +221,33 @@ export default function VisIntegrationDetail() {
         await visApi.bindConnections(id, { targetConnectionId: connectionId });
       }
       const res = await visApi.discoverForms(connectionId);
-      setForms(res.items || res.data?.items || res.data || []);
+      const items = Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res?.data?.items)
+          ? res.data.items
+          : Array.isArray(res?.data)
+            ? res.data
+            : Array.isArray(res)
+              ? res
+              : [];
+      const normalized = items.map((f: any) => ({
+        id: String(f.id || f.formId || f.reference_id || ''),
+        name: String(f.name || f.title || f.reference_id || f.id || 'Form'),
+        description: f.description || null,
+      })).filter((f: any) => f.id);
+      setForms(normalized);
+      if (!normalized.length) {
+        toast({
+          title: 'No forms found',
+          description: 'Create a form in Form builder for this project, then Discover Forms again.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Forms loaded',
+          description: `${normalized.length} form(s) — select one, then Discover Schema.`,
+        });
+      }
     } catch (e: any) {
       toast({ title: 'Discover forms failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -811,7 +837,8 @@ export default function VisIntegrationDetail() {
             <div>
               <CardTitle className="text-base">Target form & schema</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Discover forms through the Internal Application API — fields are never hardcoded.
+                Click Discover Forms to load forms from TopSqill Form API (or your project forms).
+                Select a form, then Discover Schema. You do not enter a form id on the connection.
               </p>
             </div>
             <div className="flex gap-2">

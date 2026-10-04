@@ -201,6 +201,121 @@ function detectClarifications(prompt: string) {
   return questions;
 }
 
+async function buildAuthHeaders(conn: Row, store: Store): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  if (conn.authType && conn.authType !== 'NONE' && conn.credentialRefId) {
+    const cred = (store.credentials || []).find((c) => c.id === conn.credentialRefId);
+    const secret = cred?._secretPayload;
+    if (typeof secret === 'string' && secret) {
+      headers.Authorization = `Bearer ${secret}`;
+      return headers;
+    }
+  }
+  // Same-app Form API: forward the signed-in user's session JWT
+  try {
+    const { rawSupabase } = await import('@/integrations/supabase/rawClient');
+    const { data: { session } } = await rawSupabase.auth.getSession();
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  return headers;
+}
+
+function extractFormsList(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.forms)) return payload.forms;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  return [];
+}
+
+function normalizeFormItem(f: any) {
+  return {
+    id: String(f.id || f.formId || f.reference_id || f.slug || f.name || ''),
+    name: String(f.name || f.title || f.reference_id || f.id || 'Form'),
+    description: f.description || null,
+  };
+}
+
+function cacheForms(store: Store, items: Array<{ id: string; name: string; description?: string | null }>) {
+  for (const item of items) {
+    if (!store.mockForms.some((m) => m.id === item.id)) {
+      store.mockForms.push({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        fields: [
+          { name: 'external_id', label: 'External ID', type: 'text', required: false, unique: true },
+          { name: 'description', label: 'Description', type: 'textarea', required: false },
+          { name: 'status', label: 'Status', type: 'text', required: false },
+        ],
+      });
+    }
+  }
+}
+
+async function discoverFormsFromAppDb(): Promise<Array<{ id: string; name: string; description: string | null }>> {
+  try {
+    const { backend } = await import('@/services/api');
+    const { data, error } = await backend
+      .from('forms')
+      .select('id, name, description, status, project_id')
+      .limit(200);
+    if (error) throw new Error(error.message);
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map(normalizeFormItem).filter((f) => f.id);
+  } catch (e: any) {
+    // Last resort: direct Supabase
+    try {
+      const { rawSupabase } = await import('@/integrations/supabase/rawClient');
+      const { data, error } = await rawSupabase
+        .from('forms')
+        .select('id, name, description, status, project_id')
+        .limit(200);
+      if (error) throw new Error(error.message);
+      return (data || []).map(normalizeFormItem).filter((f) => f.id);
+    } catch (e2: any) {
+      throw new Error(e2?.message || e?.message || 'Could not load forms from app database');
+    }
+  }
+}
+
+function persistSchema(
+  store: Store,
+  body: { connectionId: string; formId: string },
+  fields: any[],
+  source: string,
+) {
+  const hash = String(JSON.stringify(fields).length);
+  const payload = {
+    id: uid(),
+    connectionId: body.connectionId,
+    formId: body.formId,
+    formName: body.formId,
+    fields,
+    apiVersion: 'v1',
+    schemaVersion: hash,
+    schemaHash: hash,
+    retrievedAt: new Date().toISOString(),
+    changed: false,
+    source,
+  };
+  const existing = store.schemaCache.find(
+    (s) => s.connectionId === body.connectionId && s.formId === body.formId,
+  );
+  if (existing) Object.assign(existing, payload, { id: existing.id });
+  else store.schemaCache.push(payload as Row);
+  const cachedForm = store.mockForms.find((f) => f.id === body.formId);
+  if (cachedForm) cachedForm.fields = fields;
+  else store.mockForms.push({ id: body.formId, name: body.formId, fields });
+  save(store);
+  return payload;
+}
+
 function buildDesign(prompt: string, answers?: Record<string, string>) {
   const p = `${prompt} ${Object.values(answers || {}).join(' ')}`.toLowerCase();
   const every15 =
@@ -721,76 +836,55 @@ export const visClientEngine = {
     if (!conn) throw new Error('Connection not found');
     const baseUrl = String(conn.baseUrl || '').replace(/\/$/, '');
 
+    const authHeaders = await buildAuthHeaders(conn, store);
+
     // Prefer live Form API when Base URL is real HTTP
     if (/^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('client://')) {
       const formsPath = String((conn.config as any)?.paths?.formsPath || '/forms');
       const url = `${baseUrl}${formsPath.startsWith('/') ? formsPath : `/${formsPath}`}`;
-      const headers: Record<string, string> = { Accept: 'application/json' };
-      if (conn.authType && conn.authType !== 'NONE' && conn.credentialRefId) {
-        const cred = (store.credentials || []).find((c) => c.id === conn.credentialRefId);
-        const secret = cred?._secretPayload;
-        if (typeof secret === 'string' && secret) {
-          headers.Authorization = `Bearer ${secret}`;
-        }
-      }
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(url, { method: 'GET', headers, signal: controller.signal });
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: { Accept: 'application/json', ...authHeaders },
+          signal: controller.signal,
+        });
         clearTimeout(timer);
+        const payload = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(`Form API discover failed: HTTP ${res.status} at ${url}`);
+          const msg =
+            payload?.error?.message || payload?.message || `HTTP ${res.status} at ${url}`;
+          throw new Error(`Form API discover failed: ${msg}`);
         }
-        const data = await res.json();
-        const raw = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.items)
-            ? data.items
-            : Array.isArray(data?.forms)
-              ? data.forms
-              : Array.isArray(data?.data)
-                ? data.data
-                : [];
-        const items = raw.map((f: any) => ({
-          id: String(f.id || f.formId || f.slug || f.name),
-          name: String(f.name || f.title || f.id || 'Form'),
-          description: f.description || null,
-        })).filter((f: any) => f.id);
-        if (!items.length) {
-          throw new Error(`Form API returned no forms at ${url}`);
+        const raw = extractFormsList(payload);
+        const items = raw.map(normalizeFormItem).filter((f: any) => f.id);
+        if (items.length) {
+          cacheForms(store, items);
+          save(store);
+          return { items, source: 'form-api', __clientMode: true };
         }
-        // Cache for schema discover when Nest is offline
-        for (const item of items) {
-          if (!store.mockForms.some((m) => m.id === item.id)) {
-            store.mockForms.push({
-              id: item.id,
-              name: item.name,
-              description: item.description,
-              fields: [
-                { name: 'external_id', label: 'External ID', type: 'text', required: false, unique: true },
-                { name: 'description', label: 'Description', type: 'textarea', required: false },
-                { name: 'status', label: 'Status', type: 'text', required: false },
-              ],
-            });
-          }
-        }
-        save(store);
-        return { items, source: 'form-api', __clientMode: true };
+        // Empty list from Form API — fall through to app DB for same-app targets
       } catch (e: any) {
-        if (conn.kind === 'INTERNAL_APPLICATION_API') {
-          throw new Error(
-            e?.name === 'AbortError'
-              ? `Timed out reaching Form API at ${url}`
-              : (e?.message || `Failed to discover forms at ${url}`),
-          );
+        if (conn.kind !== 'INTERNAL_APPLICATION_API') {
+          throw e;
         }
+        // Fall through to app DB for TopSqill Form API targets
+        console.warn('[vis] Form API discover failed, trying app forms:', e?.message);
       }
     }
 
-    // Non-Form-API connections: no mock forms — return empty
+    // Same-app fallback: list forms the signed-in user can see via Nest/Supabase
     if (conn.kind === 'INTERNAL_APPLICATION_API') {
+      const items = await discoverFormsFromAppDb();
+      if (items.length) {
+        cacheForms(store, items);
+        save(store);
+        return { items, source: 'app-db', __clientMode: true };
+      }
       throw new Error(
-        'Form API Base URL missing or unreachable. Fix the Form API connection, then Discover Forms again.',
+        'No forms found. Create a form in Form builder first, then Discover Forms again. '
+          + 'Form API Base URL should be …/api/form-api (this app).',
       );
     }
     return { items: [], source: 'none', __clientMode: true };
@@ -803,6 +897,7 @@ export const visClientEngine = {
     }
     const conn = store.connections.find((c) => c.id === body.connectionId);
     const baseUrl = String(conn?.baseUrl || '').replace(/\/$/, '');
+    const authHeaders = conn ? await buildAuthHeaders(conn, store) : {};
 
     // Try live Form API fields endpoint
     if (conn && /^https?:\/\//i.test(baseUrl) && !baseUrl.startsWith('client://')) {
@@ -811,64 +906,59 @@ export const visClientEngine = {
       );
       const fieldsPath = fieldsTpl.replace('{formId}', encodeURIComponent(body.formId));
       const url = `${baseUrl}${fieldsPath.startsWith('/') ? fieldsPath : `/${fieldsPath}`}`;
-      const headers: Record<string, string> = { Accept: 'application/json' };
-      if (conn.authType && conn.authType !== 'NONE' && conn.credentialRefId) {
-        const cred = (store.credentials || []).find((c) => c.id === conn.credentialRefId);
-        const secret = cred?._secretPayload;
-        if (typeof secret === 'string' && secret) {
-          headers.Authorization = `Bearer ${secret}`;
-        }
-      }
       try {
-        const res = await fetch(url, { method: 'GET', headers });
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: { Accept: 'application/json', ...authHeaders },
+        });
         if (res.ok) {
           const data = await res.json();
           const raw = Array.isArray(data)
             ? data
-            : Array.isArray(data?.fields)
-              ? data.fields
-              : Array.isArray(data?.items)
-                ? data.items
-                : [];
+            : Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data?.fields)
+                ? data.fields
+                : Array.isArray(data?.items)
+                  ? data.items
+                  : [];
           const fields = raw.map((f: any) => ({
-            name: String(f.name || f.key || f.id),
+            name: String(f.name || f.label || f.key || f.id),
             label: String(f.label || f.name || f.key || f.id),
-            type: String(f.type || f.dataType || 'text'),
+            type: String(f.type || f.field_type || f.dataType || 'text'),
             required: Boolean(f.required),
             unique: Boolean(f.unique),
             choices: f.choices || f.options || undefined,
           })).filter((f: any) => f.name);
           if (fields.length) {
-            const hash = String(JSON.stringify(fields).length);
-            const payload = {
-              id: uid(),
-              connectionId: body.connectionId,
-              formId: body.formId,
-              formName: body.formId,
-              fields,
-              apiVersion: 'v1',
-              schemaVersion: hash,
-              schemaHash: hash,
-              retrievedAt: new Date().toISOString(),
-              changed: false,
-              source: 'form-api',
-            };
-            const existing = store.schemaCache.find(
-              (s) => s.connectionId === body.connectionId && s.formId === body.formId,
-            );
-            if (existing) Object.assign(existing, payload, { id: existing.id });
-            else store.schemaCache.push(payload as Row);
-            // Keep cached form fields for execute
-            const cachedForm = store.mockForms.find((f) => f.id === body.formId);
-            if (cachedForm) cachedForm.fields = fields;
-            else store.mockForms.push({ id: body.formId, name: body.formId, fields });
-            save(store);
-            return payload;
+            return persistSchema(store, body, fields, 'form-api');
           }
         }
       } catch {
-        /* fall through to cache */
+        /* fall through */
       }
+    }
+
+    // App DB fallback for same-app Form API
+    try {
+      const { backend } = await import('@/services/api');
+      const { data, error } = await backend
+        .from('form_fields')
+        .select('id, label, field_type, required, options, field_order')
+        .eq('form_id', body.formId)
+        .order('field_order', { ascending: true });
+      if (!error && Array.isArray(data) && data.length) {
+        const fields = data.map((f: any) => ({
+          name: String(f.label || f.id),
+          label: String(f.label || f.id),
+          type: String(f.field_type || 'text'),
+          required: Boolean(f.required),
+          choices: f.options || undefined,
+        }));
+        return persistSchema(store, body, fields, 'app-db');
+      }
+    } catch {
+      /* fall through to cache */
     }
 
     const form = store.mockForms.find((f) => f.id === body.formId)
@@ -879,29 +969,7 @@ export const visClientEngine = {
       );
     }
     const fields = (form as any).fields || [];
-    const hash = String(JSON.stringify(fields).length);
-    const payload = {
-      id: uid(),
-      connectionId: body.connectionId,
-      formId: body.formId,
-      formName: (form as any).name || body.formId,
-      fields,
-      apiVersion: 'v1',
-      schemaVersion: hash,
-      schemaHash: hash,
-      retrievedAt: new Date().toISOString(),
-      changed: false,
-    };
-    const existing = store.schemaCache.find(
-      (s) => s.connectionId === body.connectionId && s.formId === body.formId,
-    );
-    if (existing) {
-      Object.assign(existing, payload, { id: existing.id });
-    } else {
-      store.schemaCache.push(payload as Row);
-    }
-    save(store);
-    return payload;
+    return persistSchema(store, body, fields, 'cache');
   },
 
   getMappings(id: string) {

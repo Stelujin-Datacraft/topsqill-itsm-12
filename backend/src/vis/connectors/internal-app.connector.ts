@@ -70,7 +70,30 @@ export class InternalApplicationConnector implements IInternalApplicationConnect
   }
 
   async discoverForms(ctx: ConnectorContext): Promise<ConnectorResult> {
-    return this.rest.request('GET', this.config.paths.formsPath, {}, ctx);
+    const res = await this.rest.request('GET', this.config.paths.formsPath || '/forms', {}, ctx);
+    if (!res.ok) return res;
+    // Normalize Form API { success, data: [...] } and plain arrays into { items }
+    const body = res.data as any;
+    const list = Array.isArray(body)
+      ? body
+      : Array.isArray(body?.data)
+        ? body.data
+        : Array.isArray(body?.items)
+          ? body.items
+          : Array.isArray(body?.forms)
+            ? body.forms
+            : [];
+    return {
+      ok: true,
+      status: res.status,
+      data: {
+        items: list.map((f: any) => ({
+          id: String(f.id || f.formId || f.reference_id || f.name || ''),
+          name: String(f.name || f.title || f.reference_id || f.id || 'Form'),
+          description: f.description || null,
+        })).filter((f: any) => f.id),
+      },
+    };
   }
 
   async getFormSchema(formId: string, ctx: ConnectorContext): Promise<ConnectorResult> {
