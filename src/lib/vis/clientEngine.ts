@@ -429,6 +429,9 @@ export const visClientEngine = {
     }
 
     const design = buildDesign(prompt, answers);
+    const isCrowd =
+      Boolean((design as any)?.sourceHints?.system === 'CrowdStrike')
+      || /crowdstrike|falcon|mockoon|device/i.test(prompt);
     const direction = {
       id: uid(),
       label: 'A → B',
@@ -446,10 +449,11 @@ export const visClientEngine = {
       retryMaxAttempts: 3,
       rateLimitPerMinute: design.rateLimitPerMinute,
       idempotencyStrategy: design.idempotencyStrategy,
-      matchingKeys: crowdstrike ? ['external_id'] : ['external_id'],
+      matchingKeys: ['external_id'],
       matchingStrategy: {
         mode: 'SINGLE',
-        sourceFields: crowdstrike ? ['id'] : ['id'],
+        // Mockoon CrowdStrike devices use "id" (CS-1001); Falcon uses device_id
+        sourceFields: isCrowd ? ['id'] : ['id'],
         targetFields: ['external_id'],
         ifFound: 'UPDATE',
         ifNotFound: 'CREATE',
@@ -634,10 +638,10 @@ export const visClientEngine = {
     if (/^https?:\/\//i.test(baseUrl)) {
       try {
         const cfg = (conn.config || {}) as any;
-        // Form API: probe /forms. CrowdStrike: probe listPath. Never bare / when we know better.
+        // Form API: probe /health (no DB). CrowdStrike: probe listPath. Never bare / when we know better.
         const listPath =
           conn.kind === 'INTERNAL_APPLICATION_API'
-            ? String(cfg.paths?.formsPath || '/forms')
+            ? String(cfg.paths?.healthPath || '/health')
             : String(cfg.listPath || '/');
         const url = `${baseUrl.replace(/\/$/, '')}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
         const controller = new AbortController();
@@ -656,9 +660,14 @@ export const visClientEngine = {
         let bodyNote: string | undefined;
         try {
           const text = await res.text();
-          if (text && text.length < 300) {
-            const parsed = JSON.parse(text);
-            bodyNote = parsed?.error?.message || parsed?.message || parsed?.error || undefined;
+          if (text && text.length < 400) {
+            try {
+              const parsed = JSON.parse(text);
+              bodyNote = parsed?.error?.message || parsed?.message || parsed?.error || undefined;
+              if (typeof bodyNote === 'object') bodyNote = JSON.stringify(bodyNote);
+            } catch {
+              bodyNote = text.slice(0, 160);
+            }
           }
         } catch {
           /* ignore body parse */
@@ -671,6 +680,10 @@ export const visClientEngine = {
           && !String(listPath).includes('/crowdstrike/devices')
             ? ` — your Mockoon likely uses /crowdstrike/devices (delete & recreate with CrowdStrike preset)`
             : '';
+        const formApiHint =
+          !res.ok && conn.kind === 'INTERNAL_APPLICATION_API'
+            ? ' — Form API Base URL should be …/api/form-api (this app). Form id is chosen later in Discover Forms, not on the connection.'
+            : '';
         return {
           ok: res.ok || authChallenge,
           status: res.status,
@@ -679,12 +692,14 @@ export const visClientEngine = {
             name: conn.name,
             probed: url,
             note: res.ok
-              ? 'Endpoint reachable from this browser'
+              ? conn.kind === 'INTERNAL_APPLICATION_API'
+                ? 'Form API reachable — pick the form later via Discover Forms (no form id on this connection)'
+                : 'Endpoint reachable from this browser'
               : authChallenge
                 ? `HTTP ${res.status} — host reachable; paste a valid API key/Bearer secret and re-test`
-                : `HTTP ${res.status}${bodyNote ? `: ${bodyNote}` : ''}${wrongPathHint}`,
+                : `HTTP ${res.status}${bodyNote ? `: ${bodyNote}` : ''}${wrongPathHint}${formApiHint}`,
           },
-          error: res.ok || authChallenge ? undefined : `HTTP ${res.status}${bodyNote ? `: ${bodyNote}` : ''}${wrongPathHint}`,
+          error: res.ok || authChallenge ? undefined : `HTTP ${res.status}${bodyNote ? `: ${bodyNote}` : ''}${wrongPathHint}${formApiHint}`,
         };
       } catch (e: any) {
         return {

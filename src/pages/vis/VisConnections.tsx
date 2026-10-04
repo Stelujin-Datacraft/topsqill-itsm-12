@@ -317,6 +317,7 @@ export default function VisConnections() {
       if (form.kind === 'INTERNAL_APPLICATION_API') {
         config.apiVersion = 'v1';
         config.paths = {
+          healthPath: '/health',
           formsPath: '/forms',
           formFieldsPath: '/forms/{formId}/fields',
           recordsPath: '/forms/{formId}/records',
@@ -408,6 +409,7 @@ export default function VisConnections() {
               TopSqill Form API
             </button>{' '}
             — target. Preset fills <code className="font-mono text-[11px]">…/api/form-api</code> (this app — not port 3000).
+            Do <span className="text-foreground font-medium">not</span> enter a form id here — that comes after Map &amp; execute → Discover Forms.
           </li>
           <li>
             On the CrowdStrike (source) row click <span className="text-foreground font-medium">Map &amp; execute</span>,

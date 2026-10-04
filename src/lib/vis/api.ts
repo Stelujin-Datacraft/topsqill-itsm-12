@@ -274,7 +274,7 @@ export const visApi = {
         const cfg = row.config || {};
         const listPath =
           row.kind === 'INTERNAL_APPLICATION_API'
-            ? String(cfg.paths?.formsPath || '/forms')
+            ? String(cfg.paths?.healthPath || '/health')
             : String(cfg.listPath || '/');
         const url = `${baseUrl.replace(/\/$/, '')}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
         const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
@@ -288,7 +288,11 @@ export const visApi = {
             name: row.name,
             note: authChallenge
               ? `HTTP ${res.status} — host reachable; add Bearer secret if required`
-              : undefined,
+              : res.ok
+                ? row.kind === 'INTERNAL_APPLICATION_API'
+                  ? 'Form API reachable — form id is chosen later in Discover Forms'
+                  : undefined
+                : undefined,
           },
           error: res.ok || authChallenge ? undefined : `HTTP ${res.status}`,
         };
