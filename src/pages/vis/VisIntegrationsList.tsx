@@ -65,12 +65,17 @@ export default function VisIntegrationsList() {
         title="Integrations"
         description="An Integration is the runnable job (map fields → dry-run → execute). Connections are only the endpoints it uses."
         actions={
-          <Button asChild>
-            <Link to="/vis/new">
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Integration
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link to="/vis/connections">
+                <Plus className="h-4 w-4 mr-1.5" />
+                Connections
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/vis/new">Describe (advanced)</Link>
+            </Button>
+          </div>
         }
       />
       <VisSubnav active="integrations" />
@@ -78,8 +83,8 @@ export default function VisIntegrationsList() {
 
       <div className="rounded-md border border-border bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground">
         Tip: create Connections first (CrowdStrike + Form API), then use{' '}
-        <span className="text-foreground font-medium">Map &amp; execute</span> on the source — or start
-        from New Integration here. Use the trash icon to delete a bad/test integration.
+        <span className="text-foreground font-medium">Map &amp; execute</span> on the source.
+        Describe is optional for custom natural-language designs.
       </div>
 
       <Card className="border-border/70 shadow-none">
