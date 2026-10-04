@@ -219,11 +219,12 @@ function buildDesign(prompt: string, answers?: Record<string, string>) {
   const internal = /internal|form|topsqill|our\s+app/.test(p);
 
   const crowdstrikeMappings = [
-    { sourceField: 'device_id', targetField: 'vulnerability_id', confidence: 'HIGH', reason: 'Device id used as Vulnerability form record key.' },
-    { sourceField: 'device_id', targetField: 'external_id', confidence: 'HIGH', reason: 'Idempotency key from CrowdStrike device id.' },
-    { sourceField: 'hostname', targetField: 'description', confidence: 'MEDIUM', reason: 'Hostname carried into description for the Vulnerability form.' },
+    { sourceField: 'id', targetField: 'external_id', confidence: 'HIGH', reason: 'Mockoon device id used as idempotency key.' },
+    { sourceField: 'id', targetField: 'vulnerability_id', confidence: 'MEDIUM', reason: 'Device id as Vulnerability form record key when that field exists.' },
+    { sourceField: 'hostname', targetField: 'description', confidence: 'MEDIUM', reason: 'Hostname carried into description.' },
     { sourceField: 'status', targetField: 'status', confidence: 'HIGH', reason: 'Exact field name match.' },
-    { sourceField: 'platform_name', targetField: 'assignment_group', confidence: 'LOW', reason: 'Platform hint — review before execute.' },
+    { sourceField: 'os', targetField: 'assignment_group', confidence: 'LOW', reason: 'OS hint — review before execute.' },
+    { sourceField: 'serialNumber', targetField: 'description', confidence: 'LOW', reason: 'Optional serial — usually keep hostname mapping instead.' },
   ];
 
   return {
@@ -266,7 +267,7 @@ function buildDesign(prompt: string, answers?: Record<string, string>) {
           ? 'ServiceNow'
           : answers?.q_source || null,
       openFilter: /open/.test(p) ? 'status=Open' : null,
-      listPathHint: crowdstrike ? '/devices/queries/devices/v1' : null,
+      listPathHint: crowdstrike ? '/crowdstrike/devices' : null,
     },
     targetHints: {
       formHint: vuln || crowdstrike ? 'Vulnerability' : 'Selected internal form',
@@ -448,7 +449,7 @@ export const visClientEngine = {
       matchingKeys: crowdstrike ? ['external_id'] : ['external_id'],
       matchingStrategy: {
         mode: 'SINGLE',
-        sourceFields: crowdstrike ? ['device_id'] : ['id'],
+        sourceFields: crowdstrike ? ['id'] : ['id'],
         targetFields: ['external_id'],
         ifFound: 'UPDATE',
         ifNotFound: 'CREATE',
