@@ -377,10 +377,15 @@ export const visApi = {
       () => nestVis(`/integrations/${id}/mappings`, { method: 'PUT', body: { mappings } }),
       () => visClientEngine.saveMappings(id, mappings),
     ),
-  suggestMappings: (id: string, body: Record<string, unknown>) =>
+  suggestMappings: (id: string, body: Record<string, unknown> = {}) =>
     withFallback(
       () => nestVis(`/integrations/${id}/suggest-mappings`, { method: 'POST', body }),
-      () => visClientEngine.suggestMappings(id),
+      () =>
+        visClientEngine.suggestMappings(id, {
+          connectionId: body.connectionId ? String(body.connectionId) : undefined,
+          formId: body.formId ? String(body.formId) : undefined,
+          sourceFields: Array.isArray(body.sourceFields) ? body.sourceFields : undefined,
+        }),
     ),
   createExecution: (id: string, body: Record<string, unknown> = {}) =>
     withFallback(

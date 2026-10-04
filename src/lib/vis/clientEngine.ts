@@ -5,6 +5,14 @@
  * Persistence: localStorage (org-scoped later via Supabase tables).
  */
 
+import {
+  CROWDSTRIKE_DEVICE_SOURCE_FIELDS,
+  isCrowdStrikeDesign,
+  pickMatchingTargetField,
+  sourceFieldsFromSample,
+  suggestFieldMappings,
+} from './fieldMapping';
+
 const STORAGE_KEY = 'vis.studio.store.v2';
 const LEGACY_STORAGE_KEYS = ['vis.studio.store.v1'];
 
@@ -330,17 +338,9 @@ function buildDesign(prompt: string, answers?: Record<string, string>) {
     || answers?.source === 'ServiceNow'
     || answers?.q_source === 'ServiceNow';
   const crowdstrike = /crowdstrike|falcon|edr|device|host\b|endpoint/.test(p);
-  const vuln = /vulnerabilit/.test(p) || crowdstrike;
+  // Do NOT treat CrowdStrike device sync as Vulnerability — that forced wrong target fields
+  const vuln = /vulnerabilit/.test(p) && !crowdstrike;
   const internal = /internal|form|topsqill|our\s+app/.test(p);
-
-  const crowdstrikeMappings = [
-    { sourceField: 'id', targetField: 'external_id', confidence: 'HIGH', reason: 'Mockoon device id used as idempotency key.' },
-    { sourceField: 'id', targetField: 'vulnerability_id', confidence: 'MEDIUM', reason: 'Device id as Vulnerability form record key when that field exists.' },
-    { sourceField: 'hostname', targetField: 'description', confidence: 'MEDIUM', reason: 'Hostname carried into description.' },
-    { sourceField: 'status', targetField: 'status', confidence: 'HIGH', reason: 'Exact field name match.' },
-    { sourceField: 'os', targetField: 'assignment_group', confidence: 'LOW', reason: 'OS hint — review before execute.' },
-    { sourceField: 'serialNumber', targetField: 'description', confidence: 'LOW', reason: 'Optional serial — usually keep hostname mapping instead.' },
-  ];
 
   return {
     name: crowdstrike
@@ -385,11 +385,17 @@ function buildDesign(prompt: string, answers?: Record<string, string>) {
       listPathHint: crowdstrike ? '/crowdstrike/devices' : null,
     },
     targetHints: {
-      formHint: vuln || crowdstrike ? 'Vulnerability' : 'Selected internal form',
-      formName: vuln || crowdstrike ? 'Vulnerability' : null,
+      // CrowdStrike maps to whatever form the user discovers — not Vulnerability
+      formHint: crowdstrike
+        ? 'Selected internal form'
+        : vuln
+          ? 'Vulnerability'
+          : 'Selected internal form',
+      formName: crowdstrike ? null : vuln ? 'Vulnerability' : null,
     },
+    // Leave CrowdStrike mappings empty until Discover Schema — then score against real form fields
     suggestedMappings: crowdstrike
-      ? crowdstrikeMappings
+      ? []
       : vuln
         ? [
             { sourceField: 'id', targetField: 'vulnerability_id', confidence: 'HIGH', reason: 'Exact identifier correspondence.' },
@@ -564,12 +570,13 @@ export const visClientEngine = {
       retryMaxAttempts: 3,
       rateLimitPerMinute: design.rateLimitPerMinute,
       idempotencyStrategy: design.idempotencyStrategy,
-      matchingKeys: ['external_id'],
+      matchingKeys: isCrowd ? ['id'] : ['external_id'],
       matchingStrategy: {
         mode: 'SINGLE',
         // Mockoon CrowdStrike devices use "id" (CS-1001); Falcon uses device_id
         sourceFields: isCrowd ? ['id'] : ['id'],
-        targetFields: ['external_id'],
+        // Placeholder until Discover Schema picks a real form field
+        targetFields: isCrowd ? ['id'] : ['external_id'],
         ifFound: 'UPDATE',
         ifNotFound: 'CREATE',
       },
@@ -1019,17 +1026,122 @@ export const visClientEngine = {
     return mappings;
   },
 
-  suggestMappings(id: string) {
+  suggestMappings(id: string, body?: { connectionId?: string; formId?: string; sourceFields?: any[] }) {
+    const store = loadStore();
     const integ = this.getIntegration(id);
-    const suggested = (integ.design as any)?.suggestedMappings || [];
-    return suggested.map((m: any, i: number) => ({
-      id: `map_${i}`,
-      sourceField: m.sourceField,
-      targetField: m.targetField,
-      confidence: m.confidence,
-      transformation: m.transformation,
-      enabled: m.confidence !== 'LOW',
-    }));
+    const direction = (integ.directions || [])[0] || {};
+    const formId = body?.formId || direction.selectedFormId;
+    const connectionId = body?.connectionId || direction.targetConnectionId;
+
+    let targetFields: any[] = [];
+    if (connectionId && formId) {
+      const cached = store.schemaCache.find(
+        (s) => s.connectionId === connectionId && s.formId === formId,
+      );
+      targetFields = Array.isArray(cached?.fields) ? (cached!.fields as any[]) : [];
+    }
+    if (!targetFields.length && formId) {
+      const form = store.mockForms.find((f) => f.id === formId);
+      targetFields = Array.isArray(form?.fields) ? (form!.fields as any[]) : [];
+    }
+
+    const crowdstrike = isCrowdStrikeDesign(integ.design, integ.promptText);
+    const fromBody = Array.isArray(body?.sourceFields)
+      ? body!.sourceFields.map((f: any) => ({ name: String(f.name || f) }))
+      : [];
+    const fromSample = sourceFieldsFromSample((integ as any).sourceSample);
+    const sourceFields = fromBody.length
+      ? fromBody
+      : fromSample.length
+        ? fromSample
+        : crowdstrike
+          ? CROWDSTRIKE_DEVICE_SOURCE_FIELDS
+          : ((integ.design as any)?.suggestedMappings || []).map((m: any) => ({
+              name: m.sourceField,
+            }));
+
+    let mappings: any[];
+    if (targetFields.length) {
+      mappings = suggestFieldMappings({ sourceFields, targetFields });
+      // Only keep design suggestions when the target field actually exists on this form
+      const designSuggested = (integ.design as any)?.suggestedMappings || [];
+      for (const suggested of designSuggested) {
+        const targetExists = targetFields.some((t: any) => t.name === suggested.targetField);
+        const sourceExists = sourceFields.some((s: any) => s.name === suggested.sourceField);
+        if (!targetExists || !sourceExists) continue;
+        const idx = mappings.findIndex(
+          (m) => m.sourceField === suggested.sourceField && m.targetField === suggested.targetField,
+        );
+        if (idx >= 0) {
+          mappings[idx] = {
+            ...mappings[idx],
+            confidence: suggested.confidence || mappings[idx].confidence,
+            transformation: suggested.transformation || mappings[idx].transformation,
+            reason: suggested.reason || mappings[idx].reason,
+            enabled: suggested.confidence !== 'LOW',
+          };
+        } else if (!mappings.some((m) => m.sourceField === suggested.sourceField)) {
+          mappings.push({
+            id: `map_${mappings.length}`,
+            sourceField: suggested.sourceField,
+            targetField: suggested.targetField,
+            confidence: suggested.confidence,
+            confidencePercent:
+              suggested.confidence === 'HIGH' ? 95 : suggested.confidence === 'MEDIUM' ? 81 : 45,
+            transformation: suggested.transformation,
+            reason: suggested.reason || null,
+            enabled: suggested.confidence !== 'LOW',
+          });
+        }
+      }
+    } else {
+      // No schema yet — do not invent Vulnerability targets for CrowdStrike
+      const suggested = crowdstrike
+        ? []
+        : (integ.design as any)?.suggestedMappings || [];
+      mappings = suggested.map((m: any, i: number) => ({
+        id: `map_${i}`,
+        sourceField: m.sourceField,
+        targetField: m.targetField,
+        confidence: m.confidence,
+        confidencePercent:
+          m.confidence === 'HIGH' ? 95 : m.confidence === 'MEDIUM' ? 81 : 45,
+        transformation: m.transformation,
+        reason: m.reason || null,
+        enabled: m.confidence !== 'LOW',
+      }));
+    }
+
+    // Persist onto the direction so Dry Run / reload use the remapped fields
+    const version = store.versions.find((v) => v.id === integ.currentVersionId);
+    if (version && Array.isArray(version.directions) && version.directions[0]) {
+      const matchTarget = targetFields.length
+        ? pickMatchingTargetField(targetFields)
+        : ((version.directions as any[])[0].matchingStrategy?.targetFields?.[0] || 'id');
+      (version.directions as any[])[0] = {
+        ...(version.directions as any[])[0],
+        mappings,
+        selectedFormId: formId || (version.directions as any[])[0].selectedFormId,
+        matchingKeys: [(version.directions as any[])[0].matchingStrategy?.sourceFields?.[0] || 'id'],
+        matchingStrategy: {
+          ...((version.directions as any[])[0].matchingStrategy || {}),
+          mode: (version.directions as any[])[0].matchingStrategy?.mode || 'SINGLE',
+          sourceFields: (version.directions as any[])[0].matchingStrategy?.sourceFields || ['id'],
+          targetFields: [matchTarget],
+          ifFound: (version.directions as any[])[0].matchingStrategy?.ifFound || 'UPDATE',
+          ifNotFound: (version.directions as any[])[0].matchingStrategy?.ifNotFound || 'CREATE',
+        },
+      };
+      audit(store, id, 'MAPPING_SUGGESTED', {
+        count: mappings.length,
+        formId,
+        mode: 'client',
+        targets: mappings.map((m: any) => m.targetField),
+      });
+      save(store);
+    }
+
+    return mappings;
   },
 
   validate(id: string) {

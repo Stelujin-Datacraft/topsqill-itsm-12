@@ -313,6 +313,46 @@ export default function VisIntegrationDetail() {
     }
   }
 
+  async function rematchFromSchema() {
+    if (!id || !targetConnectionId || !selectedFormId) {
+      toast({
+        title: 'Discover schema first',
+        description: 'Go to Form & Schema, select your form, Discover Schema, then remap.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      const suggested = await visApi.suggestMappings(id, {
+        connectionId: targetConnectionId,
+        formId: selectedFormId,
+        sourceFields: [
+          { name: 'id' },
+          { name: 'hostname' },
+          { name: 'os' },
+          { name: 'serialNumber' },
+          { name: 'status' },
+        ],
+      });
+      const normalized = normalizeMappingsList(suggested);
+      setMappings(normalized);
+      if (normalized.length) await visApi.saveMappings(id, normalized);
+      toast({
+        title: 'Mappings refreshed from form schema',
+        description: `${normalized.length} field(s) mapped to your selected form.`,
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Remap failed',
+        description: e?.message || String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function discoverSchema(refresh = false) {
     if (!id || !targetConnectionId || !selectedFormId) {
       toast({
@@ -343,8 +383,24 @@ export default function VisIntegrationDetail() {
         const suggested = await visApi.suggestMappings(id, {
           connectionId: targetConnectionId,
           formId: selectedFormId,
+          sourceFields: [
+            { name: 'id' },
+            { name: 'hostname' },
+            { name: 'os' },
+            { name: 'serialNumber' },
+            { name: 'status' },
+          ],
         });
-        setMappings(normalizeMappingsList(suggested));
+        const normalized = normalizeMappingsList(suggested);
+        setMappings(normalized);
+        // Persist so reload()/Dry Run don't restore old Vulnerability template mappings
+        if (normalized.length) {
+          try {
+            await visApi.saveMappings(id, normalized);
+          } catch {
+            /* keep UI mappings even if persist fails */
+          }
+        }
       } catch {
         setMappings([]);
       }
@@ -1009,7 +1065,7 @@ export default function VisIntegrationDetail() {
             <div>
               <CardTitle className="text-base">AI field mapping</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Source fields on the left, target form fields on the right. Low confidence needs review.
+                Mockoon/CrowdStrike source fields → your discovered form fields (not Vulnerability defaults).
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1023,6 +1079,9 @@ export default function VisIntegrationDetail() {
                   {f === 'NEEDS_REVIEW' ? 'Needs Review' : f === 'HIGH' ? 'High Confidence' : 'All'}
                 </Button>
               ))}
+              <Button size="sm" variant="outline" onClick={rematchFromSchema} disabled={busy || !selectedFormId}>
+                Remap from form
+              </Button>
               <Button size="sm" onClick={saveMappings} disabled={busy}>
                 Save mappings
               </Button>

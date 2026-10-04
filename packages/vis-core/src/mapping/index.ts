@@ -33,11 +33,17 @@ export function percentToConfidence(p: number): MappingConfidence {
 }
 
 const SYNONYMS: Array<[RegExp, string[], number]> = [
-  [/^id$|vulnerabilityid|vulnid|externalid/, ['vulnerability_id', 'external_id', 'id'], 99],
-  [/severity|priority|criticality/, ['priority', 'severity'], 94],
-  [/desc|summary|title|details/, ['description', 'summary', 'title'], 92],
-  [/team|group|assignment|owner/, ['assignment_group', 'team', 'owner'], 81],
+  // CrowdStrike / device inventory (prefer real form fields over Vulnerability template)
+  [/^id$|deviceid|assetid|externalid|hostid/, ['id', 'external_id', 'device_id', 'asset_id', 'host_id'], 99],
+  [/^hostname$|host$|computername|devicename/, ['hostname', 'host_name', 'name', 'device_name', 'computer_name', 'title'], 96],
+  [/^os$|operatingsystem|osname|platform/, ['os', 'operating_system', 'os_name', 'platform'], 94],
+  [/^serialnumber$|serial$|serialno|sn$/, ['serial_number', 'serialnumber', 'serial', 'serial_no', 'asset_tag'], 94],
   [/status|state/, ['status', 'state'], 90],
+  // Vulnerability / ITSM (lower priority than exact device matches above)
+  [/^id$|vulnerabilityid|vulnid|externalid/, ['vulnerability_id', 'external_id', 'id'], 88],
+  [/severity|priority|criticality/, ['priority', 'severity'], 94],
+  [/desc|summary|title|details/, ['description', 'summary', 'title'], 84],
+  [/team|group|assignment|owner/, ['assignment_group', 'team', 'owner'], 81],
   [/cvss|score/, ['priority', 'cvss_score', 'score'], 72],
 ];
 
