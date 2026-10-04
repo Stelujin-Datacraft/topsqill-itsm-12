@@ -1489,6 +1489,10 @@ export const visClientEngine = {
       && targetConn.kind === 'INTERNAL_APPLICATION_API'
       && /^https?:\/\//i.test(targetBase)
       && !targetBase.startsWith('client://');
+    const writeAuthHeaders = canWriteFormApi
+      ? await buildAuthHeaders(targetConn!, store)
+      : {};
+    if (!Array.isArray((store as any).deadLetters)) (store as any).deadLetters = [];
 
     for (const src of sources) {
       const data = mapRecord(src);
@@ -1502,27 +1506,82 @@ export const visClientEngine = {
           const headers: Record<string, string> = {
             Accept: 'application/json',
             'Content-Type': 'application/json',
+            ...writeAuthHeaders,
           };
-          if (targetConn!.authType && targetConn!.authType !== 'NONE' && targetConn!.credentialRefId) {
-            const cred = (store.credentials || []).find((c) => c.id === targetConn!.credentialRefId);
-            const secret = cred?._secretPayload;
-            if (typeof secret === 'string' && secret) headers.Authorization = `Bearer ${secret}`;
-          }
+          // useLabels: mapped keys are form field labels/names from Discover Schema
           const res = await fetch(url, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ data }),
+            body: JSON.stringify({ data, useLabels: true }),
           });
-          if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok || body?.success === false) {
             failed += 1;
+            const errMsg =
+              body?.error?.message
+              || body?.message
+              || body?.error
+              || `HTTP ${res.status} posting to ${url}`;
+            (store as any).deadLetters.push({
+              id: uid(),
+              executionId: execution.id,
+              integrationId,
+              correlationId,
+              sourceRecord: src,
+              mappedPayload: data,
+              errorCode: 'FORM_API_WRITE',
+              errorMessage: String(errMsg),
+              error: String(errMsg),
+              ignored: false,
+              createdAt: new Date().toISOString(),
+            });
+            store.logs.push({
+              id: uid(),
+              executionId: execution.id,
+              integrationId,
+              correlationId,
+              level: 'ERROR',
+              step: 'write',
+              message: `Form API write failed for source ${String((src as any).id || (src as any).hostname || '?')}: ${errMsg}`,
+              timestamp: new Date().toISOString(),
+            });
             continue;
           }
-          const body = await res.json().catch(() => ({}));
-          const rid = String(body?.id || body?.recordId || uid());
+          const rid = String(
+            body?.data?.id
+            || body?.id
+            || body?.recordId
+            || body?.data?.recordId
+            || uid(),
+          );
           createdIds.push(rid);
           created += 1;
-        } catch {
+        } catch (e: any) {
           failed += 1;
+          const errMsg = e?.message || String(e);
+          (store as any).deadLetters.push({
+            id: uid(),
+            executionId: execution.id,
+            integrationId,
+            correlationId,
+            sourceRecord: src,
+            mappedPayload: data,
+            errorCode: 'FORM_API_EXCEPTION',
+            errorMessage: errMsg,
+            error: errMsg,
+            ignored: false,
+            createdAt: new Date().toISOString(),
+          });
+          store.logs.push({
+            id: uid(),
+            executionId: execution.id,
+            integrationId,
+            correlationId,
+            level: 'ERROR',
+            step: 'write',
+            message: `Form API write exception: ${errMsg}`,
+            timestamp: new Date().toISOString(),
+          });
         }
       } else {
         const rid = uid();
