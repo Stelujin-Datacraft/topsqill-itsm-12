@@ -116,7 +116,11 @@ export default function VisConnections() {
       const res = await visApi.testConnection(id);
       toast({
         title: res.ok ? 'Connection OK' : 'Connection failed',
-        description: res.error || res.data?.note || `HTTP ${res.status ?? 'n/a'}`,
+        description:
+          res.error
+          || res.data?.note
+          || (res.data?.probed ? `Probed ${res.data.probed}` : null)
+          || `HTTP ${res.status ?? 'n/a'}`,
         variant: res.ok ? 'default' : 'destructive',
       });
     } catch (e: any) {
@@ -160,9 +164,10 @@ export default function VisConnections() {
 
       const isCrowd =
         /crowdstrike|falcon|mockoon|device/i.test(String(source.name || ''))
-        || /crowdstrike|falcon/i.test(String(source.baseUrl || ''));
+        || /crowdstrike|falcon/i.test(String(source.baseUrl || ''))
+        || /crowdstrike/i.test(String(source.config?.listPath || ''));
       const prompt = isCrowd
-        ? `Sync CrowdStrike Falcon devices from ${source.name} at ${source.baseUrl || 'REST'} every 15 minutes into our internal Vulnerability form. Create or update by device_id / external_id. Map hostname into description and keep status.`
+        ? `Sync CrowdStrike devices from ${source.name} at ${source.baseUrl || 'REST'} every 15 minutes into our internal form. Create or update by id / external_id. Map hostname into description and keep status.`
         : `Sync records from ${source.name} (${source.baseUrl || 'REST API'}) into our internal form. Create or update by external id every 15 minutes.`;
 
       const created = await visApi.createIntegration({
@@ -180,9 +185,10 @@ export default function VisConnections() {
         targetConnectionId: target.id,
       });
       if (isCrowd) {
+        // Mockoon CrowdStrike sample uses "id" (CS-1001), not Falcon device_id
         await visApi.setMatchingStrategy(integrationId, {
           mode: 'SINGLE',
-          sourceFields: ['device_id'],
+          sourceFields: ['id'],
           targetFields: ['external_id'],
           ifFound: 'UPDATE',
           ifNotFound: 'CREATE',
@@ -214,7 +220,8 @@ export default function VisConnections() {
       authType: 'NONE',
       secret: '',
       allowPrivateNetwork: true,
-      listPath: '/devices/queries/devices/v1',
+      // Matches Mockoon CrowdStrike env: GET /crowdstrike/devices (not Falcon /devices/queries/…)
+      listPath: '/crowdstrike/devices',
     });
   }
 
@@ -386,29 +393,31 @@ export default function VisConnections() {
       <VisSubnav active="connections" />
 
       <div className="rounded-md border border-border bg-muted/30 px-3.5 py-3 text-sm space-y-2">
-        <p className="font-medium text-foreground">Setup order</p>
+        <p className="font-medium text-foreground">You need exactly 2 connections (source + target)</p>
         <ol className="list-decimal pl-5 text-muted-foreground space-y-1 text-xs sm:text-sm">
           <li>
             <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => openNewConnection('crowdstrike')}>
               CrowdStrike Mockoon
             </button>{' '}
-            — source REST API (usually http://127.0.0.1:3000).
+            — source. Base <code className="font-mono text-[11px]">http://127.0.0.1:3000</code>, list path{' '}
+            <code className="font-mono text-[11px]">/crowdstrike/devices</code>, Auth <span className="text-foreground">None</span>.
+            Must match your Mockoon routes (not Falcon /devices/queries/…).
           </li>
           <li>
             <button type="button" className="underline underline-offset-2 text-foreground" onClick={() => openNewConnection('form-api')}>
               TopSqill Form API
             </button>{' '}
-            — target where records are saved (auto-fills …/api/form-api — not port 3000). Paste a Bearer token from{' '}
-            <Link to="/integrations?tab=api-keys" className="underline underline-offset-2 text-foreground">
-              API keys &amp; connectors
-            </Link>{' '}
-            if required.
+            — target. Preset fills <code className="font-mono text-[11px]">…/api/form-api</code> (this app — not port 3000).
           </li>
           <li>
-            On the CrowdStrike row click <span className="text-foreground font-medium">Map &amp; execute</span>,
+            On the CrowdStrike (source) row click <span className="text-foreground font-medium">Map &amp; execute</span>,
             then Discover Forms and pick your real form.
           </li>
         </ol>
+        <p className="text-xs text-muted-foreground">
+          If Test fails: delete the CrowdStrike row and recreate with the preset so list path is{' '}
+          <code className="font-mono">/crowdstrike/devices</code>. Confirm Mockoon is green on port 3000.
+        </p>
       </div>
 
       <Card className="border-border/70 shadow-none">
@@ -430,16 +439,29 @@ export default function VisConnections() {
             </div>
           ) : (
             <ul className="divide-y divide-border/60">
-              {rows.map((c) => (
+              {rows.map((c) => {
+                const isSource = c.kind === 'REST_API' || c.kind === 'DATABASE';
+                const isTarget = c.kind === 'INTERNAL_APPLICATION_API';
+                const listPath = c.config?.listPath;
+                return (
                 <li
                   key={c.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4"
                 >
                   <div className="min-w-0 space-y-1">
-                    <div className="font-medium text-sm">{c.name}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-sm">{c.name}</span>
+                      {isSource && (
+                        <Badge variant="secondary" className="font-normal text-[10px]">Source</Badge>
+                      )}
+                      {isTarget && (
+                        <Badge variant="secondary" className="font-normal text-[10px]">Target</Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground break-all">
                       {c.kind} · {c.authType}
                       {c.baseUrl ? ` · ${c.baseUrl}` : ''}
+                      {listPath ? ` · list ${listPath}` : ''}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -454,7 +476,7 @@ export default function VisConnections() {
                     <Button size="sm" variant="outline" onClick={() => test(c.id)}>
                       Test
                     </Button>
-                    {(c.kind === 'REST_API' || c.kind === 'DATABASE') && (
+                    {isSource && (
                       <Button
                         size="sm"
                         onClick={() => void useAsSource(c.id)}
@@ -483,7 +505,8 @@ export default function VisConnections() {
                     </Button>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </CardContent>
@@ -542,13 +565,13 @@ export default function VisConnections() {
           {activePreset === 'crowdstrike' && (
             <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 px-3 py-2 space-y-1">
               <span className="block">
-                Start Mockoon first. Base URL = Mockoon host (default{' '}
-                <code className="font-mono">http://127.0.0.1:3000</code>). Kind = REST API.
+                Start Mockoon first. Base URL ={' '}
+                <code className="font-mono">http://127.0.0.1:3000</code>. Kind = REST API. Auth = None.
               </span>
               <span className="block">
-                List path must exist in your Mockoon env:{' '}
-                <code className="font-mono">/devices/queries/devices/v1</code>. Auth can be None if
-                Mockoon has no auth.
+                List path must match your Mockoon route:{' '}
+                <code className="font-mono">/crowdstrike/devices</code> (verify in Mockoon — not{' '}
+                <code className="font-mono">/devices/queries/devices/v1</code>).
               </span>
             </p>
           )}
@@ -633,7 +656,7 @@ export default function VisConnections() {
                   id="conn-list"
                   value={form.listPath}
                   onChange={(e) => setForm((f) => ({ ...f, listPath: e.target.value }))}
-                  placeholder="/devices/queries/devices/v1"
+                  placeholder="/crowdstrike/devices"
                 />
               </div>
             )}

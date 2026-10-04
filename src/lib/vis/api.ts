@@ -243,77 +243,63 @@ export const visApi = {
       () => visClientEngine.bootstrapDemo(),
     ),
   testConnection: async (id: string) => {
-    // Localhost / private URLs (Mockoon on the tester's PC) must be probed from the
-    // browser — Nest running in cloud/Docker cannot reach the user's 127.0.0.1.
-    const clientProbe = async () => {
-      const list = visClientEngine.listConnections();
-      const conn = list.find((c: any) => c.id === id);
-      // Also try Nest-listed connections mirrored into client after create — if missing,
-      // fall through to Nest only.
-      if (conn) return visClientEngine.testConnection(id);
-      return null;
-    };
-
-    const tryClientFirst = async () => {
-      // Prefer Nest list when available so we know the baseUrl
-      let baseUrl = '';
+    // Mockoon on the tester's PC (127.0.0.1 / private LAN) must be probed from the
+    // browser — Nest in cloud/Docker cannot reach the user's localhost.
+    const resolveRow = async (): Promise<any | null> => {
+      const local = visClientEngine.listConnections().find((c: any) => c.id === id);
+      if (local) return local;
+      if (backendUnavailable) return null;
       try {
-        if (!backendUnavailable) {
-          const nest = await nestVis<any[]>(`/connections`);
-          if (!isNetworkError(nest.error) && Array.isArray(nest.data)) {
-            const row = nest.data.find((c) => c.id === id);
-            baseUrl = String(row?.baseUrl || '');
-          }
-        }
+        const nest = await nestVis<any[]>('/connections');
+        if (isNetworkError(nest.error)) return null;
+        const rows = Array.isArray(nest.data) ? nest.data : [];
+        return rows.find((c) => c.id === id) || null;
       } catch {
-        /* ignore */
+        return null;
       }
-      if (!baseUrl) {
-        const local = visClientEngine.listConnections().find((c: any) => c.id === id);
-        baseUrl = String(local?.baseUrl || '');
-      }
-      const isPrivate =
-        /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|^https?:\/\/10\.|^https?:\/\/192\.168\.|^https?:\/\/172\.(1[6-9]|2\d|3[0-1])\./i.test(
-          baseUrl,
-        );
-      if (isPrivate) {
-        // Ensure connection exists in client store for probe; if only on Nest, probe URL directly
-        const local = visClientEngine.listConnections().find((c: any) => c.id === id);
-        if (local) return visClientEngine.testConnection(id);
-        // Connection only on Nest — still probe from browser using Nest row details
-        try {
-          const nest = await nestVis<any>(`/connections`);
-          const rows = Array.isArray(nest.data) ? nest.data : [];
-          const row = rows.find((c: any) => c.id === id);
-          if (row?.baseUrl) {
-            const cfg = row.config || {};
-            const listPath =
-              row.kind === 'INTERNAL_APPLICATION_API'
-                ? String(cfg.paths?.formsPath || '/forms')
-                : String(cfg.listPath || '/');
-            const url = `${String(row.baseUrl).replace(/\/$/, '')}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
-            const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
-            const authChallenge = res.status === 401 || res.status === 403;
-            return {
-              ok: res.ok || authChallenge,
-              status: res.status,
-              data: { mode: 'browser-probe', probed: url, name: row.name },
-              error: res.ok || authChallenge ? undefined : `HTTP ${res.status}`,
-            };
-          }
-        } catch (e: any) {
-          return {
-            ok: false,
-            status: 0,
-            error: e?.message || 'Browser probe failed — is Mockoon running?',
-          };
-        }
-      }
-      return null;
     };
 
-    const privateResult = await tryClientFirst();
-    if (privateResult) return privateResult;
+    const row = await resolveRow();
+    const baseUrl = String(row?.baseUrl || '');
+    const isPrivate =
+      /localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|^https?:\/\/10\.|^https?:\/\/192\.168\.|^https?:\/\/172\.(1[6-9]|2\d|3[0-1])\./i.test(
+        baseUrl,
+      );
+
+    if (row && isPrivate) {
+      // Prefer client store probe (has secrets); else raw browser fetch from Nest row
+      const local = visClientEngine.listConnections().find((c: any) => c.id === id);
+      if (local) return visClientEngine.testConnection(id);
+      try {
+        const cfg = row.config || {};
+        const listPath =
+          row.kind === 'INTERNAL_APPLICATION_API'
+            ? String(cfg.paths?.formsPath || '/forms')
+            : String(cfg.listPath || '/');
+        const url = `${baseUrl.replace(/\/$/, '')}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
+        const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+        const authChallenge = res.status === 401 || res.status === 403;
+        return {
+          ok: res.ok || authChallenge,
+          status: res.status,
+          data: {
+            mode: 'browser-probe',
+            probed: url,
+            name: row.name,
+            note: authChallenge
+              ? `HTTP ${res.status} — host reachable; add Bearer secret if required`
+              : undefined,
+          },
+          error: res.ok || authChallenge ? undefined : `HTTP ${res.status}`,
+        };
+      } catch (e: any) {
+        return {
+          ok: false,
+          status: 0,
+          error: e?.message || 'Browser probe failed — is Mockoon running on that port?',
+        };
+      }
+    }
 
     return withFallback(
       () => nestVis(`/connections/${id}/test`, { method: 'POST', body: {} }),

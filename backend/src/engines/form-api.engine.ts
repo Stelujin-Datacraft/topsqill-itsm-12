@@ -647,7 +647,11 @@ export function createFormApiHandler(supabase: SupabaseClient, _ctx: EngineConte
   try {
     
     const url = new URL(req.url);
-    const path = url.pathname.replace(/^\/form-api/, '');
+    // Nest mounts at /api/form-api; edge/legacy may use /form-api — strip either prefix
+    const path = url.pathname
+      .replace(/^\/api\/form-api/, '')
+      .replace(/^\/form-api/, '')
+      || '/';
     const segments = path.split('/').filter(Boolean);
     
     console.log(`${req.method} ${path} - Segments:`, segments);

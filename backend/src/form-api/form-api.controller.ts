@@ -14,7 +14,13 @@ export class FormApiController implements OnModuleInit {
 
   @All('*')
   async handle(@Req() req: Request, @Res() res: Response) {
-    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    // Normalize Nest global-prefix URLs (/api/form-api/...) to engine paths (/forms/...)
+    const original = String(req.originalUrl || req.url || '/');
+    const normalizedPath = original
+      .replace(/^\/api\/form-api/, '')
+      .replace(/^\/form-api/, '')
+      || '/';
+    const url = `${req.protocol}://${req.get('host')}/form-api${normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`}`;
     const headers = new Headers();
     for (const [key, value] of Object.entries(req.headers)) {
       if (value === undefined) continue;

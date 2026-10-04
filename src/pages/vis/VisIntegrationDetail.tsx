@@ -42,12 +42,11 @@ const STEPS = [
 ] as const;
 
 const CROWDSTRIKE_SAMPLE = `{
-  "device_id": "d-1001",
-  "hostname": "WIN-ENDPOINT-01",
-  "status": "normal",
-  "platform_name": "Windows",
-  "os_version": "10.0",
-  "local_ip": "10.0.0.12"
+  "id": "CS-1001",
+  "hostname": "LAPTOP-001",
+  "os": "Windows 11",
+  "serialNumber": "SN001",
+  "status": "active"
 }`;
 
 function SeverityIcon({ severity }: { severity: string }) {
@@ -324,7 +323,7 @@ export default function VisIntegrationDetail() {
       if (!/^https?:\/\//i.test(baseUrl)) {
         throw new Error('Source Base URL must be an http(s) Mockoon/REST endpoint');
       }
-      const listPath = String(conn.config?.listPath || '/devices/queries/devices/v1');
+      const listPath = String(conn.config?.listPath || '/crowdstrike/devices');
       const url = `${baseUrl}${listPath.startsWith('/') ? listPath : `/${listPath}`}`;
       const headers: Record<string, string> = { Accept: 'application/json' };
       const res = await fetch(url, { method: 'GET', headers });
