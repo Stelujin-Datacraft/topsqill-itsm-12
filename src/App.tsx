@@ -81,6 +81,10 @@ const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
 const Blog = lazyWithRetry(() => import("./pages/Blog"));
 const BlogPost = lazyWithRetry(() => import("./pages/BlogPost"));
 const BlogAdmin = lazyWithRetry(() => import("./pages/BlogAdmin"));
+const PromotionalTransferDashboard = lazyWithRetry(() => import("./pages/PromotionalTransferDashboard"));
+const PromotionalTransferWizard = lazyWithRetry(() => import("./pages/PromotionalTransferWizard"));
+const PromotionalTransferDetail = lazyWithRetry(() => import("./pages/PromotionalTransferDetail"));
+const PromotionalTransferHistory = lazyWithRetry(() => import("./pages/PromotionalTransferHistory"));
 const MarketHome = lazyWithRetry(() => import("./pages/MarketHome"));
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { MARKET_CODES } from "@/content/markets";
@@ -418,6 +422,26 @@ const App = () => (
                         <Route path="/blog-admin" element={
                           <Suspense fallback={<RouteLoader />}>
                             <BlogAdmin />
+                          </Suspense>
+                        } />
+                        <Route path="/promotional-transfer" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <PromotionalTransferDashboard />
+                          </Suspense>
+                        } />
+                        <Route path="/promotional-transfer/new" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <PromotionalTransferWizard />
+                          </Suspense>
+                        } />
+                        <Route path="/promotional-transfer/history" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <PromotionalTransferHistory />
+                          </Suspense>
+                        } />
+                        <Route path="/promotional-transfer/:id" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <PromotionalTransferDetail />
                           </Suspense>
                         } />
                         <Route path="/api-docs" element={<ApiDocs />} />
