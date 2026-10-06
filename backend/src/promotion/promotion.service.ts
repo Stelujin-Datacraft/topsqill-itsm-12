@@ -22,6 +22,7 @@ import type {
 } from './registry/types';
 import { getHandler, listHandlers } from './handlers';
 import { PROMOTION_SCHEMA_SQL } from './schema.sql';
+import { assertPromotionalTransferAllowed } from './promotion-access';
 
 function makePromotionId(): string {
   const d = new Date();
@@ -73,6 +74,17 @@ export class PromotionService {
   }
 
   private async assertAdmin(userId: string) {
+    // Defense in depth: every service entry path re-checks deployment gate
+    // (in addition to PromotionalTransferEnabledGuard on the controller).
+    try {
+      assertPromotionalTransferAllowed(process.env, {
+        sourceKey: this.environments.getSourceKey(),
+        targetKey: this.environments.getTargetKey(),
+      });
+    } catch (e: any) {
+      throw new ForbiddenException(e?.message || 'Promotional Transfer is not available');
+    }
+
     const { data, error } = await this.db()
       .from('user_profiles')
       .select('role, organization_id')

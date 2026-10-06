@@ -26,6 +26,14 @@ async function promoRequest<T>(
 }
 
 export const promotionApi = {
+  availability: async () => {
+    // Public endpoint — do not require auth so the nav/gate can probe Prod safely.
+    const { request } = await import('@/services/api/apiClient');
+    const result = await request<any>('/promotion/availability', { method: 'GET' }, false);
+    if (result.error) throw new Error(result.error.message);
+    if (result.data == null) throw new Error('Empty availability response');
+    return result.data;
+  },
   dashboard: () => promoRequest<any>('/dashboard'),
   environments: () => promoRequest<any>('/environments'),
   registry: () => promoRequest<any>('/registry'),

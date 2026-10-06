@@ -188,6 +188,29 @@ Dashboard → Create New → Source/Target (fixed Dev→Prod) → Module → Sel
 
 ## Environment configuration
 
+Dev and Prod share the **same GitHub repository** but are **separate deployments**.
+Promotional Transfer is **Development-only**.
+
+### Deployment gate (required)
+
+| Deployment | Backend | Frontend |
+|------------|---------|----------|
+| Dev | `ENVIRONMENT=development`<br>`PROMOTIONAL_TRANSFER_ENABLED=true` | `VITE_ENVIRONMENT=development`<br>`VITE_PROMOTIONAL_TRANSFER_ENABLED=true` |
+| Prod | `ENVIRONMENT=production`<br>`PROMOTIONAL_TRANSFER_ENABLED=false` | `VITE_ENVIRONMENT=production`<br>`VITE_PROMOTIONAL_TRANSFER_ENABLED=false` |
+
+Enforcement (not menu-only):
+
+1. Frontend hides nav + redirects `/promotional-transfer/*` (`PromotionalTransferGate`)
+2. Nest `PromotionalTransferEnabledGuard` rejects `/api/promotion/*` (except `GET /availability`)
+3. `PromotionService.assertAdmin` re-checks deployment gate + System Administrator role
+4. Direction locked to Dev → Prod (`PROMOTION_SOURCE_KEY` must contain `dev`, target must contain `prod`)
+
+`GET /api/promotion/availability` remains callable in Prod and returns `{ enabled: false }`.
+
+Production data / promotion tables are **not deleted** when the feature is disabled.
+
+### Transfer target configuration
+
 ```
 PROMOTION_SOURCE_KEY=TopsqillITSM_Dev
 PROMOTION_TARGET_KEY=TopsqillITSM_Prod
@@ -197,4 +220,4 @@ PROMOTION_PROD_ORG_ID=...                # optional remap
 PROMOTION_PROD_PROJECT_MAP={"dev-uuid":"prod-uuid"}
 ```
 
-When Prod URL is unset, transfer writes to `promotion_target_snapshots` (logical Prod) so the module is fully exercisable in single-DB deployments.
+When Prod URL is unset, transfer writes to `promotion_target_snapshots` (logical Prod) so the module is fully exercisable in single-DB Dev deployments.

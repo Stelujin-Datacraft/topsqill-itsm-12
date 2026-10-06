@@ -21,6 +21,7 @@ import { useProject } from "@/contexts/ProjectContext"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { NotificationPanel } from "@/components/NotificationPanel"
 import { ThemeSelector } from "@/components/ThemeSelector"
+import { isPromotionalTransferUiEnabled } from "@/lib/promotion/feature"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation();
@@ -32,7 +33,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Use impersonated user's profile when impersonating, otherwise use real profile
   const effectiveProfile = isImpersonating && impersonatedUser ? impersonatedUser : realUserProfile;
   const effectiveRole = effectiveProfile?.role || 'user';
-  
+  const promotionalTransferVisible =
+    effectiveRole === 'admin' && isPromotionalTransferUiEnabled();
+
   const data = {
     user: {
       name: effectiveProfile?.first_name ? `${effectiveProfile.first_name} ${effectiveProfile.last_name}` : effectiveProfile?.email || t('common.user'),
@@ -157,12 +160,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           icon: Key,
           iconColor: "text-module-api",
         },
-        {
-          title: 'Promotional Transfer',
-          url: '/promotional-transfer',
-          icon: ArrowLeftRight,
-          iconColor: 'text-module-access',
-        },
+        ...(promotionalTransferVisible
+          ? [
+              {
+                title: 'Promotional Transfer',
+                url: '/promotional-transfer',
+                icon: ArrowLeftRight,
+                iconColor: 'text-module-access',
+              },
+            ]
+          : []),
         {
           title: 'Blog admin',
           url: '/blog-admin',
