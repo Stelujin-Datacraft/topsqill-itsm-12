@@ -22,6 +22,7 @@ import ProtectedLayout from "@/components/ProtectedLayout";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
 import { RouteLoader } from "./components/RouteLoader";
+import { PromotionalTransferGate } from "./components/PromotionalTransferGate";
 
 // Wrap React.lazy with retry + reload-on-failure to handle stale chunk hashes after redeploys
 const lazyWithRetry = <T extends React.ComponentType<any>>(
@@ -426,22 +427,30 @@ const App = () => (
                         } />
                         <Route path="/promotional-transfer" element={
                           <Suspense fallback={<RouteLoader />}>
-                            <PromotionalTransferDashboard />
+                            <PromotionalTransferGate>
+                              <PromotionalTransferDashboard />
+                            </PromotionalTransferGate>
                           </Suspense>
                         } />
                         <Route path="/promotional-transfer/new" element={
                           <Suspense fallback={<RouteLoader />}>
-                            <PromotionalTransferWizard />
+                            <PromotionalTransferGate>
+                              <PromotionalTransferWizard />
+                            </PromotionalTransferGate>
                           </Suspense>
                         } />
                         <Route path="/promotional-transfer/history" element={
                           <Suspense fallback={<RouteLoader />}>
-                            <PromotionalTransferHistory />
+                            <PromotionalTransferGate>
+                              <PromotionalTransferHistory />
+                            </PromotionalTransferGate>
                           </Suspense>
                         } />
                         <Route path="/promotional-transfer/:id" element={
                           <Suspense fallback={<RouteLoader />}>
-                            <PromotionalTransferDetail />
+                            <PromotionalTransferGate>
+                              <PromotionalTransferDetail />
+                            </PromotionalTransferGate>
                           </Suspense>
                         } />
                         <Route path="/api-docs" element={<ApiDocs />} />
