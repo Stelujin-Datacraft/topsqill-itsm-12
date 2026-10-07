@@ -45,12 +45,13 @@ const envFilePath = [
       isGlobal: true,
       envFilePath,
       load: [() => ({
-        // The repository-level Vite variables are valid public Supabase
-        // configuration and provide stable aliases for the backend.
+        // Prefer explicit backend env vars. Vite public vars are accepted as
+        // aliases for local monorepo convenience only (never service_role).
         SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
         SUPABASE_ANON_KEY:
           process.env.SUPABASE_ANON_KEY ||
           process.env.SUPABASE_PUBLISHABLE_KEY ||
+          process.env.VITE_SUPABASE_ANON_KEY ||
           process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       })],
     }),
