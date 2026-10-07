@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { promotionApi } from '@/lib/promotion/api';
+import { DEFAULT_PROMOTION_ENVIRONMENTS, PROMOTION_MODULES } from '@/lib/promotion/registry';
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, AlertTriangle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,8 +41,10 @@ export default function PromotionalTransferWizard() {
   const [step, setStep] = useState<Step>('Source & Target');
   const [name, setName] = useState('');
   const [module, setModule] = useState('');
-  const [modules, setModules] = useState<Array<{ module: string; objectTypes: string[] }>>([]);
-  const [envs, setEnvs] = useState<any>(null);
+  // Always seed from the static registry so the dropdown is never blank if Nest is down.
+  const [modules, setModules] = useState(PROMOTION_MODULES);
+  const [envs, setEnvs] = useState<any>(DEFAULT_PROMOTION_ENVIRONMENTS);
+  const [apiWarning, setApiWarning] = useState<string | null>(null);
   const [objects, setObjects] = useState<any[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [packageId, setPackageId] = useState<string | null>(null);
@@ -58,9 +61,21 @@ export default function PromotionalTransferWizard() {
       try {
         const [e, m] = await Promise.all([promotionApi.environments(), promotionApi.modules()]);
         setEnvs(e);
-        setModules(m.modules || []);
+        if (Array.isArray(m?.modules) && m.modules.length > 0) {
+          setModules(m.modules);
+        } else {
+          // Keep static registry — never clear the dropdown to empty.
+          setModules(PROMOTION_MODULES);
+        }
+        setApiWarning(null);
       } catch (err: any) {
-        toast.error(err?.message || 'Failed to load promotion configuration');
+        setModules(PROMOTION_MODULES);
+        setEnvs(DEFAULT_PROMOTION_ENVIRONMENTS);
+        setApiWarning(
+          err?.message ||
+            'Promotion API unreachable — showing built-in modules. Creating a package still requires the Nest /api/promotion service.',
+        );
+        toast.error(err?.message || 'Promotion API unreachable; using built-in module list');
       }
     })();
   }, [userProfile?.role]);
@@ -268,18 +283,38 @@ export default function PromotionalTransferWizard() {
             <CardDescription>Only modules that contain registered promotable objects are listed.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Select value={module} onValueChange={setModule}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose module" />
-              </SelectTrigger>
-              <SelectContent>
-                {modules.map((m) => (
-                  <SelectItem key={m.module} value={m.module}>
-                    {m.module} ({m.objectTypes.join(', ')})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {apiWarning && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {apiWarning}
+              </div>
+            )}
+            <div className="grid gap-2">
+              {modules.map((m) => {
+                const selectedMod = module === m.module;
+                return (
+                  <button
+                    key={m.module}
+                    type="button"
+                    onClick={() => setModule(m.module)}
+                    className={`text-left rounded-md border px-4 py-3 transition-colors ${
+                      selectedMod
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'hover:bg-muted/40'
+                    }`}
+                  >
+                    <div className="font-medium">{m.module}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {(m as any).description || `Promotable: ${m.objectTypes.join(', ')}`}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {!modules.length && (
+              <p className="text-sm text-muted-foreground">
+                No promotable modules available. Check that the promotion registry is configured.
+              </p>
+            )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep('Source & Target')}>Back</Button>
               <Button disabled={busy || !module} onClick={goSelectObjects}>
