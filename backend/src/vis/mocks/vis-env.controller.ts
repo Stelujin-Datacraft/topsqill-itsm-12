@@ -124,7 +124,14 @@ export class VisEnvController implements OnModuleInit {
     @Res() res: Response,
   ) {
     const { uat } = await apps();
-    const r = await uat.list({ ...query, limit: query.limit, offset: query.offset });
+    const limit = query.limit != null && query.limit !== '' ? Number(query.limit) : undefined;
+    const offset = query.offset != null && query.offset !== '' ? Number(query.offset) : undefined;
+    const r = await uat.list({
+      status: query.status,
+      q: query.q,
+      limit: Number.isFinite(limit) ? limit : undefined,
+      offset: Number.isFinite(offset) ? offset : undefined,
+    });
     if (r.status !== 200) return this.send(res, r);
     let items = r.body.items || [];
     if (query.external_id) {

@@ -11,6 +11,8 @@ export interface ConnectorContext {
   correlationId: string;
   executionId?: string;
   integrationId?: string;
+  /** Optional tenant / organization scope for multi-tenant connectors */
+  tenantId?: string;
   timeoutMs?: number;
 }
 
