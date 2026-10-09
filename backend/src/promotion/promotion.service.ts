@@ -593,11 +593,15 @@ export class PromotionService {
         continue;
       }
 
+      let itemStatus: 'ready' | 'warning' | 'conflict' = 'ready';
+      const messages: string[] = [];
+
       // Missing dependencies
       const deps = await handler.discoverDependencies(source, portable);
       for (const dep of deps.filter((d) => d.required)) {
         const key = `${dep.objectType}:${dep.stableId}`;
         if (!selectedKeys.has(key)) {
+          itemStatus = 'conflict';
           findings.push({
             objectType: item.object_type,
             stableId: item.stable_id,
@@ -623,8 +627,6 @@ export class PromotionService {
       }
 
       const found = await handler.findInTarget(target, portable, ctx, logical);
-      let itemStatus: 'ready' | 'warning' | 'conflict' = 'ready';
-      const messages: string[] = [];
 
       if (!found.exists) {
         findings.push({
@@ -645,7 +647,7 @@ export class PromotionService {
         });
         messages.push('Identical — will skip');
       } else {
-        itemStatus = 'warning';
+        if (itemStatus !== 'conflict') itemStatus = 'warning';
         findings.push({
           objectType: item.object_type,
           stableId: item.stable_id,
@@ -658,6 +660,7 @@ export class PromotionService {
       }
 
       if (portable.envSpecificStripped?.length) {
+        // Preserve conflict when missing dependencies; otherwise surface as warning
         itemStatus = itemStatus === 'conflict' ? 'conflict' : 'warning';
         findings.push({
           objectType: item.object_type,

@@ -121,9 +121,9 @@ export class CloudDiscoveryEngine {
         // Also pull network objects as logical resources (not always assets)
         const nets = cloud.discoverNetworks ? await cloud.discoverNetworks(ctx) : [];
         for (const n of nets) {
-          const d = n as CloudResourceDraft;
-          if (d.resourceId && !drafts.some((x) => x.resourceId === d.resourceId)) {
-            drafts.push({ ...d, source: cloudSource(conn.providerType) });
+          const d = networkRecordToDraft(n, conn.providerType);
+          if (d && !drafts.some((x) => x.resourceId === d.resourceId)) {
+            drafts.push(d);
           }
         }
       } else {
@@ -379,6 +379,47 @@ function evidenceToDraft(e: DiscoveredHostEvidence, providerType: CloudProviderC
     tags: e.tags,
     networkInfo: (e.raw?.networkInfo as Record<string, unknown>) || {},
     raw: e.raw,
+    source: cloudSource(providerType),
+  };
+}
+
+/** Normalize provider network records into CloudResourceDraft without unsafe casts. */
+function networkRecordToDraft(
+  n: Record<string, unknown>,
+  providerType: CloudProviderConnection['providerType'],
+): CloudResourceDraft | null {
+  const resourceId = n.resourceId != null ? String(n.resourceId) : '';
+  if (!resourceId) return null;
+  const tagsRaw = n.tags;
+  const tags =
+    tagsRaw && typeof tagsRaw === 'object' && !Array.isArray(tagsRaw)
+      ? Object.fromEntries(
+          Object.entries(tagsRaw as Record<string, unknown>).map(([k, v]) => [k, String(v)]),
+        )
+      : undefined;
+  return {
+    resourceId,
+    resourceArn: n.resourceArn != null ? String(n.resourceArn) : undefined,
+    resourceType: n.resourceType != null ? String(n.resourceType) : 'network',
+    name: n.name != null ? String(n.name) : undefined,
+    region: n.region != null ? String(n.region) : undefined,
+    zone: n.zone != null ? String(n.zone) : undefined,
+    status: n.status != null ? String(n.status) : undefined,
+    tags,
+    networkInfo:
+      n.networkInfo && typeof n.networkInfo === 'object' && !Array.isArray(n.networkInfo)
+        ? (n.networkInfo as Record<string, unknown>)
+        : {},
+    hostname: n.hostname != null ? String(n.hostname) : undefined,
+    ipAddress: n.ipAddress != null ? String(n.ipAddress) : undefined,
+    macAddress: n.macAddress != null ? String(n.macAddress) : undefined,
+    osName: n.osName != null ? String(n.osName) : undefined,
+    serialNumber: n.serialNumber != null ? String(n.serialNumber) : undefined,
+    machineGuid: n.machineGuid != null ? String(n.machineGuid) : undefined,
+    cloudInstanceId: n.cloudInstanceId != null ? String(n.cloudInstanceId) : undefined,
+    raw: n.raw && typeof n.raw === 'object' && !Array.isArray(n.raw)
+      ? (n.raw as Record<string, unknown>)
+      : n,
     source: cloudSource(providerType),
   };
 }
