@@ -86,11 +86,12 @@ export function suggestItamMappings(input: {
     if (exact) {
       usedTargets.add(exact.name);
       out.push({
+        id: `itam_map_${out.length}`,
         sourceField: src.name,
         targetField: exact.name,
         confidence: 'HIGH',
         enabled: true,
-        reasoning: 'Exact field name match',
+        reason: 'Exact field name match',
       });
     }
   }
@@ -109,11 +110,13 @@ export function suggestItamMappings(input: {
     if (best && best.percent >= 70) {
       usedTargets.add(best.field.name);
       out.push({
+        id: `itam_map_${out.length}`,
         sourceField: src.name,
         targetField: best.field.name,
         confidence: percentToConfidence(best.percent),
+        confidencePercent: best.percent,
         enabled: true,
-        reasoning: best.reason,
+        reason: best.reason,
       });
     }
   }
