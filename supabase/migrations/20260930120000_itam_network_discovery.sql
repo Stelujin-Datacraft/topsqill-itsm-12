@@ -1,6 +1,13 @@
 -- ITAM Network Discovery — authorized enterprise network discovery
 -- Does NOT replace agent inventory. Extends existing it_assets as SoR.
 -- No exploitation; scopes must be explicitly authorized.
+--
+-- Prerequisites (already present on Dev/Prod Supabase):
+--   public.organizations, public.it_assets, public.asset_software,
+--   public.get_current_user_org_id()
+-- Idempotent: CREATE IF NOT EXISTS / enum DO blocks / DROP POLICY IF EXISTS.
+-- Nest APPLY_SCHEMA is OFF for deployed boots — apply this file via Supabase
+-- migration tooling on Dev first (never auto from Nest against Prod).
 
 -- Enums
 DO $$ BEGIN
@@ -73,6 +80,11 @@ ALTER TABLE public.asset_software
 CREATE INDEX IF NOT EXISTS idx_asset_software_name_ver
   ON public.asset_software(asset_id, software_name, version);
 
+-- Required by Nest flushDiscoveryStore ON CONFLICT (asset_id, software_name, version).
+-- Apply fails if duplicate (asset_id, software_name, version) rows already exist — dedupe first.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_software_asset_name_ver
+  ON public.asset_software(asset_id, software_name, version);
+
 -- Network scopes (authorized CIDRs only)
 CREATE TABLE IF NOT EXISTS public.itam_network_scopes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,6 +107,10 @@ CREATE TABLE IF NOT EXISTS public.itam_network_scopes (
 
 CREATE INDEX IF NOT EXISTS idx_itam_network_scopes_org
   ON public.itam_network_scopes(organization_id, environment);
+
+-- Required by Nest flushDiscoveryStore ON CONFLICT (organization_id, cidr, scope_kind)
+CREATE UNIQUE INDEX IF NOT EXISTS uq_itam_network_scopes_org_cidr_kind
+  ON public.itam_network_scopes(organization_id, cidr, scope_kind);
 
 -- Discovery jobs
 CREATE TABLE IF NOT EXISTS public.itam_discovery_jobs (
@@ -282,7 +298,7 @@ CREATE TABLE IF NOT EXISTS public.itam_field_provenance (
   UNIQUE(asset_id, field_name)
 );
 
--- RLS
+-- RLS (idempotent: DROP IF EXISTS then CREATE — safe re-apply / repair)
 ALTER TABLE public.itam_network_scopes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_discovery_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_discovery_runs ENABLE ROW LEVEL SECURITY;
@@ -295,48 +311,61 @@ ALTER TABLE public.itam_discovery_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_asset_services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_field_provenance ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users view org network scopes" ON public.itam_network_scopes;
 CREATE POLICY "Users view org network scopes" ON public.itam_network_scopes
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org network scopes" ON public.itam_network_scopes;
 CREATE POLICY "Admins manage org network scopes" ON public.itam_network_scopes
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org discovery jobs" ON public.itam_discovery_jobs;
 CREATE POLICY "Users view org discovery jobs" ON public.itam_discovery_jobs
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org discovery jobs" ON public.itam_discovery_jobs;
 CREATE POLICY "Admins manage org discovery jobs" ON public.itam_discovery_jobs
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org discovery runs" ON public.itam_discovery_runs;
 CREATE POLICY "Users view org discovery runs" ON public.itam_discovery_runs
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org discovery runs" ON public.itam_discovery_runs;
 CREATE POLICY "Admins manage org discovery runs" ON public.itam_discovery_runs
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org discovered hosts" ON public.itam_discovered_hosts;
 CREATE POLICY "Users view org discovered hosts" ON public.itam_discovered_hosts
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org discovered hosts" ON public.itam_discovered_hosts;
 CREATE POLICY "Admins manage org discovered hosts" ON public.itam_discovered_hosts
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org asset identities" ON public.itam_asset_identities;
 CREATE POLICY "Users view org asset identities" ON public.itam_asset_identities
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org asset identities" ON public.itam_asset_identities;
 CREATE POLICY "Admins manage org asset identities" ON public.itam_asset_identities
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org software catalog" ON public.itam_software_catalog;
 CREATE POLICY "Users view org software catalog" ON public.itam_software_catalog
   FOR SELECT TO authenticated
   USING (organization_id IS NULL OR organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org software catalog" ON public.itam_software_catalog;
 CREATE POLICY "Admins manage org software catalog" ON public.itam_software_catalog
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view software aliases" ON public.itam_software_aliases;
 CREATE POLICY "Users view software aliases" ON public.itam_software_aliases
   FOR SELECT TO authenticated
   USING (EXISTS (
@@ -344,6 +373,7 @@ CREATE POLICY "Users view software aliases" ON public.itam_software_aliases
     WHERE c.id = product_id
       AND (c.organization_id IS NULL OR c.organization_id = public.get_current_user_org_id())
   ));
+DROP POLICY IF EXISTS "Admins manage software aliases" ON public.itam_software_aliases;
 CREATE POLICY "Admins manage software aliases" ON public.itam_software_aliases
   FOR ALL TO authenticated
   USING (EXISTS (
@@ -351,30 +381,38 @@ CREATE POLICY "Admins manage software aliases" ON public.itam_software_aliases
     WHERE c.id = product_id AND c.organization_id = public.get_current_user_org_id()
   ));
 
+DROP POLICY IF EXISTS "Users view org discovery diffs" ON public.itam_discovery_diffs;
 CREATE POLICY "Users view org discovery diffs" ON public.itam_discovery_diffs
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org discovery diffs" ON public.itam_discovery_diffs;
 CREATE POLICY "Admins manage org discovery diffs" ON public.itam_discovery_diffs
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org discovery audit" ON public.itam_discovery_audit;
 CREATE POLICY "Users view org discovery audit" ON public.itam_discovery_audit
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins insert org discovery audit" ON public.itam_discovery_audit;
 CREATE POLICY "Admins insert org discovery audit" ON public.itam_discovery_audit
   FOR INSERT TO authenticated
   WITH CHECK (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org asset services" ON public.itam_asset_services;
 CREATE POLICY "Users view org asset services" ON public.itam_asset_services
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org asset services" ON public.itam_asset_services;
 CREATE POLICY "Admins manage org asset services" ON public.itam_asset_services
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
 
+DROP POLICY IF EXISTS "Users view org field provenance" ON public.itam_field_provenance;
 CREATE POLICY "Users view org field provenance" ON public.itam_field_provenance
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
+DROP POLICY IF EXISTS "Admins manage org field provenance" ON public.itam_field_provenance;
 CREATE POLICY "Admins manage org field provenance" ON public.itam_field_provenance
   FOR ALL TO authenticated
   USING (organization_id = public.get_current_user_org_id());
