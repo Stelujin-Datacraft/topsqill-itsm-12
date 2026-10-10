@@ -34,12 +34,12 @@ export class ItamDiscoveryService {
   private ready: Promise<void>;
 
   constructor() {
-    // Default to memory until async init; production boot must await onModuleInit path
+    // Placeholder until async init; deployed boots must await onModuleInit postgres path
     this.store = getDiscoveryStore();
     this.ready = Promise.resolve();
   }
 
-  /** Called from module init / tests to force postgres persistence. */
+  /** Called from module init / tests to select persistence mode. */
   async initializePersistence(opts?: { mode?: 'memory' | 'postgres'; applySchema?: boolean }) {
     this.store = await initDiscoveryStore(opts);
     this.engines.clear();

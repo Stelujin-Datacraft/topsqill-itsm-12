@@ -7,6 +7,11 @@ import { ItamCloudService } from './cloud/cloud.service';
 import { ItamCloudController } from './cloud/cloud.controller';
 import { ItamFormSyncService } from './sync/sync.service';
 import { ItamFormSyncController } from './sync/sync.controller';
+import {
+  resolveDeploymentEnvironment,
+  resolveDiscoveryPersistenceMode,
+  shouldApplyDiscoverySchema,
+} from './discovery/persistence-config';
 
 @Module({
   providers: [ItamService, ItamDiscoveryService, ItamCloudService, ItamFormSyncService],
@@ -23,31 +28,19 @@ export class ItamModule implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const mode =
-      (process.env.ITAM_DISCOVERY_PERSISTENCE as 'memory' | 'postgres' | undefined)
-      || (process.env.ITAM_DISCOVERY_DATABASE_URL ? 'postgres' : undefined);
-
-    if (mode === 'postgres' || process.env.NODE_ENV === 'production') {
-      try {
-        await this.discovery.initializePersistence({
-          mode: 'postgres',
-          applySchema: process.env.ITAM_DISCOVERY_APPLY_SCHEMA !== '0',
-        });
-        this.cloud.refreshStore();
-        this.sync.refreshStore();
-        this.logger.log(`ITAM persistence: ${this.discovery.persistenceMode()} (A–D + form-sync)`);
-      } catch (e: any) {
-        if (process.env.NODE_ENV === 'production') throw e;
-        this.logger.warn(`ITAM postgres init failed — memory: ${e?.message || e}`);
-        await this.discovery.initializePersistence({ mode: 'memory' });
-        this.cloud.refreshStore();
-        this.sync.refreshStore();
-      }
-    } else {
-      await this.discovery.initializePersistence({ mode: 'memory' });
-      this.cloud.refreshStore();
-      this.sync.refreshStore();
-      this.logger.log('ITAM persistence: memory');
-    }
+    const deployment = resolveDeploymentEnvironment();
+    // Fail closed: never silently fall back to memory in Dev/Prod or container boots.
+    const mode = resolveDiscoveryPersistenceMode();
+    await this.discovery.initializePersistence({
+      mode,
+      applySchema: shouldApplyDiscoverySchema(),
+    });
+    this.cloud.refreshStore();
+    this.sync.refreshStore();
+    this.logger.log(
+      `ITAM persistence: ${this.discovery.persistenceMode()} `
+        + `(deployment=${deployment}, NODE_ENV=${process.env.NODE_ENV || 'unset'}, `
+        + `applySchema=${shouldApplyDiscoverySchema()})`,
+    );
   }
 }
