@@ -2,7 +2,13 @@
  * Nest service facade for ITAM network discovery.
  * Reuses DiscoveryStore/Engine; does not replace agent ingest.
  */
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   DiscoveryStore,
@@ -16,6 +22,7 @@ import { DiscoveryEngine } from './engine';
 import { MockNetworkDiscoveryProvider } from './providers';
 import { buildAuthorizedTargets, cidrHostCount, parseCidr } from './scope';
 import type { DiscoveryEnvironment, DiscoveryJob, DiscoveryMode, NetworkScope } from './types';
+import type { ItamDiscoverySchemaMissingError } from './schema-missing.error';
 
 const ADMIN_ROLES = new Set(['admin', 'org_admin', 'itam_admin', 'owner', 'super_admin', 'ITAM_ADMIN', 'ORG_ADMIN']);
 
@@ -32,6 +39,8 @@ export class ItamDiscoveryService {
   /** Optional lab mock provider shared for demo/tests via Nest */
   readonly mockProvider = new MockNetworkDiscoveryProvider();
   private ready: Promise<void>;
+  /** Set when required Dev SQL migrations are missing — fail-closed for ITAM APIs. */
+  private schemaUnavailable: ItamDiscoverySchemaMissingError | null = null;
 
   constructor() {
     // Placeholder until async init; deployed boots must await onModuleInit postgres path
@@ -41,18 +50,48 @@ export class ItamDiscoveryService {
 
   /** Called from module init / tests to select persistence mode. */
   async initializePersistence(opts?: { mode?: 'memory' | 'postgres'; applySchema?: boolean }) {
+    this.schemaUnavailable = null;
     this.store = await initDiscoveryStore(opts);
     this.engines.clear();
     this.ready = Promise.resolve();
     return this.store;
   }
 
+  /**
+   * Record a schema-missing failure without memory fallback.
+   * Used by ItamModule so Nest can keep serving non-ITAM routes.
+   */
+  markSchemaUnavailable(err: ItamDiscoverySchemaMissingError) {
+    this.schemaUnavailable = err;
+    this.engines.clear();
+    this.ready = Promise.resolve();
+  }
+
+  isSchemaUnavailable() {
+    return this.schemaUnavailable != null;
+  }
+
+  schemaUnavailableMessage() {
+    return this.schemaUnavailable?.message || null;
+  }
+
   async ensureReady() {
     await this.ready;
+    this.assertSchemaAvailable();
   }
 
   persistenceMode() {
-    return getDiscoveryPersistenceMode();
+    return this.schemaUnavailable ? 'unavailable' : getDiscoveryPersistenceMode();
+  }
+
+  private assertSchemaAvailable() {
+    if (this.schemaUnavailable) {
+      throw new ServiceUnavailableException({
+        code: this.schemaUnavailable.code,
+        message: this.schemaUnavailable.message,
+        missingRelations: this.schemaUnavailable.missingRelations,
+      });
+    }
   }
 
   private async persist() {
@@ -69,6 +108,7 @@ export class ItamDiscoveryService {
   }
 
   private requireAdmin(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     if (!this.assertAdmin(principal) && process.env.NODE_ENV === 'production') {
       throw new ForbiddenException('ITAM administrator role required');
     }
@@ -78,6 +118,7 @@ export class ItamDiscoveryService {
   }
 
   private engineFor(orgId: string): DiscoveryEngine {
+    this.assertSchemaAvailable();
     let e = this.engines.get(orgId);
     if (!e) {
       e = new DiscoveryEngine(this.store, [this.mockProvider]);
@@ -87,6 +128,7 @@ export class ItamDiscoveryService {
   }
 
   listScopes(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     return this.store.scopes.filter((s) => s.organizationId === principal.organizationId);
   }
 
@@ -133,10 +175,12 @@ export class ItamDiscoveryService {
   }
 
   listJobs(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     return this.store.jobs.filter((j) => j.organizationId === principal.organizationId);
   }
 
   getJob(principal: ItamPrincipal, id: string) {
+    this.assertSchemaAvailable();
     const job = this.store.getJob(id);
     if (!job || job.organizationId !== principal.organizationId) throw new NotFoundException('Job not found');
     return job;
@@ -249,20 +293,24 @@ export class ItamDiscoveryService {
   }
 
   listDiscovered(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     return this.store.hosts.filter((h) => h.organizationId === principal.organizationId);
   }
 
   getDiscovered(principal: ItamPrincipal, id: string) {
+    this.assertSchemaAvailable();
     const h = this.store.hosts.find((x) => x.id === id && x.organizationId === principal.organizationId);
     if (!h) throw new NotFoundException('Discovered host not found');
     return h;
   }
 
   listAssets(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     return this.store.findAssets(principal.organizationId);
   }
 
   listSoftware(principal: ItamPrincipal, assetId?: string) {
+    this.assertSchemaAvailable();
     const assetIds = new Set(
       this.store.findAssets(principal.organizationId).map((a) => a.id),
     );
@@ -270,6 +318,7 @@ export class ItamDiscoveryService {
   }
 
   listUnmanaged(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     return this.store.findAssets(principal.organizationId).filter(
       (a) => a.discoveryLifecycle === 'DISCOVERED' || a.discoveryLifecycle === 'UNVERIFIED',
     );
@@ -326,6 +375,7 @@ export class ItamDiscoveryService {
    * Merge agent evidence into an existing discovered/managed asset (no duplicate).
    */
   mergeAgentEvidence(principal: ItamPrincipal, assetId: string, agent: Partial<StoredAsset> & { agentKey?: string }) {
+    this.assertSchemaAvailable();
     const asset = this.store.assets.find((a) => a.id === assetId && a.organizationId === principal.organizationId);
     if (!asset) throw new NotFoundException('Asset not found');
     Object.assign(asset, {
@@ -360,6 +410,7 @@ export class ItamDiscoveryService {
   }
 
   dashboard(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     const org = principal.organizationId;
     const jobs = this.store.jobs.filter((j) => j.organizationId === org);
     const runs = this.store.runs.filter((r) => r.organizationId === org);
@@ -378,6 +429,7 @@ export class ItamDiscoveryService {
   }
 
   metrics(principal: ItamPrincipal) {
+    this.assertSchemaAvailable();
     const runs = this.store.runs.filter((r) => r.organizationId === principal.organizationId);
     return {
       discovery_jobs_total: this.store.jobs.filter((j) => j.organizationId === principal.organizationId).length,

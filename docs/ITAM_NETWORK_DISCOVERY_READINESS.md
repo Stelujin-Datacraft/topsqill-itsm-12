@@ -299,18 +299,19 @@ Ordinary authenticated users: org-scoped **SELECT**. Org admins: **INSERT/UPDATE
 
 ### Dev-only migration procedure (manual — agents must not auto-apply)
 
-Symptom if missing: Nest boot fails with a clear schema-incomplete error naming `itam_network_scopes` (etc.), not a silent memory fallback.
+Full surgical checklist: **`docs/ITAM_DEV_SCHEMA_APPLY.md`**.
+
+Symptom if missing: Nest stays up; ITAM Discovery APIs return **503** with `ITAM_DISCOVERY_SCHEMA_MISSING` naming missing relations (e.g. `itam_network_scopes`) and the ordered migration file list. No memory fallback; no Docker restart loop.
 
 1. Confirm core tables already exist on **Dev**: `public.it_assets`, `public.asset_software`, `public.organizations`, and `public.user_profiles`.
-2. In Supabase Dashboard (Dev project) → **SQL Editor**, or via CLI linked to Dev only:
-   - Apply in order:
-     1. `supabase/migrations/20260930110000_get_current_user_org_id.sql` (skip body if helper already created manually — still prefer running for `is_org_admin_of` / grants)
-     2. `supabase/migrations/20260930120000_itam_network_discovery.sql`
-     3. `supabase/migrations/20260930130000_itam_phases_b_d.sql`
-     4. `supabase/migrations/20260930140000_itam_form_sync.sql`
-3. Prefer `supabase db push` / migration history against the **Dev** project so versions are recorded in `supabase_migrations.schema_migrations`. If you paste SQL manually in the SQL Editor, also record the versions (or re-run through CLI repair) so history stays consistent.
+2. In Supabase Dashboard (**Dev** project only) → **SQL Editor**, or `psql -f` against the Dev URI — apply surgically in order (do **not** bulk `supabase db push` / history repair against a drifted Lovable history):
+   1. `supabase/migrations/20260930110000_get_current_user_org_id.sql`
+   2. `supabase/migrations/20260930120000_itam_network_discovery.sql`
+   3. `supabase/migrations/20260930130000_itam_phases_b_d.sql`
+   4. `supabase/migrations/20260930140000_itam_form_sync.sql`
+3. Record versions in `supabase_migrations.schema_migrations` **only after** each file succeeds. Do not bulk-insert history for unapplied SQL.
 4. Before `uq_asset_software_asset_name_ver` is created, ensure no duplicate `(asset_id, software_name, version)` rows exist (unique index creation will fail otherwise — inspect and dedupe on Dev first).
-5. Verify: `\dt public.itam_network_scopes` (or Dashboard table list) shows the new ITAM tables.
+5. Verify: `\dt public.itam_network_scopes` (or Dashboard table list) shows the new ITAM tables. Host inventory is `itam_discovered_hosts` (there is no `itam_discovered_assets`).
 6. Restart the Nest backend with `ITAM_DISCOVERY_DATABASE_URL` pointing at Dev. Keep `ITAM_DISCOVERY_APPLY_SCHEMA=0`.
 7. Do **not** apply these to Prod from this change set until Dev validation succeeds.
 
