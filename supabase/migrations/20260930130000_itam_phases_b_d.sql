@@ -1,25 +1,28 @@
 -- ITAM Phases B–D: Cloud / Virtualization / Passive / Topology
 -- Extends Phase A. Does NOT create a second asset inventory.
 -- Vulnerability management intentionally excluded.
+-- Requires 20260930120000_itam_network_discovery (inventory_source enum, it_assets extensions).
 
 -- Extend inventory_source enum (ignore if already present)
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'CLOUD_AWS'; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'CLOUD_AZURE'; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'CLOUD_GCP'; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'VMWARE'; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'WIRELESS'; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'LLDP'; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'CDP'; EXCEPTION WHEN others THEN NULL; END $$;
-DO $$ BEGIN ALTER TYPE inventory_source ADD VALUE IF NOT EXISTS 'SWITCH_MAC'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'CLOUD_AWS'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'CLOUD_AZURE'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'CLOUD_GCP'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'VMWARE'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'WIRELESS'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'LLDP'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'CDP'; EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER TYPE public.inventory_source ADD VALUE IF NOT EXISTS 'SWITCH_MAC'; EXCEPTION WHEN others THEN NULL; END $$;
 
-ALTER TABLE it_assets ADD COLUMN IF NOT EXISTS cloud_instance_id TEXT;
-ALTER TABLE it_assets ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '{}';
+-- cloud_instance_id may already exist from 20260930120000 — IF NOT EXISTS is safe.
+ALTER TABLE public.it_assets ADD COLUMN IF NOT EXISTS cloud_instance_id TEXT;
+-- DO NOT ADD tags JSONB: core it_assets.tags is TEXT[] (20260318060253_*).
+-- Replacing/altering that column requires inspecting live row shapes — out of scope here.
 CREATE INDEX IF NOT EXISTS idx_it_assets_org_cloud_id
-  ON it_assets(organization_id, cloud_instance_id)
+  ON public.it_assets(organization_id, cloud_instance_id)
   WHERE cloud_instance_id IS NOT NULL;
 
 -- ── Phase B: Cloud providers & resources ──────────────────────────────────
-CREATE TABLE IF NOT EXISTS itam_cloud_providers (
+CREATE TABLE IF NOT EXISTS public.itam_cloud_providers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
   provider_type TEXT NOT NULL CHECK (provider_type IN ('AWS','AZURE','GCP','VMWARE','OTHER')),
@@ -40,7 +43,7 @@ CREATE TABLE IF NOT EXISTS itam_cloud_providers (
 CREATE TABLE IF NOT EXISTS itam_cloud_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  provider_id UUID NOT NULL REFERENCES itam_cloud_providers(id) ON DELETE CASCADE,
+  provider_id UUID NOT NULL REFERENCES public.itam_cloud_providers(id) ON DELETE CASCADE,
   account_key TEXT NOT NULL,
   display_name TEXT,
   region_scope JSONB DEFAULT '[]',
@@ -53,9 +56,9 @@ CREATE TABLE IF NOT EXISTS itam_cloud_accounts (
 CREATE TABLE IF NOT EXISTS itam_cloud_resources (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  provider_id UUID NOT NULL REFERENCES itam_cloud_providers(id) ON DELETE CASCADE,
-  account_id UUID REFERENCES itam_cloud_accounts(id) ON DELETE SET NULL,
-  asset_id UUID REFERENCES it_assets(id) ON DELETE SET NULL,
+  provider_id UUID NOT NULL REFERENCES public.itam_cloud_providers(id) ON DELETE CASCADE,
+  account_id UUID REFERENCES public.itam_cloud_accounts(id) ON DELETE SET NULL,
+  asset_id UUID REFERENCES public.it_assets(id) ON DELETE SET NULL,
   provider_type TEXT NOT NULL,
   resource_id TEXT NOT NULL,
   resource_arn TEXT,
@@ -75,7 +78,7 @@ CREATE TABLE IF NOT EXISTS itam_cloud_resources (
 CREATE TABLE IF NOT EXISTS itam_cloud_discovery_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  provider_id UUID NOT NULL REFERENCES itam_cloud_providers(id) ON DELETE CASCADE,
+  provider_id UUID NOT NULL REFERENCES public.itam_cloud_providers(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'DRAFT',
   schedule TEXT DEFAULT 'ON_DEMAND',
@@ -100,8 +103,8 @@ CREATE TABLE IF NOT EXISTS itam_cloud_changes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_itam_cloud_resources_tags ON itam_cloud_resources USING GIN (tags);
-CREATE INDEX IF NOT EXISTS idx_itam_cloud_resources_org_type ON itam_cloud_resources(organization_id, resource_type);
+CREATE INDEX IF NOT EXISTS idx_itam_cloud_resources_tags ON public.itam_cloud_resources USING GIN (tags);
+CREATE INDEX IF NOT EXISTS idx_itam_cloud_resources_org_type ON public.itam_cloud_resources(organization_id, resource_type);
 
 -- ── Phase C: Passive network intelligence ─────────────────────────────────
 CREATE TABLE IF NOT EXISTS itam_telemetry_sources (
@@ -122,9 +125,9 @@ CREATE TABLE IF NOT EXISTS itam_telemetry_sources (
 CREATE TABLE IF NOT EXISTS itam_network_observations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  source_id UUID REFERENCES itam_telemetry_sources(id) ON DELETE SET NULL,
+  source_id UUID REFERENCES public.itam_telemetry_sources(id) ON DELETE SET NULL,
   source_type TEXT NOT NULL,
-  asset_id UUID REFERENCES it_assets(id) ON DELETE SET NULL,
+  asset_id UUID REFERENCES public.it_assets(id) ON DELETE SET NULL,
   ip_address TEXT,
   mac_address TEXT,
   hostname TEXT,
@@ -140,14 +143,14 @@ CREATE TABLE IF NOT EXISTS itam_network_observations (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_itam_obs_org_ip ON itam_network_observations(organization_id, ip_address);
-CREATE INDEX IF NOT EXISTS idx_itam_obs_org_mac ON itam_network_observations(organization_id, mac_address);
-CREATE INDEX IF NOT EXISTS idx_itam_obs_org_time ON itam_network_observations(organization_id, observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_itam_obs_org_ip ON public.itam_network_observations(organization_id, ip_address);
+CREATE INDEX IF NOT EXISTS idx_itam_obs_org_mac ON public.itam_network_observations(organization_id, mac_address);
+CREATE INDEX IF NOT EXISTS idx_itam_obs_org_time ON public.itam_network_observations(organization_id, observed_at DESC);
 
 CREATE TABLE IF NOT EXISTS itam_ip_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  asset_id UUID NOT NULL REFERENCES it_assets(id) ON DELETE CASCADE,
+  asset_id UUID NOT NULL REFERENCES public.it_assets(id) ON DELETE CASCADE,
   ip_address TEXT NOT NULL,
   source TEXT NOT NULL,
   first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -158,7 +161,7 @@ CREATE TABLE IF NOT EXISTS itam_ip_history (
 CREATE TABLE IF NOT EXISTS itam_mac_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  asset_id UUID NOT NULL REFERENCES it_assets(id) ON DELETE CASCADE,
+  asset_id UUID NOT NULL REFERENCES public.it_assets(id) ON DELETE CASCADE,
   mac_address TEXT NOT NULL,
   source TEXT NOT NULL,
   first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -169,7 +172,7 @@ CREATE TABLE IF NOT EXISTS itam_mac_history (
 CREATE TABLE IF NOT EXISTS itam_passive_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  asset_id UUID REFERENCES it_assets(id) ON DELETE SET NULL,
+  asset_id UUID REFERENCES public.it_assets(id) ON DELETE SET NULL,
   event_type TEXT NOT NULL,
   detail JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -179,7 +182,7 @@ CREATE TABLE IF NOT EXISTS itam_passive_events (
 CREATE TABLE IF NOT EXISTS itam_topology_nodes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  asset_id UUID REFERENCES it_assets(id) ON DELETE SET NULL,
+  asset_id UUID REFERENCES public.it_assets(id) ON DELETE SET NULL,
   logical_key TEXT NOT NULL,
   node_kind TEXT NOT NULL,
   display_name TEXT,
@@ -192,8 +195,8 @@ CREATE TABLE IF NOT EXISTS itam_topology_nodes (
 CREATE TABLE IF NOT EXISTS itam_topology_edges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  source_node_id UUID NOT NULL REFERENCES itam_topology_nodes(id) ON DELETE CASCADE,
-  target_node_id UUID NOT NULL REFERENCES itam_topology_nodes(id) ON DELETE CASCADE,
+  source_node_id UUID NOT NULL REFERENCES public.itam_topology_nodes(id) ON DELETE CASCADE,
+  target_node_id UUID NOT NULL REFERENCES public.itam_topology_nodes(id) ON DELETE CASCADE,
   relationship_type TEXT NOT NULL,
   source TEXT NOT NULL,
   confidence TEXT NOT NULL DEFAULT 'MEDIUM',
@@ -206,12 +209,12 @@ CREATE TABLE IF NOT EXISTS itam_topology_edges (
 CREATE TABLE IF NOT EXISTS itam_topology_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  edge_id UUID REFERENCES itam_topology_edges(id) ON DELETE SET NULL,
+  edge_id UUID REFERENCES public.itam_topology_edges(id) ON DELETE SET NULL,
   change_type TEXT NOT NULL,
   detail JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_itam_topo_edges_org ON itam_topology_edges(organization_id, relationship_type);
-CREATE INDEX IF NOT EXISTS idx_itam_topo_nodes_asset ON itam_topology_nodes(organization_id, asset_id)
+CREATE INDEX IF NOT EXISTS idx_itam_topo_edges_org ON public.itam_topology_edges(organization_id, relationship_type);
+CREATE INDEX IF NOT EXISTS idx_itam_topo_nodes_asset ON public.itam_topology_nodes(organization_id, asset_id)
   WHERE asset_id IS NOT NULL;

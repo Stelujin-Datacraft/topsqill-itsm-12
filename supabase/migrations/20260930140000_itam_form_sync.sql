@@ -1,7 +1,7 @@
 -- ITAM Form Sync metadata — NOT a duplicate asset SoR.
 -- Authoritative ITAM records remain in the existing application Form API.
 
-CREATE TABLE IF NOT EXISTS itam_sync_targets (
+CREATE TABLE IF NOT EXISTS public.itam_sync_targets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
   name TEXT NOT NULL,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS itam_sync_targets (
   UNIQUE(organization_id, name)
 );
 
-CREATE TABLE IF NOT EXISTS itam_sync_mappings (
+CREATE TABLE IF NOT EXISTS public.itam_sync_mappings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
   name TEXT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS itam_sync_mappings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS itam_sync_schema_cache (
+CREATE TABLE IF NOT EXISTS public.itam_sync_schema_cache (
   form_id TEXT PRIMARY KEY,
   form_name TEXT,
   version TEXT NOT NULL,
@@ -47,10 +47,10 @@ CREATE TABLE IF NOT EXISTS itam_sync_schema_cache (
   fetched_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS itam_sync_runs (
+CREATE TABLE IF NOT EXISTS public.itam_sync_runs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
-  target_config_id UUID REFERENCES itam_sync_targets(id) ON DELETE SET NULL,
+  target_config_id UUID REFERENCES public.itam_sync_targets(id) ON DELETE SET NULL,
   mapping_id UUID,
   mapping_version INTEGER,
   schema_version TEXT,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS itam_sync_runs (
   error TEXT
 );
 
-CREATE TABLE IF NOT EXISTS itam_sync_history (
+CREATE TABLE IF NOT EXISTS public.itam_sync_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
   external_id TEXT NOT NULL,
@@ -84,9 +84,9 @@ CREATE TABLE IF NOT EXISTS itam_sync_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_itam_sync_history_ext
-  ON itam_sync_history(organization_id, external_id, created_at DESC);
+  ON public.itam_sync_history(organization_id, external_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS itam_sync_provenance (
+CREATE TABLE IF NOT EXISTS public.itam_sync_provenance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
   external_id TEXT NOT NULL,
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS itam_sync_provenance (
   synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS itam_sync_links (
+CREATE TABLE IF NOT EXISTS public.itam_sync_links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL,
   external_id TEXT NOT NULL,

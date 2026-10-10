@@ -288,6 +288,24 @@ Do **not** cite mock throughput as production performance.
 
 Set the URI from Supabase → Project Settings → Database → Connection string. Never commit secrets; never put Prod credentials on Dev (or the reverse).
 
+### Dev-only migration procedure (manual — agents must not auto-apply)
+
+Symptom if missing: Nest boot fails with a clear schema-incomplete error naming `itam_network_scopes` (etc.), not a silent memory fallback.
+
+1. Confirm core tables already exist on **Dev**: `public.it_assets`, `public.asset_software`, `public.organizations`, and function `public.get_current_user_org_id()`.
+2. In Supabase Dashboard (Dev project) → **SQL Editor**, or via CLI linked to Dev only:
+   - Apply in order:
+     1. `supabase/migrations/20260930120000_itam_network_discovery.sql`
+     2. `supabase/migrations/20260930130000_itam_phases_b_d.sql`
+     3. `supabase/migrations/20260930140000_itam_form_sync.sql`
+3. Prefer `supabase db push` / migration history against the **Dev** project so versions are recorded in `supabase_migrations.schema_migrations`. If you paste SQL manually in the SQL Editor, also record the versions (or re-run through CLI repair) so history stays consistent.
+4. Before `uq_asset_software_asset_name_ver` is created, ensure no duplicate `(asset_id, software_name, version)` rows exist (unique index creation will fail otherwise — inspect and dedupe on Dev first).
+5. Verify: `\dt public.itam_network_scopes` (or Dashboard table list) shows the new ITAM tables.
+6. Restart the Nest backend with `ITAM_DISCOVERY_DATABASE_URL` pointing at Dev. Keep `ITAM_DISCOVERY_APPLY_SCHEMA=0`.
+7. Do **not** apply these to Prod from this change set until Dev validation succeeds.
+
+**Known non-blocker / do-not-guess:** core `it_assets.tags` is `TEXT[]`. Migrations must not convert it to `JSONB` without inspecting live values. Nest hydrate coerces `TEXT[]`/`object`; flush skips writing `tags` unless the column is actually `jsonb` (lab schema).
+
 ### Enable real lab later
 
 ```bash

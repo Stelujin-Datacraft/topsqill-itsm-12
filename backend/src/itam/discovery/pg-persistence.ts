@@ -60,8 +60,74 @@ export async function applyDiscoverySchema(client?: PoolClient | Pool): Promise<
   }
 }
 
+/** Core tables Nest hydrate/flush always reads. Missing ⇒ migrations not applied. */
+export const REQUIRED_DISCOVERY_RELATIONS = [
+  'itam_network_scopes',
+  'itam_discovery_jobs',
+  'itam_discovery_runs',
+  'itam_discovered_hosts',
+  'itam_asset_identities',
+  'itam_discovery_diffs',
+  'itam_discovery_audit',
+  'itam_asset_services',
+  'itam_field_provenance',
+  'itam_software_catalog',
+  'itam_software_aliases',
+  'it_assets',
+  'asset_software',
+] as const;
+
+export const ITAM_DISCOVERY_MIGRATION_FILES = [
+  'supabase/migrations/20260930120000_itam_network_discovery.sql',
+  'supabase/migrations/20260930130000_itam_phases_b_d.sql',
+  'supabase/migrations/20260930140000_itam_form_sync.sql',
+] as const;
+
+/**
+ * Fail closed with an actionable message when required ITAM Discovery relations
+ * are missing. Does not create schema and does not fall back to memory.
+ */
+export async function assertRequiredDiscoverySchema(client?: PoolClient | Pool): Promise<void> {
+  const db = client || getDiscoveryPool();
+  const result = await db.query<{ relname: string }>(
+    `SELECT c.relname
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'r'
+        AND c.relname = ANY($1::text[])`,
+    [REQUIRED_DISCOVERY_RELATIONS as unknown as string[]],
+  );
+  const present = new Set(result.rows.map((r) => r.relname));
+  const missing = REQUIRED_DISCOVERY_RELATIONS.filter((name) => !present.has(name));
+  if (missing.length === 0) return;
+
+  throw new Error(
+    `ITAM Discovery schema is incomplete — missing relation(s): ${missing.join(', ')}. `
+      + 'Nest will not auto-create these tables (ITAM_DISCOVERY_APPLY_SCHEMA defaults off). '
+      + 'Apply the Dev Supabase migrations in order, then restart the backend:\n  - '
+      + ITAM_DISCOVERY_MIGRATION_FILES.join('\n  - ')
+      + '\nSee docs/ITAM_NETWORK_DISCOVERY_READINESS.md (Dev migration procedure). '
+      + 'In-memory persistence is not used as a fallback.',
+  );
+}
+
 export async function hydrateDiscoveryStore(store: DiscoveryStore): Promise<void> {
   const db = getDiscoveryPool();
+  try {
+    await assertRequiredDiscoverySchema(db);
+  } catch (e: any) {
+    const msg = String(e?.message || e);
+    if (/ITAM Discovery schema is incomplete/i.test(msg)) throw e;
+    if (/does not exist|relation/i.test(msg)) {
+      throw new Error(
+        `ITAM Discovery hydrate failed because required tables are missing (${msg}). `
+          + `Apply migrations:\n  - ${ITAM_DISCOVERY_MIGRATION_FILES.join('\n  - ')}`,
+      );
+    }
+    throw e;
+  }
+
   const scopes = await db.query(`SELECT * FROM itam_network_scopes`);
   store.scopes = scopes.rows.map(mapScope);
 
@@ -110,7 +176,8 @@ export async function hydrateDiscoveryStore(store: DiscoveryStore): Promise<void
     firstSeenAt: a.first_seen_at ? iso(a.first_seen_at) : undefined,
     lastSeenAt: a.last_seen_at ? iso(a.last_seen_at) : undefined,
     customFields: a.custom_fields || {},
-    tags: a.tags || {},
+    // Core Supabase it_assets.tags is TEXT[]; Nest store uses a string map.
+    tags: normalizeAssetTags(a.tags),
   }));
 
   const hosts = await db.query(`SELECT * FROM itam_discovered_hosts`);
@@ -297,24 +364,62 @@ export async function flushDiscoveryStore(store: DiscoveryStore): Promise<void> 
         );
       }
 
+      const assetCols = await client.query<{ column_name: string; udt_name: string }>(
+        `SELECT column_name, udt_name
+           FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'it_assets'`,
+      );
+      const assetColSet = new Set(assetCols.rows.map((r) => r.column_name));
+      const tagsUdt = assetCols.rows.find((r) => r.column_name === 'tags')?.udt_name;
+      const hasCreatedBy = assetColSet.has('created_by');
+      // Only write tags when the column is jsonb (Nest lab schema). Core Supabase uses TEXT[].
+      const writeTagsAsJsonb = tagsUdt === 'jsonb';
+
       for (const a of store.assets) {
+        const candidates: Array<{ col: string; val: unknown; cast?: string }> = [
+          { col: 'id', val: a.id },
+          { col: 'organization_id', val: a.organizationId },
+          { col: 'asset_tag', val: a.assetTag || null },
+          { col: 'hostname', val: a.hostname || null },
+          { col: 'display_name', val: a.displayName },
+          { col: 'asset_type', val: a.assetType },
+          { col: 'manufacturer', val: a.manufacturer || null },
+          { col: 'model', val: a.model || null },
+          { col: 'serial_number', val: a.serialNumber || null },
+          { col: 'status', val: a.status },
+          { col: 'ip_address', val: a.ipAddress || null },
+          { col: 'mac_address', val: a.macAddress || null },
+          { col: 'bios_uuid', val: a.biosUuid || null },
+          { col: 'machine_guid', val: a.machineGuid || null },
+          { col: 'cloud_instance_id', val: a.cloudInstanceId || null },
+          { col: 'discovery_lifecycle', val: a.discoveryLifecycle },
+          { col: 'discovery_confidence', val: a.discoveryConfidence || null },
+          { col: 'primary_discovery_source', val: a.primaryDiscoverySource || null },
+          { col: 'first_seen_at', val: a.firstSeenAt || null },
+          { col: 'last_seen_at', val: a.lastSeenAt || null },
+          { col: 'custom_fields', val: JSON.stringify(a.customFields || {}), cast: 'jsonb' },
+        ];
+        if (writeTagsAsJsonb) {
+          candidates.push({ col: 'tags', val: JSON.stringify(a.tags || {}), cast: 'jsonb' });
+        }
+        if (hasCreatedBy) {
+          candidates.push({
+            col: 'created_by',
+            val: '00000000-0000-0000-0000-000000000000',
+            cast: 'uuid',
+          });
+        }
+
+        const used = candidates.filter((c) => assetColSet.has(c.col));
+        const cols = used.map((c) => c.col);
+        const vals = used.map((c) => c.val);
+        const placeholders = used.map((c, i) => (c.cast ? `$${i + 1}::${c.cast}` : `$${i + 1}`));
+
         await client.query(
-          `INSERT INTO it_assets
-            (id, organization_id, asset_tag, hostname, display_name, asset_type, manufacturer, model,
-             serial_number, status, ip_address, mac_address, bios_uuid, machine_guid, cloud_instance_id,
-             discovery_lifecycle, discovery_confidence, primary_discovery_source,
-             first_seen_at, last_seen_at, custom_fields, tags)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22::jsonb)
+          `INSERT INTO it_assets (${cols.join(', ')})
+           VALUES (${placeholders.join(',')})
            ON CONFLICT (id) DO NOTHING`,
-          [
-            a.id, a.organizationId, a.assetTag || null, a.hostname || null, a.displayName, a.assetType,
-            a.manufacturer || null, a.model || null, a.serialNumber || null, a.status,
-            a.ipAddress || null, a.macAddress || null, a.biosUuid || null, a.machineGuid || null,
-            a.cloudInstanceId || null,
-            a.discoveryLifecycle, a.discoveryConfidence || null, a.primaryDiscoverySource || null,
-            a.firstSeenAt || null, a.lastSeenAt || null, JSON.stringify(a.customFields || {}),
-            JSON.stringify(a.tags || {}),
-          ],
+          vals,
         );
       }
 
@@ -455,6 +560,30 @@ export async function flushDiscoveryStore(store: DiscoveryStore): Promise<void> 
 
 function iso(v: Date | string): string {
   return v instanceof Date ? v.toISOString() : new Date(v).toISOString();
+}
+
+/** Coerce DB tags (TEXT[] or JSON object) into the Nest string map. */
+export function normalizeAssetTags(raw: unknown): Record<string, string> {
+  if (!raw) return {};
+  if (Array.isArray(raw)) {
+    const out: Record<string, string> = {};
+    for (const item of raw) {
+      const s = String(item ?? '').trim();
+      if (!s) continue;
+      const eq = s.indexOf('=');
+      if (eq > 0) out[s.slice(0, eq)] = s.slice(eq + 1);
+      else out[s] = s;
+    }
+    return out;
+  }
+  if (typeof raw === 'object') {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      out[k] = v == null ? '' : String(v);
+    }
+    return out;
+  }
+  return {};
 }
 
 function mapScope(r: any): NetworkScope {
