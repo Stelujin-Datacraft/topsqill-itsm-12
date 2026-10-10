@@ -27,6 +27,9 @@ function record(name: string, status: 'PASS' | 'FAIL' | 'NOT_TESTED' | 'BLOCKED'
 
 async function main() {
   console.log('ITAM_FORM_SYNC_START');
+  process.env.ITAM_DISCOVERY_UNIT_TEST = '1';
+  process.env.ITAM_DISCOVERY_PERSISTENCE = 'memory';
+  delete process.env.ENVIRONMENT;
   process.env.ITAM_DISCOVERY_REQUIRE_ADMIN = '0';
   process.env.ITAM_SYNC_USE_MOCK = '1';
   resetDiscoveryStore();

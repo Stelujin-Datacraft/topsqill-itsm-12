@@ -37,7 +37,11 @@ async function main() {
   const usePg = Boolean(process.env.ITAM_DISCOVERY_DATABASE_URL);
   if (usePg) {
     process.env.ITAM_DISCOVERY_PERSISTENCE = 'postgres';
-    await initDiscoveryStore({ mode: 'postgres' });
+    const { applyDiscoverySchema } = await import('../../src/itam/discovery/pg-persistence');
+    if (process.env.ITAM_DISCOVERY_APPLY_SCHEMA === '1') {
+      await applyDiscoverySchema();
+    }
+    await initDiscoveryStore({ mode: 'postgres', applySchema: false });
     // Clean slate for deterministic suite
     const { getDiscoveryPool } = await import('../../src/itam/discovery/pg-persistence');
     const db = getDiscoveryPool();
@@ -55,6 +59,9 @@ async function main() {
     resetDiscoveryStore();
     await initDiscoveryStore({ mode: 'postgres', applySchema: false });
   } else {
+    process.env.ITAM_DISCOVERY_UNIT_TEST = '1';
+    process.env.ITAM_DISCOVERY_PERSISTENCE = 'memory';
+    delete process.env.ENVIRONMENT;
     resetDiscoveryStore();
   }
 
@@ -435,6 +442,10 @@ async function main() {
     assert(cloud.topologySummary(admin).nodes === before.topoNodes, 'topology hydrated');
     record('phases_bd_persistence', 'PASS', before);
   } else {
+    process.env.ITAM_DISCOVERY_UNIT_TEST = '1';
+    process.env.ITAM_DISCOVERY_PERSISTENCE = 'memory';
+    delete process.env.ENVIRONMENT;
+    resetDiscoveryStore();
     record('phases_bd_persistence', 'PASS', { note: 'memory mode — set ITAM_DISCOVERY_DATABASE_URL for PG verify' });
   }
 

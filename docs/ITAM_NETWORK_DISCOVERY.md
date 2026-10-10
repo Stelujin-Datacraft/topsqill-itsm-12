@@ -131,7 +131,9 @@ Agent route `POST /api/itam/agent-report` preserved.
 ## 16. Known limitations
 
 - Live WinRM/SSH/SNMP against customer networks not run in CI — see `docs/ITAM_NETWORK_DISCOVERY_READINESS.md`
-- Production Nest path uses PostgreSQL (`ITAM_DISCOVERY_DATABASE_URL`); in-memory store is tests-only
+- Deployed Nest (Dev + Prod) uses PostgreSQL via `ITAM_DISCOVERY_DATABASE_URL` (env-specific Supabase URI); in-memory store is `ITAM_DISCOVERY_UNIT_TEST=1` only
+- `NODE_ENV=production` is container packaging; `ENVIRONMENT=development|production` is the deployment identity
+- `ITAM_DISCOVERY_APPLY_SCHEMA` defaults off — apply `supabase/migrations/2026093012*` manually
 - Cloud/VMware providers are stubs
 - Full topology mapping deferred
 - Agent offline cron not part of this change
@@ -143,10 +145,16 @@ AWS / Azure / GCP inventory, VMware/Hyper-V, DHCP/ARP/DNS passive feeds, SNMP wa
 ## 18. Commands
 
 ```bash
-# Apply Nest dedicated schema (or Supabase migration 20260930120000_…)
-export ITAM_DISCOVERY_DATABASE_URL=postgresql://…/itam_discovery
+# Manual schema (Dev first; never auto from Nest against Prod):
+#   supabase/migrations/20260930120000_itam_network_discovery.sql
+#   supabase/migrations/20260930130000_itam_phases_b_d.sql
+#   supabase/migrations/20260930140000_itam_form_sync.sql
+export ITAM_DISCOVERY_DATABASE_URL=postgresql://…   # Dev or Prod Supabase URI for this host only
+export ENVIRONMENT=development                      # or production on Prod
+export NODE_ENV=production                          # container runtime
 
 cd backend
+npm run test:itam:discovery:config
 npm run test:itam:discovery
 npm run test:itam:discovery:persist
 

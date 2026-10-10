@@ -9,12 +9,21 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
+      # Runtime packaging (keep production for container realism).
       - NODE_ENV=production
+      # Deployment identity: development (Dev) | production (Prod). Required for ITAM/VIS gates.
+      - ENVIRONMENT=${ENVIRONMENT:-development}
       - CORS_ORIGIN=http://localhost:8080
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_PUBLISHABLE_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - VIS_PERSISTENCE=supabase
+      # ITAM Discovery — env-specific Supabase Postgres URI (never commit the value).
+      # Dev must use Dev DB credentials; Prod must use Prod DB credentials.
+      - ITAM_DISCOVERY_DATABASE_URL=${ITAM_DISCOVERY_DATABASE_URL}
+      - ITAM_DISCOVERY_PERSISTENCE=${ITAM_DISCOVERY_PERSISTENCE:-postgres}
+      # Default off: apply supabase/migrations/2026093012* manually; do not auto-DDL.
+      - ITAM_DISCOVERY_APPLY_SCHEMA=${ITAM_DISCOVERY_APPLY_SCHEMA:-0}
       - LOVABLE_API_KEY=${LOVABLE_API_KEY:-}
     restart: unless-stopped
 

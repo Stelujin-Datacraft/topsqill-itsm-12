@@ -1,38 +1,30 @@
 /**
  * PostgreSQL persistence for ITAM Network Discovery.
- * Production write-through / hydrate for DiscoveryStore.
- * Memory-only mode remains for unit tests.
+ * Write-through / hydrate for DiscoveryStore via ITAM_DISCOVERY_DATABASE_URL.
+ * Memory-only mode is restricted to ITAM_DISCOVERY_UNIT_TEST=1 (see persistence-config).
  */
 import { Pool, type PoolClient } from 'pg';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import type { DiscoveryStore } from './store';
 import type { DiscoveryJob, NetworkScope } from './types';
+import { assertPostgresUrlForPersistence } from './persistence-config';
+
+export {
+  assertPostgresUrlForPersistence,
+  getItamDiscoveryDatabaseUrl,
+  isDeployedDiscoveryRuntime,
+  isDiscoveryUnitTestContext,
+  isPostgresPersistenceRequired,
+  resolveDeploymentEnvironment,
+  resolveDiscoveryPersistenceMode,
+  shouldApplyDiscoverySchema,
+} from './persistence-config';
 
 let pool: Pool | null = null;
 
-export function getItamDiscoveryDatabaseUrl(): string | undefined {
-  return (
-    process.env.ITAM_DISCOVERY_DATABASE_URL
-    || process.env.ITAM_DATABASE_URL
-    || undefined
-  );
-}
-
-export function isPostgresPersistenceRequired(): boolean {
-  if (process.env.ITAM_DISCOVERY_PERSISTENCE === 'memory') return false;
-  if (process.env.ITAM_DISCOVERY_PERSISTENCE === 'postgres') return true;
-  if (process.env.NODE_ENV === 'production') return true;
-  return Boolean(getItamDiscoveryDatabaseUrl());
-}
-
 export function getDiscoveryPool(): Pool {
-  const url = getItamDiscoveryDatabaseUrl();
-  if (!url) {
-    throw new Error(
-      'ITAM_DISCOVERY_DATABASE_URL is required for PostgreSQL discovery persistence',
-    );
-  }
+  const url = assertPostgresUrlForPersistence();
   if (!pool) {
     pool = new Pool({ connectionString: url, max: 10 });
   }

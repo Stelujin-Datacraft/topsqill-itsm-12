@@ -89,10 +89,15 @@ async function main() {
   `);
   record('database_constraints', 'PASS', { uniqueIndexes: uniques.rows });
 
-  // ── 2. Production memory forbidden ─────────────────────────────────────
+  // ── 2. Deployed Dev/Prod memory forbidden (even with ALLOW / UNIT_TEST) ─
   const prevNode = process.env.NODE_ENV;
+  const prevEnv = process.env.ENVIRONMENT;
+  const prevUnit = process.env.ITAM_DISCOVERY_UNIT_TEST;
+  const prevAllow = process.env.ITAM_ALLOW_MEMORY_STORE;
   process.env.NODE_ENV = 'production';
-  delete process.env.ITAM_ALLOW_MEMORY_STORE;
+  process.env.ENVIRONMENT = 'development';
+  process.env.ITAM_ALLOW_MEMORY_STORE = '1';
+  process.env.ITAM_DISCOVERY_UNIT_TEST = '1';
   let memoryBlocked = false;
   try {
     process.env.ITAM_DISCOVERY_PERSISTENCE = 'memory';
@@ -101,9 +106,15 @@ async function main() {
     memoryBlocked = true;
   } finally {
     process.env.NODE_ENV = prevNode || 'development';
+    if (prevEnv === undefined) delete process.env.ENVIRONMENT;
+    else process.env.ENVIRONMENT = prevEnv;
+    if (prevUnit === undefined) delete process.env.ITAM_DISCOVERY_UNIT_TEST;
+    else process.env.ITAM_DISCOVERY_UNIT_TEST = prevUnit;
+    if (prevAllow === undefined) delete process.env.ITAM_ALLOW_MEMORY_STORE;
+    else process.env.ITAM_ALLOW_MEMORY_STORE = prevAllow;
     process.env.ITAM_DISCOVERY_PERSISTENCE = 'postgres';
   }
-  assert(memoryBlocked, 'memory must be forbidden in production');
+  assert(memoryBlocked, 'memory must be forbidden in deployed Dev/Prod');
   record('production_memory_forbidden', 'PASS');
 
   // ── 3. Persist → restart hydrate ───────────────────────────────────────
