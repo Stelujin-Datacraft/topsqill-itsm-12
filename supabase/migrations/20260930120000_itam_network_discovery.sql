@@ -2,12 +2,19 @@
 -- Does NOT replace agent inventory. Extends existing it_assets as SoR.
 -- No exploitation; scopes must be explicitly authorized.
 --
--- Prerequisites (already present on Dev/Prod Supabase):
+-- Prerequisites:
 --   public.organizations, public.it_assets, public.asset_software,
---   public.get_current_user_org_id()
+--   public.get_current_user_org_id(), public.is_org_admin_of(uuid)
+--   (see 20260930110000_get_current_user_org_id.sql)
 -- Idempotent: CREATE IF NOT EXISTS / enum DO blocks / DROP POLICY IF EXISTS.
--- Nest APPLY_SCHEMA is OFF for deployed boots — apply this file via Supabase
--- migration tooling on Dev first (never auto from Nest against Prod).
+-- Nest APPLY_SCHEMA is OFF for deployed boots — apply via Supabase tooling on Dev
+-- first (never auto from Nest against Prod).
+--
+-- RLS model:
+--   SELECT  → org members (organization_id = get_current_user_org_id())
+--   writes  → org admins only (is_org_admin_of(organization_id)); role = 'admin'
+--   audit   → SELECT org members; INSERT org admins; no UPDATE/DELETE for authenticated
+--   catalog → global (organization_id IS NULL) readable; writes only for caller's org rows
 
 -- Enums
 DO $$ BEGIN
@@ -299,6 +306,7 @@ CREATE TABLE IF NOT EXISTS public.itam_field_provenance (
 );
 
 -- RLS (idempotent: DROP IF EXISTS then CREATE — safe re-apply / repair)
+-- Admin writes require is_org_admin_of(organization_id) (user_profiles.role = 'admin').
 ALTER TABLE public.itam_network_scopes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_discovery_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_discovery_runs ENABLE ROW LEVEL SECURITY;
@@ -311,61 +319,207 @@ ALTER TABLE public.itam_discovery_audit ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_asset_services ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itam_field_provenance ENABLE ROW LEVEL SECURITY;
 
+-- ── itam_network_scopes ───────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org network scopes" ON public.itam_network_scopes;
+DROP POLICY IF EXISTS "Admins manage org network scopes" ON public.itam_network_scopes;
+DROP POLICY IF EXISTS "Admins insert org network scopes" ON public.itam_network_scopes;
+DROP POLICY IF EXISTS "Admins update org network scopes" ON public.itam_network_scopes;
+DROP POLICY IF EXISTS "Admins delete org network scopes" ON public.itam_network_scopes;
 CREATE POLICY "Users view org network scopes" ON public.itam_network_scopes
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org network scopes" ON public.itam_network_scopes;
-CREATE POLICY "Admins manage org network scopes" ON public.itam_network_scopes
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org network scopes" ON public.itam_network_scopes
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org network scopes" ON public.itam_network_scopes
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org network scopes" ON public.itam_network_scopes
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_discovery_jobs ───────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org discovery jobs" ON public.itam_discovery_jobs;
+DROP POLICY IF EXISTS "Admins manage org discovery jobs" ON public.itam_discovery_jobs;
+DROP POLICY IF EXISTS "Admins insert org discovery jobs" ON public.itam_discovery_jobs;
+DROP POLICY IF EXISTS "Admins update org discovery jobs" ON public.itam_discovery_jobs;
+DROP POLICY IF EXISTS "Admins delete org discovery jobs" ON public.itam_discovery_jobs;
 CREATE POLICY "Users view org discovery jobs" ON public.itam_discovery_jobs
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org discovery jobs" ON public.itam_discovery_jobs;
-CREATE POLICY "Admins manage org discovery jobs" ON public.itam_discovery_jobs
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org discovery jobs" ON public.itam_discovery_jobs
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org discovery jobs" ON public.itam_discovery_jobs
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org discovery jobs" ON public.itam_discovery_jobs
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_discovery_runs ───────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org discovery runs" ON public.itam_discovery_runs;
+DROP POLICY IF EXISTS "Admins manage org discovery runs" ON public.itam_discovery_runs;
+DROP POLICY IF EXISTS "Admins insert org discovery runs" ON public.itam_discovery_runs;
+DROP POLICY IF EXISTS "Admins update org discovery runs" ON public.itam_discovery_runs;
+DROP POLICY IF EXISTS "Admins delete org discovery runs" ON public.itam_discovery_runs;
 CREATE POLICY "Users view org discovery runs" ON public.itam_discovery_runs
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org discovery runs" ON public.itam_discovery_runs;
-CREATE POLICY "Admins manage org discovery runs" ON public.itam_discovery_runs
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org discovery runs" ON public.itam_discovery_runs
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org discovery runs" ON public.itam_discovery_runs
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org discovery runs" ON public.itam_discovery_runs
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_discovered_hosts ─────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org discovered hosts" ON public.itam_discovered_hosts;
+DROP POLICY IF EXISTS "Admins manage org discovered hosts" ON public.itam_discovered_hosts;
+DROP POLICY IF EXISTS "Admins insert org discovered hosts" ON public.itam_discovered_hosts;
+DROP POLICY IF EXISTS "Admins update org discovered hosts" ON public.itam_discovered_hosts;
+DROP POLICY IF EXISTS "Admins delete org discovered hosts" ON public.itam_discovered_hosts;
 CREATE POLICY "Users view org discovered hosts" ON public.itam_discovered_hosts
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org discovered hosts" ON public.itam_discovered_hosts;
-CREATE POLICY "Admins manage org discovered hosts" ON public.itam_discovered_hosts
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org discovered hosts" ON public.itam_discovered_hosts
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org discovered hosts" ON public.itam_discovered_hosts
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org discovered hosts" ON public.itam_discovered_hosts
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_asset_identities ─────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org asset identities" ON public.itam_asset_identities;
+DROP POLICY IF EXISTS "Admins manage org asset identities" ON public.itam_asset_identities;
+DROP POLICY IF EXISTS "Admins insert org asset identities" ON public.itam_asset_identities;
+DROP POLICY IF EXISTS "Admins update org asset identities" ON public.itam_asset_identities;
+DROP POLICY IF EXISTS "Admins delete org asset identities" ON public.itam_asset_identities;
 CREATE POLICY "Users view org asset identities" ON public.itam_asset_identities
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org asset identities" ON public.itam_asset_identities;
-CREATE POLICY "Admins manage org asset identities" ON public.itam_asset_identities
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org asset identities" ON public.itam_asset_identities
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org asset identities" ON public.itam_asset_identities
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org asset identities" ON public.itam_asset_identities
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_software_catalog (global NULL org readable; writes org-scoped only) ─
 DROP POLICY IF EXISTS "Users view org software catalog" ON public.itam_software_catalog;
+DROP POLICY IF EXISTS "Admins manage org software catalog" ON public.itam_software_catalog;
+DROP POLICY IF EXISTS "Admins insert org software catalog" ON public.itam_software_catalog;
+DROP POLICY IF EXISTS "Admins update org software catalog" ON public.itam_software_catalog;
+DROP POLICY IF EXISTS "Admins delete org software catalog" ON public.itam_software_catalog;
 CREATE POLICY "Users view org software catalog" ON public.itam_software_catalog
   FOR SELECT TO authenticated
-  USING (organization_id IS NULL OR organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org software catalog" ON public.itam_software_catalog;
-CREATE POLICY "Admins manage org software catalog" ON public.itam_software_catalog
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+  USING (
+    organization_id IS NULL
+    OR organization_id = public.get_current_user_org_id()
+  );
+CREATE POLICY "Admins insert org software catalog" ON public.itam_software_catalog
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org software catalog" ON public.itam_software_catalog
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org software catalog" ON public.itam_software_catalog
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_software_aliases ─────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view software aliases" ON public.itam_software_aliases;
+DROP POLICY IF EXISTS "Admins manage software aliases" ON public.itam_software_aliases;
+DROP POLICY IF EXISTS "Admins insert software aliases" ON public.itam_software_aliases;
+DROP POLICY IF EXISTS "Admins update software aliases" ON public.itam_software_aliases;
+DROP POLICY IF EXISTS "Admins delete software aliases" ON public.itam_software_aliases;
 CREATE POLICY "Users view software aliases" ON public.itam_software_aliases
   FOR SELECT TO authenticated
   USING (EXISTS (
@@ -373,46 +527,186 @@ CREATE POLICY "Users view software aliases" ON public.itam_software_aliases
     WHERE c.id = product_id
       AND (c.organization_id IS NULL OR c.organization_id = public.get_current_user_org_id())
   ));
-DROP POLICY IF EXISTS "Admins manage software aliases" ON public.itam_software_aliases;
-CREATE POLICY "Admins manage software aliases" ON public.itam_software_aliases
-  FOR ALL TO authenticated
+CREATE POLICY "Admins insert software aliases" ON public.itam_software_aliases
+  FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM public.itam_software_catalog c
+    WHERE c.id = product_id
+      AND c.organization_id = public.get_current_user_org_id()
+      AND public.is_org_admin_of(c.organization_id)
+  ));
+CREATE POLICY "Admins update software aliases" ON public.itam_software_aliases
+  FOR UPDATE TO authenticated
   USING (EXISTS (
     SELECT 1 FROM public.itam_software_catalog c
-    WHERE c.id = product_id AND c.organization_id = public.get_current_user_org_id()
+    WHERE c.id = product_id
+      AND c.organization_id = public.get_current_user_org_id()
+      AND public.is_org_admin_of(c.organization_id)
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM public.itam_software_catalog c
+    WHERE c.id = product_id
+      AND c.organization_id = public.get_current_user_org_id()
+      AND public.is_org_admin_of(c.organization_id)
+  ));
+CREATE POLICY "Admins delete software aliases" ON public.itam_software_aliases
+  FOR DELETE TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM public.itam_software_catalog c
+    WHERE c.id = product_id
+      AND c.organization_id = public.get_current_user_org_id()
+      AND public.is_org_admin_of(c.organization_id)
   ));
 
+-- ── itam_discovery_diffs ──────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org discovery diffs" ON public.itam_discovery_diffs;
+DROP POLICY IF EXISTS "Admins manage org discovery diffs" ON public.itam_discovery_diffs;
+DROP POLICY IF EXISTS "Admins insert org discovery diffs" ON public.itam_discovery_diffs;
+DROP POLICY IF EXISTS "Admins update org discovery diffs" ON public.itam_discovery_diffs;
+DROP POLICY IF EXISTS "Admins delete org discovery diffs" ON public.itam_discovery_diffs;
 CREATE POLICY "Users view org discovery diffs" ON public.itam_discovery_diffs
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org discovery diffs" ON public.itam_discovery_diffs;
-CREATE POLICY "Admins manage org discovery diffs" ON public.itam_discovery_diffs
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org discovery diffs" ON public.itam_discovery_diffs
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org discovery diffs" ON public.itam_discovery_diffs
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org discovery diffs" ON public.itam_discovery_diffs
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_discovery_audit (append-oriented: no UPDATE/DELETE for authenticated) ─
 DROP POLICY IF EXISTS "Users view org discovery audit" ON public.itam_discovery_audit;
+DROP POLICY IF EXISTS "Admins insert org discovery audit" ON public.itam_discovery_audit;
+DROP POLICY IF EXISTS "Admins manage org discovery audit" ON public.itam_discovery_audit;
 CREATE POLICY "Users view org discovery audit" ON public.itam_discovery_audit
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins insert org discovery audit" ON public.itam_discovery_audit;
 CREATE POLICY "Admins insert org discovery audit" ON public.itam_discovery_audit
   FOR INSERT TO authenticated
-  WITH CHECK (organization_id = public.get_current_user_org_id());
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_asset_services ───────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org asset services" ON public.itam_asset_services;
+DROP POLICY IF EXISTS "Admins manage org asset services" ON public.itam_asset_services;
+DROP POLICY IF EXISTS "Admins insert org asset services" ON public.itam_asset_services;
+DROP POLICY IF EXISTS "Admins update org asset services" ON public.itam_asset_services;
+DROP POLICY IF EXISTS "Admins delete org asset services" ON public.itam_asset_services;
 CREATE POLICY "Users view org asset services" ON public.itam_asset_services
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org asset services" ON public.itam_asset_services;
-CREATE POLICY "Admins manage org asset services" ON public.itam_asset_services
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org asset services" ON public.itam_asset_services
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org asset services" ON public.itam_asset_services
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org asset services" ON public.itam_asset_services
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
 
+-- ── itam_field_provenance ─────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users view org field provenance" ON public.itam_field_provenance;
+DROP POLICY IF EXISTS "Admins manage org field provenance" ON public.itam_field_provenance;
+DROP POLICY IF EXISTS "Admins insert org field provenance" ON public.itam_field_provenance;
+DROP POLICY IF EXISTS "Admins update org field provenance" ON public.itam_field_provenance;
+DROP POLICY IF EXISTS "Admins delete org field provenance" ON public.itam_field_provenance;
 CREATE POLICY "Users view org field provenance" ON public.itam_field_provenance
   FOR SELECT TO authenticated
   USING (organization_id = public.get_current_user_org_id());
-DROP POLICY IF EXISTS "Admins manage org field provenance" ON public.itam_field_provenance;
-CREATE POLICY "Admins manage org field provenance" ON public.itam_field_provenance
-  FOR ALL TO authenticated
-  USING (organization_id = public.get_current_user_org_id());
+CREATE POLICY "Admins insert org field provenance" ON public.itam_field_provenance
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins update org field provenance" ON public.itam_field_provenance
+  FOR UPDATE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  )
+  WITH CHECK (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+CREATE POLICY "Admins delete org field provenance" ON public.itam_field_provenance
+  FOR DELETE TO authenticated
+  USING (
+    organization_id = public.get_current_user_org_id()
+    AND public.is_org_admin_of(organization_id)
+  );
+
+-- Privileges: deny anon; authenticated uses RLS; service_role for Nest SoR path
+REVOKE ALL ON TABLE
+  public.itam_network_scopes,
+  public.itam_discovery_jobs,
+  public.itam_discovery_runs,
+  public.itam_discovered_hosts,
+  public.itam_asset_identities,
+  public.itam_software_catalog,
+  public.itam_software_aliases,
+  public.itam_discovery_diffs,
+  public.itam_discovery_audit,
+  public.itam_asset_services,
+  public.itam_field_provenance
+FROM anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+  public.itam_network_scopes,
+  public.itam_discovery_jobs,
+  public.itam_discovery_runs,
+  public.itam_discovered_hosts,
+  public.itam_asset_identities,
+  public.itam_software_catalog,
+  public.itam_software_aliases,
+  public.itam_discovery_diffs,
+  public.itam_discovery_audit,
+  public.itam_asset_services,
+  public.itam_field_provenance
+TO authenticated;
+
+GRANT ALL ON TABLE
+  public.itam_network_scopes,
+  public.itam_discovery_jobs,
+  public.itam_discovery_runs,
+  public.itam_discovered_hosts,
+  public.itam_asset_identities,
+  public.itam_software_catalog,
+  public.itam_software_aliases,
+  public.itam_discovery_diffs,
+  public.itam_discovery_audit,
+  public.itam_asset_services,
+  public.itam_field_provenance
+TO service_role;
