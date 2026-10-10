@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-10T08:13:00.094Z",
+  "startedAt": "2026-09-30T07:50:25.054Z",
   "tests": {
     "cidr_validation": {
       "status": "PASS"
@@ -113,7 +113,7 @@
     "correlation_serial": {
       "status": "PASS",
       "detail": {
-        "matchedAssetId": "b7b201ef-22c6-46dd-843f-47076edabe89",
+        "matchedAssetId": "b3485560-b4bb-4fbe-a441-dd3d52ffa115",
         "confidence": "HIGH",
         "signals": [
           {
@@ -154,7 +154,7 @@
       "status": "PASS",
       "detail": {
         "approved": true,
-        "assetId": "ddd27ac4-d2f0-499f-8987-732aba69a72e",
+        "assetId": "7ebe7a00-f3ee-454e-995b-c341ef1e7588",
         "automaticInstall": false
       }
     },
@@ -178,7 +178,7 @@
       "status": "PASS"
     }
   },
-  "finishedAt": "2026-10-10T08:13:00.186Z",
+  "finishedAt": "2026-09-30T07:50:25.145Z",
   "dashboard": {
     "jobs": 5,
     "running": 0,
@@ -187,11 +187,11 @@
     "unmanagedAssets": 22,
     "softwareRows": 4,
     "lastRun": {
-      "id": "aaf0a7d4-7f66-4773-a6e6-5b56cb8872fd",
-      "jobId": "1a5b155b-f1a7-48ee-a1a7-e35b345d2c71",
+      "id": "08534c44-6b95-4ae6-be26-d0ce3f39a1cd",
+      "jobId": "2c09056a-94ac-410d-a120-d169b3b5e92b",
       "organizationId": "org-lab-1",
       "status": "COMPLETED",
-      "startedAt": "2026-10-10T08:13:00.184Z",
+      "startedAt": "2026-09-30T07:50:25.143Z",
       "hostsTargeted": 254,
       "hostsScanned": 254,
       "hostsDiscovered": 20,
@@ -207,7 +207,7 @@
         "credentialedInventoryLatencyMs": 0,
         "workerUtilization": 32
       },
-      "finishedAt": "2026-10-10T08:13:00.186Z"
+      "finishedAt": "2026-09-30T07:50:25.145Z"
     }
   },
   "metrics": {

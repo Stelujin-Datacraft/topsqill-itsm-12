@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-10-10T08:13:17.889Z",
+  "startedAt": "2026-09-30T07:50:24.225Z",
   "tests": {
     "seed_discovery": {
       "status": "PASS"
@@ -66,7 +66,7 @@
     "execute_create": {
       "status": "PASS",
       "detail": {
-        "recordId": "943b3c80-d90b-4ac2-b5b1-b01e39e558ec",
+        "recordId": "6de1abee-b308-4b19-8888-4967e42488f9",
         "payload": {
           "primary_ip": "10.50.0.1",
           "mac_address": "aa:bb:cc:50:00:01",
@@ -101,7 +101,7 @@
       "status": "PASS",
       "detail": {
         "ip": "10.50.0.2",
-        "recordId": "943b3c80-d90b-4ac2-b5b1-b01e39e558ec"
+        "recordId": "6de1abee-b308-4b19-8888-4967e42488f9"
       }
     },
     "schema_evolution": {
@@ -192,7 +192,7 @@
     "real_environment_e2e": {
       "status": "NOT_TESTED",
       "detail": {
-        "reason": "NOT TESTED — REAL ENVIRONMENT CREDENTIALS/ENDPOINT REQUIRED (set ITAM_SYNC_REAL=1 + ITAM_SYNC_BASE_URL)"
+        "reason": "Flag set but automated live assert not configured in this run"
       }
     }
   },
@@ -202,7 +202,7 @@
       "externalId": "GUID-SERVER-01",
       "operation": "CREATE",
       "status": "SUCCESS",
-      "targetRecordId": "943b3c80-d90b-4ac2-b5b1-b01e39e558ec",
+      "targetRecordId": "6de1abee-b308-4b19-8888-4967e42488f9",
       "mappedPayload": {
         "primary_ip": "10.50.0.1",
         "mac_address": "aa:bb:cc:50:00:01",
@@ -233,7 +233,7 @@
       "externalId": "GUID-SERVER-01",
       "operation": "NO_CHANGE",
       "status": "NO_CHANGE",
-      "targetRecordId": "943b3c80-d90b-4ac2-b5b1-b01e39e558ec",
+      "targetRecordId": "6de1abee-b308-4b19-8888-4967e42488f9",
       "mappedPayload": {
         "primary_ip": "10.50.0.1",
         "mac_address": "aa:bb:cc:50:00:01",
@@ -251,7 +251,7 @@
       "externalId": "GUID-SERVER-01",
       "operation": "UPDATE",
       "status": "SUCCESS",
-      "targetRecordId": "943b3c80-d90b-4ac2-b5b1-b01e39e558ec",
+      "targetRecordId": "6de1abee-b308-4b19-8888-4967e42488f9",
       "mappedPayload": {
         "primary_ip": "10.50.0.1",
         "mac_address": "aa:bb:cc:50:00:01",
@@ -268,7 +268,7 @@
       ]
     },
     "IP_CHANGE_NO_DUPLICATE": {
-      "recordId": "943b3c80-d90b-4ac2-b5b1-b01e39e558ec",
+      "recordId": "6de1abee-b308-4b19-8888-4967e42488f9",
       "ip": "10.50.0.2"
     },
     "SCHEMA_CHANGE": {
@@ -290,5 +290,5 @@
       ]
     }
   },
-  "finishedAt": "2026-10-10T08:13:17.920Z"
+  "finishedAt": "2026-09-30T07:50:24.254Z"
 }
