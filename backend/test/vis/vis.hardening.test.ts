@@ -1,10 +1,11 @@
 /**
  * Production hardening & validation suite.
- * Uses real PostgreSQL (VIS_DATABASE_URL) — not in-memory substitutes for PG tests.
+ * Uses real Supabase (shared project) — not in-memory substitutes for durable tests.
  *
  * Run:
- *   export VIS_DATABASE_URL   # required — no embedded passwords
- *   export VIS_PERSISTENCE=prisma
+ *   export SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY  # required — no embedded passwords
+ *   export VIS_PERSISTENCE=supabase
+ *   Apply supabase/migrations/20261010090000_vis_supabase_persistence.sql first
  *   export PATH="$HOME/.dotnet:$PATH"
  *   npx tsx backend/test/vis/vis.hardening.test.ts
  */
@@ -24,7 +25,7 @@ import { DriftDetectionService } from '../../src/vis/drift/drift.service';
 import { SelfHealingService } from '../../src/vis/healing/self-healing.service';
 import { AiOpsService } from '../../src/vis/aiops/ai-ops.service';
 import { resetVisStorePrismaForTests, getVisStore, resetVisStoreForTests } from '../../src/vis/store/vis.store';
-import { getVisPrisma, disconnectVisPrisma } from '../../src/vis/store/prisma-client';
+import { createClient } from '@supabase/supabase-js';
 import { GovernanceService } from '../../src/vis/governance/governance.service';
 
 function assert(cond: unknown, msg: string) {
@@ -43,30 +44,24 @@ async function section(name: string, fn: () => Promise<void>) {
 
 async function main() {
   console.log('VIS_HARDENING_START');
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required');
-  process.env.VIS_PERSISTENCE = 'prisma';
+  assert(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required');
+  process.env.VIS_PERSISTENCE = 'supabase';
+  delete process.env.VIS_DATABASE_URL;
   process.env.VIS_SECRET_MASTER_KEY = 'hardening-test-key';
   process.env.PATH = `${process.env.HOME}/.dotnet:${process.env.PATH}`;
 
-  // Reset DB tables used by tests (truncate)
-  const prisma = getVisPrisma();
-  const tables = [
-    'vis_healing_actions', 'vis_ai_recommendations', 'vis_repair_reports', 'vis_reconciliation_reports',
-    'vis_drift_findings', 'vis_impact_analyses', 'vis_codegen_artifacts', 'vis_promotions',
-    'vis_change_history', 'vis_approvals', 'vis_alerts', 'vis_metric_samples', 'vis_trace_spans',
-    'vis_connector_upgrades', 'vis_connector_installs', 'vis_connectors', 'vis_secret_blobs',
-    'vis_execution_logs', 'vis_executions', 'vis_audit_logs', 'vis_integration_versions',
-    'vis_integrations', 'vis_documents', 'vis_events', 'vis_dead_letter_items',
-  ];
-  for (const t of tables) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`).catch(() => undefined);
-  }
+  // Reset VIS document SoR used by tests
+  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  await sb.from('vis_documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await sb.from('vis_secret_blobs').delete().neq('ref_id', '__none__');
 
   const store = await resetVisStorePrismaForTests();
   await store.flushDurable();
 
-  // ── Prisma persistence ─────────────────────────────────────────────────
-  await section('prisma_persistence', async () => {
+  // ── Supabase persistence ───────────────────────────────────────────────
+  await section('supabase_persistence', async () => {
     store.create('aiRecommendations', {
       type: 'TEST',
       reason: 'persist check',
@@ -78,12 +73,17 @@ async function main() {
       createdAt: new Date().toISOString(),
     });
     await store.flushDurable();
-    const count = await prisma.visAiRecommendation.count();
-    assert(count >= 1, `expected prisma rows, got ${count}`);
-    // Reload from DB
+    const { data, error } = await sb
+      .from('vis_documents')
+      .select('id')
+      .eq('collection', 'aiRecommendations')
+      .is('deleted_at', null);
+    assert(!error, error?.message || 'vis_documents select failed');
+    const count = data?.length || 0;
+    assert(count >= 1, `expected supabase document rows, got ${count}`);
     const store2 = await resetVisStorePrismaForTests();
-    assert(store2.list('aiRecommendations').length >= 1, 'hydrate from prisma');
-    RESULTS.prisma_row_count = count;
+    assert(store2.list('aiRecommendations').length >= 1, 'hydrate from supabase');
+    RESULTS.supabase_row_count = count;
   });
 
   // ── Codegen build validation ───────────────────────────────────────────
@@ -129,8 +129,10 @@ async function main() {
     assert((await local.get('ref-a')) === 'rotated-secret', 'local rotate');
     assert((await local.get('missing')) === null, 'invalid secret');
     await store.flushDurable();
-    const blobs = await prisma.visSecretBlob.count();
-    assert(blobs >= 1, 'secret durable in prisma');
+    const { data: secretRows, error: secretErr } = await sb.from('vis_secret_blobs').select('ref_id');
+    assert(!secretErr, secretErr?.message || 'secret blob select failed');
+    const blobs = secretRows?.length || 0;
+    assert(blobs >= 1, 'secret durable in supabase');
 
     const mockVault = new MockVaultServer();
     const vault = mockVault.asProvider();
@@ -144,7 +146,7 @@ async function main() {
       unavailable = e?.code === 'VAULT_UNAVAILABLE';
     }
     assert(unavailable, 'vault unavailable surfaced');
-    RESULTS.secret_providers = { local: true, vaultMock: true, prismaBlobs: blobs };
+    RESULTS.secret_providers = { local: true, vaultMock: true, supabaseBlobs: blobs };
   });
 
   // ── OIDC with local test IdP ───────────────────────────────────────────
@@ -594,9 +596,17 @@ async function main() {
     const promo = gov.promote(integration.id, { targetEnvironment: 'TEST', approvalCount: 1 });
     await store.flushDurable();
     assert(promo.integration?.environment === 'TEST', 'promoted');
-    const dbInt = await prisma.visIntegration.findUnique({ where: { id: integration.id } });
-    assert(dbInt?.environment === 'TEST', 'prisma environment durable');
-    RESULTS.governance_tx = { environment: dbInt?.environment };
+    const { data: dbInt, error: dbErr } = await sb
+      .from('vis_documents')
+      .select('payload')
+      .eq('id', integration.id)
+      .eq('collection', 'integrations')
+      .is('deleted_at', null)
+      .maybeSingle();
+    assert(!dbErr, dbErr?.message || 'integration document select failed');
+    const env = (dbInt?.payload as any)?.environment;
+    assert(env === 'TEST', 'supabase environment durable');
+    RESULTS.governance_tx = { environment: env };
   });
 
   // ── Load tests (actual measurements) ───────────────────────────────────
@@ -665,7 +675,7 @@ async function main() {
   await dev.close();
   await uat.close();
   await store.flushDurable();
-  await disconnectVisPrisma();
+  /* supabase client GC */;
 
   console.log('\nVIS_HARDENING_PASS');
   console.log(JSON.stringify(RESULTS, null, 2));
@@ -680,6 +690,6 @@ async function main() {
 
 main().catch(async (e) => {
   console.error('VIS_HARDENING_FAIL', e);
-  try { await disconnectVisPrisma(); } catch { /* */ }
+  try { /* supabase client GC */; } catch { /* */ }
   process.exit(1);
 });

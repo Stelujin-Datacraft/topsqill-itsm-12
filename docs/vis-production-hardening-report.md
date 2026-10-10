@@ -73,7 +73,7 @@ sudo pg_ctlcluster 16 main start
 redis-server --daemonize yes
 # user/db: vis / vis_platform, vis_mock_dev, vis_mock_uat
 
-export VIS_DATABASE_URL   # required — never commit credentials
+export SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY  # required — never commit credentials
 export PATH="$HOME/.dotnet:$PATH"
 cd backend
 npm i
@@ -84,8 +84,8 @@ npx prisma db push --schema=src/vis/prisma/schema.prisma
 VIS_STORE_MEMORY=1 VIS_PERSISTENCE=memory npm run test:vis
 
 # Hardening (real PostgreSQL)
-VIS_PERSISTENCE=prisma npm run test:vis:hardening
-VIS_PERSISTENCE=prisma VIS_LOAD_100K=1 npm run test:vis:hardening:100k
+VIS_PERSISTENCE=supabase npm run test:vis:hardening
+VIS_PERSISTENCE=supabase VIS_LOAD_100K=1 npm run test:vis:hardening:100k
 
 # Security + DR
 npm run security:scan

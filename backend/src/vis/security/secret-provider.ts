@@ -3,7 +3,8 @@
  * Select via VIS_SECRET_PROVIDER=local|vault (default local).
  */
 import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto';
-import { getVisPrisma, isPrismaPersistenceEnabled } from '../store/prisma-client';
+import { isVisSupabasePersistenceEnabled } from '../store/vis-supabase-client';
+import { SupabaseVisStore } from '../store/supabase-vis.store';
 
 export interface SecretProvider {
   readonly kind: string;
@@ -37,30 +38,34 @@ function decrypt(packed: string): string {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
 
-/** Local AES-GCM store — memory + optional Prisma durability. */
+/** Local AES-GCM store — memory + optional Supabase durability (`vis_secret_blobs`). */
 export class LocalEncryptedSecretProvider implements SecretProvider {
   readonly kind = 'local-encrypted';
   private memory = new Map<string, string>();
+  private durable: SupabaseVisStore | null = null;
+
+  private durableStore(): SupabaseVisStore | null {
+    if (!isVisSupabasePersistenceEnabled()) return null;
+    if (!this.durable) this.durable = new SupabaseVisStore();
+    return this.durable;
+  }
 
   async put(refId: string, plaintext: string): Promise<void> {
     const ciphertext = encrypt(plaintext);
     this.memory.set(refId, ciphertext);
-    if (isPrismaPersistenceEnabled()) {
-      const prisma = getVisPrisma();
-      await prisma.visSecretBlob.upsert({
-        where: { refId },
-        create: { refId, ciphertext, provider: this.kind },
-        update: { ciphertext, provider: this.kind },
-      });
-    }
+    const store = this.durableStore();
+    if (store) await store.putSecret(refId, ciphertext, this.kind);
   }
 
   async get(refId: string): Promise<string | null> {
     let packed = this.memory.get(refId);
-    if (!packed && isPrismaPersistenceEnabled()) {
-      const row = await getVisPrisma().visSecretBlob.findUnique({ where: { refId } });
-      packed = row?.ciphertext;
-      if (packed) this.memory.set(refId, packed);
+    if (!packed) {
+      const store = this.durableStore();
+      if (store) {
+        const row = await store.getSecret(refId);
+        packed = row?.ciphertext;
+        if (packed) this.memory.set(refId, packed);
+      }
     }
     if (!packed) return null;
     return decrypt(packed);
@@ -68,19 +73,15 @@ export class LocalEncryptedSecretProvider implements SecretProvider {
 
   async delete(refId: string): Promise<void> {
     this.memory.delete(refId);
-    if (isPrismaPersistenceEnabled()) {
-      await getVisPrisma().visSecretBlob.deleteMany({ where: { refId } });
-    }
+    const store = this.durableStore();
+    if (store) await store.deleteSecret(refId);
   }
 
   async rotate(refId: string, plaintext: string): Promise<void> {
-    await this.put(refId, plaintext);
-    if (isPrismaPersistenceEnabled()) {
-      await getVisPrisma().visSecretBlob.updateMany({
-        where: { refId },
-        data: { rotatedAt: new Date() },
-      });
-    }
+    const ciphertext = encrypt(plaintext);
+    this.memory.set(refId, ciphertext);
+    const store = this.durableStore();
+    if (store) await store.rotateSecret(refId, ciphertext, this.kind);
   }
 }
 

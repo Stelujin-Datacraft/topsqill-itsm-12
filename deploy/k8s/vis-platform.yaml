@@ -13,7 +13,7 @@ metadata:
   namespace: vis
 data:
   NODE_ENV: "production"
-  VIS_PERSISTENCE: "prisma"
+  VIS_PERSISTENCE: "supabase"
   VIS_SECRET_PROVIDER: "vault"
   PORT: "3001"
   VIS_SHUTDOWN_MS: "15000"
@@ -26,7 +26,10 @@ metadata:
 type: Opaque
 stringData:
   # Replace via sealed-secrets / external-secrets — placeholders only
-  VIS_DATABASE_URL: "postgresql://vis:CHANGE_ME@postgres:5432/vis_platform"
+  # VIS uses shared Supabase (not a separate VIS_DATABASE_URL / Prisma DB)
+  SUPABASE_URL: "https://YOUR_PROJECT.supabase.co"
+  SUPABASE_ANON_KEY: "CHANGE_ME"
+  SUPABASE_SERVICE_ROLE_KEY: "CHANGE_ME"
   VIS_SECRET_MASTER_KEY: "CHANGE_ME"
   VAULT_ADDR: "http://vault:8200"
   VAULT_TOKEN: "CHANGE_ME"
@@ -207,7 +210,7 @@ metadata:
   name: vis-data-plane-notes
   namespace: vis
 data:
-  postgres: "Use managed PostgreSQL with connection pooling (PgBouncer). Point VIS_DATABASE_URL at the pooler."
+  postgres: "VIS uses the shared Supabase Postgres project (SUPABASE_URL + service_role). Apply vis_supabase_persistence.sql manually before first durable boot."
   redis: "Use managed Redis with REDIS_URL. Enable AOF for queue durability where required."
   secrets: "Never commit real secrets. Use ExternalSecrets / SealedSecrets to populate vis-secrets."
 ---
