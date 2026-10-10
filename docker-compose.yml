@@ -10,6 +10,7 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=production
+      # VIS persistence uses SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. No separate VIS database.
       - CORS_ORIGIN=http://localhost:8080
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_PUBLISHABLE_KEY}

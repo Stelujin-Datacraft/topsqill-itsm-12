@@ -1,10 +1,11 @@
 /**
  * Production hardening & validation suite.
- * Uses real PostgreSQL (VIS_DATABASE_URL) — not in-memory substitutes for PG tests.
+ * VIS records use Supabase (mocked unless a client is already installed).
+ * ENV-DEV / ENV-UAT mock apps still require VIS_MOCK_PG_BASE.
  *
  * Run:
- *   export VIS_DATABASE_URL   # required — no embedded passwords
- *   export VIS_PERSISTENCE=prisma
+ *   export VIS_PERSISTENCE=supabase
+ *   export SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY   # required for live Supabase; tests inject a mock when unset
  *   export PATH="$HOME/.dotnet:$PATH"
  *   npx tsx backend/test/vis/vis.hardening.test.ts
  */
@@ -24,7 +25,8 @@ import { DriftDetectionService } from '../../src/vis/drift/drift.service';
 import { SelfHealingService } from '../../src/vis/healing/self-healing.service';
 import { AiOpsService } from '../../src/vis/aiops/ai-ops.service';
 import { resetVisStorePrismaForTests, getVisStore, resetVisStoreForTests } from '../../src/vis/store/vis.store';
-import { getVisPrisma, disconnectVisPrisma } from '../../src/vis/store/prisma-client';
+import { setVisSupabaseClientForTests } from '../../src/vis/store/supabase-vis.client';
+import { createMockSupabase, type MockSupabase } from './mock-supabase-client';
 import { GovernanceService } from '../../src/vis/governance/governance.service';
 
 function assert(cond: unknown, msg: string) {
@@ -43,30 +45,20 @@ async function section(name: string, fn: () => Promise<void>) {
 
 async function main() {
   console.log('VIS_HARDENING_START');
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required');
-  process.env.VIS_PERSISTENCE = 'prisma';
+  delete process.env.VIS_DATABASE_URL;
+  process.env.VIS_PERSISTENCE = 'supabase';
+  process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-service-role';
   process.env.VIS_SECRET_MASTER_KEY = 'hardening-test-key';
   process.env.PATH = `${process.env.HOME}/.dotnet:${process.env.PATH}`;
-
-  // Reset DB tables used by tests (truncate)
-  const prisma = getVisPrisma();
-  const tables = [
-    'vis_healing_actions', 'vis_ai_recommendations', 'vis_repair_reports', 'vis_reconciliation_reports',
-    'vis_drift_findings', 'vis_impact_analyses', 'vis_codegen_artifacts', 'vis_promotions',
-    'vis_change_history', 'vis_approvals', 'vis_alerts', 'vis_metric_samples', 'vis_trace_spans',
-    'vis_connector_upgrades', 'vis_connector_installs', 'vis_connectors', 'vis_secret_blobs',
-    'vis_execution_logs', 'vis_executions', 'vis_audit_logs', 'vis_integration_versions',
-    'vis_integrations', 'vis_documents', 'vis_events', 'vis_dead_letter_items',
-  ];
-  for (const t of tables) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`).catch(() => undefined);
-  }
+  const mock: MockSupabase = createMockSupabase();
+  setVisSupabaseClientForTests(mock.client);
 
   const store = await resetVisStorePrismaForTests();
   await store.flushDurable();
 
   // ── Prisma persistence ─────────────────────────────────────────────────
-  await section('prisma_persistence', async () => {
+  await section('supabase_persistence', async () => {
     store.create('aiRecommendations', {
       type: 'TEST',
       reason: 'persist check',
@@ -76,14 +68,14 @@ async function main() {
       risk: 'LOW',
       status: 'PROPOSED',
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
     await store.flushDurable();
-    const count = await prisma.visAiRecommendation.count();
-    assert(count >= 1, `expected prisma rows, got ${count}`);
-    // Reload from DB
+    const count = mock.rows('vis_ai_recommendations').length;
+    assert(count >= 1, `expected supabase rows, got ${count}`);
     const store2 = await resetVisStorePrismaForTests();
-    assert(store2.list('aiRecommendations').length >= 1, 'hydrate from prisma');
-    RESULTS.prisma_row_count = count;
+    assert(store2.list('aiRecommendations').length >= 1, 'hydrate from supabase');
+    RESULTS.supabase_row_count = count;
   });
 
   // ── Codegen build validation ───────────────────────────────────────────
@@ -129,8 +121,8 @@ async function main() {
     assert((await local.get('ref-a')) === 'rotated-secret', 'local rotate');
     assert((await local.get('missing')) === null, 'invalid secret');
     await store.flushDurable();
-    const blobs = await prisma.visSecretBlob.count();
-    assert(blobs >= 1, 'secret durable in prisma');
+    const blobs = mock.rows('vis_secret_blobs').length;
+    assert(blobs >= 1, 'secret durable in supabase');
 
     const mockVault = new MockVaultServer();
     const vault = mockVault.asProvider();
@@ -144,7 +136,7 @@ async function main() {
       unavailable = e?.code === 'VAULT_UNAVAILABLE';
     }
     assert(unavailable, 'vault unavailable surfaced');
-    RESULTS.secret_providers = { local: true, vaultMock: true, prismaBlobs: blobs };
+    RESULTS.secret_providers = { local: true, vaultMock: true, supabaseBlobs: blobs };
   });
 
   // ── OIDC with local test IdP ───────────────────────────────────────────
@@ -594,8 +586,8 @@ async function main() {
     const promo = gov.promote(integration.id, { targetEnvironment: 'TEST', approvalCount: 1 });
     await store.flushDurable();
     assert(promo.integration?.environment === 'TEST', 'promoted');
-    const dbInt = await prisma.visIntegration.findUnique({ where: { id: integration.id } });
-    assert(dbInt?.environment === 'TEST', 'prisma environment durable');
+    const dbInt = mock.rows('vis_integrations').find((row) => row.id === integration.id);
+    assert(dbInt?.environment === 'TEST', 'supabase environment durable');
     RESULTS.governance_tx = { environment: dbInt?.environment };
   });
 
@@ -665,7 +657,7 @@ async function main() {
   await dev.close();
   await uat.close();
   await store.flushDurable();
-  await disconnectVisPrisma();
+  setVisSupabaseClientForTests(null);
 
   console.log('\nVIS_HARDENING_PASS');
   console.log(JSON.stringify(RESULTS, null, 2));
@@ -680,6 +672,6 @@ async function main() {
 
 main().catch(async (e) => {
   console.error('VIS_HARDENING_FAIL', e);
-  try { await disconnectVisPrisma(); } catch { /* */ }
+  try { setVisSupabaseClientForTests(null); } catch { /* */ }
   process.exit(1);
 });

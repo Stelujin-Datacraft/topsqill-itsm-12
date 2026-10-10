@@ -9,13 +9,13 @@ Internal Forms are discovered and written **only through configurable APIs**.
 
 - `packages/vis-core` — shared types, Zod `IntegrationDesign` / `AiDesignProposal`, connector & AI interfaces, mapping engine, OpenAPI discovery
 - `backend/src/vis` — NestJS `VisModule` (`/api/vis/*`), connectors, mock AI, file store (core mirrored from `packages/vis-core`)
-- `backend/src/vis/prisma/schema.prisma` — long-term Postgres contract
+- `supabase/migrations/20261010120000_vis_supabase_persistence.sql` — VIS tables on the existing Supabase project
 - `src/pages/vis` — Prompt-first UI under `/vis`
 - `src/lib/vis` — Nest-first client with sticky browser fallback engine
 
 ## Phase 1 runtime
 
-- Persistence: file-backed `VisStore` (`backend/.vis-data/`) so MVP runs without Prisma migrate
+- Persistence: Supabase in production (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`). File-backed `VisStore` remains for local tests.
 - AI: `MockAIProvider` + `VisAssistant` (structured, Zod-validated)
 - Mocks: `/api/vis/mocks/vulnerabilities`, `/api/vis/mocks/forms/...`
 - Workers / OAuth refresh lock / circuit breaker: interfaces & data model ready; not live

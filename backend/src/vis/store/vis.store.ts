@@ -1,16 +1,20 @@
 /**
- * VisStore — in-memory working set with durable backends.
+ * VisStore — in-memory working set with a durable Supabase backend.
  *
- * Production (VIS_DATABASE_URL + VIS_PERSISTENCE!=file|memory):
- *   PostgreSQL via Prisma is the system of record. Memory is a write-through cache.
- *   Call hydrateFromPrisma() at boot; await flushDurable() after critical ops.
+ * Production (NODE_ENV=production or VIS_PERSISTENCE=supabase):
+ *   The existing Supabase project is the system of record. Memory is a write-through cache.
+ *   Call hydrate() at boot; await flushDurable() after critical ops.
+ *   Missing schema does not fall back to file storage.
  *
- * Tests / local without DB:
+ * Tests / local without Supabase:
  *   VIS_STORE_MEMORY=1 or VIS_PERSISTENCE=file|memory — file or memory only.
+ *   VIS_DATABASE_URL is not used.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { randomUUID } from 'crypto';
+import { visPersistenceMode } from './vis-persistence-mode';
+import { SupabaseVisStore, type VisTxOp } from './supabase-vis.store';
 
 export type VisRecord = Record<string, unknown> & { id: string };
 
@@ -95,27 +99,8 @@ function defaultPath(): string {
   return local;
 }
 
-function usePrisma(): boolean {
-  if (process.env.VIS_PERSISTENCE === 'file' || process.env.VIS_PERSISTENCE === 'memory') {
-    if (process.env.NODE_ENV === 'production' && process.env.VIS_ALLOW_FILE_STORE !== '1') {
-      throw new Error(
-        'File/memory VisStore is forbidden in production. Set VIS_DATABASE_URL and VIS_PERSISTENCE=prisma.',
-      );
-    }
-    return false;
-  }
-  if (process.env.VIS_STORE_MEMORY === '1' && process.env.VIS_PERSISTENCE !== 'prisma') {
-    if (process.env.NODE_ENV === 'production' && process.env.VIS_ALLOW_FILE_STORE !== '1') {
-      throw new Error('VIS_STORE_MEMORY is forbidden in production without VIS_ALLOW_FILE_STORE=1');
-    }
-    return false;
-  }
-  if (process.env.VIS_PERSISTENCE === 'prisma') return true;
-  if (process.env.VIS_DATABASE_URL) return true;
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('VIS_DATABASE_URL is required in production for Prisma persistence');
-  }
-  return false;
+function useSupabase(): boolean {
+  return visPersistenceMode() === 'supabase';
 }
 
 export class VisStore {
@@ -123,38 +108,44 @@ export class VisStore {
   private readonly filePath: string;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private persistDeferred = false;
-  private readonly prismaMode: boolean;
+  private readonly supabaseMode: boolean;
   private pending: Promise<unknown>[] = [];
-  private prismaStore: import('./prisma-vis.store').PrismaVisStore | null = null;
+  private supabaseStore: SupabaseVisStore | null = null;
   private writeChain: Promise<unknown> = Promise.resolve();
 
   constructor(filePath?: string) {
     this.filePath = filePath || process.env.VIS_STORE_PATH || defaultPath();
-    this.prismaMode = usePrisma();
-    if (this.prismaMode) {
+    this.supabaseMode = useSupabase();
+    if (this.supabaseMode) {
       this.data = structuredClone(EMPTY);
-      // Lazy import to avoid loading Prisma when unused
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { PrismaVisStore } = require('./prisma-vis.store') as typeof import('./prisma-vis.store');
-      this.prismaStore = new PrismaVisStore();
+      this.supabaseStore = new SupabaseVisStore();
     } else {
       this.data = this.load();
       this.ensureMockSeed();
     }
   }
 
-  get isPrismaBacked() {
-    return this.prismaMode;
+  get isSupabaseBacked() {
+    return this.supabaseMode;
   }
 
-  /** Load SoR from PostgreSQL into memory cache (required at boot in prisma mode). */
-  async hydrateFromPrisma(): Promise<void> {
-    if (!this.prismaStore) return;
-    await this.prismaStore.ready();
-    await this.prismaStore.hydrate();
-    const snap = this.prismaStore.snapshot();
+  /** @deprecated Prisma has been removed. True when Supabase persistence is active. */
+  get isPrismaBacked() {
+    return this.supabaseMode;
+  }
+
+  /** Load the system of record from Supabase into the memory cache. */
+  async hydrate(): Promise<void> {
+    if (!this.supabaseStore) return;
+    await this.supabaseStore.hydrate();
+    const snap = this.supabaseStore.snapshot();
     this.data = { ...structuredClone(EMPTY), ...snap };
     if (!this.data.mockForms.length) this.ensureMockSeed();
+  }
+
+  /** @deprecated Use hydrate(). */
+  async hydrateFromPrisma(): Promise<void> {
+    await this.hydrate();
   }
 
   /** Await all pending durable writes. */
@@ -164,14 +155,13 @@ export class VisStore {
     await Promise.all(batch);
   }
 
-  /** Multi-step transaction against PostgreSQL (prisma mode only). */
+  /** Multi-step transaction against Supabase (durable mode). File mode is sequential. */
   async transaction<T>(fn: (tx: {
     create: typeof VisStore.prototype.create;
     update: typeof VisStore.prototype.update;
     get: typeof VisStore.prototype.get;
   }) => Promise<T>): Promise<T> {
-    if (!this.prismaStore) {
-      // File mode: best-effort sequential without true TX
+    if (!this.supabaseStore) {
       return fn({
         create: this.create.bind(this),
         update: this.update.bind(this),
@@ -179,29 +169,35 @@ export class VisStore {
       });
     }
     await this.flushDurable();
-    return this.prismaStore.transaction(async (tx) => {
-      // Apply to both TX and memory
-      const api = {
-        create: (collection: keyof VisStoreData, record: Omit<VisRecord, 'id'> & { id?: string }) => {
-          const row: VisRecord = { id: record.id || randomUUID(), ...record };
-          (this.data[collection] as VisRecord[]).push(row);
-          void tx.create(collection, row);
-          return row;
-        },
-        update: (collection: keyof VisStoreData, id: string, patch: Record<string, unknown>) => {
-          const list = this.data[collection] as VisRecord[];
-          const idx = list.findIndex((r) => r.id === id);
-          if (idx < 0) return null;
-          list[idx] = { ...list[idx], ...patch, id };
-          void tx.update(collection, id, patch);
-          return list[idx];
-        },
-        get: (collection: keyof VisStoreData, id: string) => {
-          return (this.data[collection] as VisRecord[]).find((r) => r.id === id) || null;
-        },
-      };
-      return fn(api as any);
-    });
+    const snapshot = structuredClone(this.data);
+    const ops: VisTxOp[] = [];
+    const api = {
+      create: (collection: keyof VisStoreData, record: Omit<VisRecord, 'id'> & { id?: string }) => {
+        const row: VisRecord = { id: record.id || randomUUID(), ...record };
+        (this.data[collection] as VisRecord[]).push(row);
+        ops.push({ op: 'upsert', collection, row });
+        return row;
+      },
+      update: (collection: keyof VisStoreData, id: string, patch: Record<string, unknown>) => {
+        const list = this.data[collection] as VisRecord[];
+        const idx = list.findIndex((r) => r.id === id);
+        if (idx < 0) return null;
+        list[idx] = { ...list[idx], ...patch, id };
+        ops.push({ op: 'upsert', collection, row: list[idx] });
+        return list[idx];
+      },
+      get: (collection: keyof VisStoreData, id: string) => {
+        return (this.data[collection] as VisRecord[]).find((r) => r.id === id) || null;
+      },
+    };
+    try {
+      const result = await fn(api as any);
+      await this.supabaseStore.applyTransaction(ops);
+      return result;
+    } catch (error) {
+      this.data = snapshot;
+      throw error;
+    }
   }
 
   private load(): VisStoreData {
@@ -217,7 +213,7 @@ export class VisStore {
   }
 
   persist(): void {
-    if (this.prismaMode) return; // durable via Prisma
+    if (this.supabaseMode) return;
     if (process.env.VIS_STORE_MEMORY === '1') return;
     if (this.persistTimer) {
       clearTimeout(this.persistTimer);
@@ -230,7 +226,7 @@ export class VisStore {
   }
 
   private schedulePersist(): void {
-    if (this.prismaMode) return;
+    if (this.supabaseMode) return;
     if (process.env.VIS_STORE_MEMORY === '1') return;
     this.persistDeferred = true;
     if (this.persistTimer) return;
@@ -244,7 +240,7 @@ export class VisStore {
   }
 
   persistFast(): void {
-    if (this.prismaMode) return;
+    if (this.supabaseMode) return;
     if (process.env.VIS_STORE_MEMORY === '1') return;
     if (this.persistTimer) {
       clearTimeout(this.persistTimer);
@@ -263,9 +259,14 @@ export class VisStore {
   create<K extends keyof VisStoreData>(collection: K, record: Omit<VisRecord, 'id'> & { id?: string }): VisRecord {
     const row: VisRecord = { id: record.id || randomUUID(), ...record };
     (this.data[collection] as VisRecord[]).push(row);
-    if (this.prismaMode && this.prismaStore) {
-      const store = this.prismaStore;
-      const op = () => store.createAsync(collection, row);
+    if (this.supabaseMode && this.supabaseStore) {
+      const store = this.supabaseStore;
+      const op = () => store.createAsync(collection, row).catch((err) => {
+        console.error(`[VisStore] durable create failed for ${String(collection)}:`, err instanceof Error ? err.message : err);
+        const list = this.data[collection] as VisRecord[];
+        (this.data as any)[collection] = list.filter((item) => item.id !== row.id);
+        throw err;
+      });
       this.writeChain = this.writeChain.then(op, op);
       this.pending.push(this.writeChain);
     } else if (
@@ -290,10 +291,17 @@ export class VisStore {
     const list = this.data[collection] as VisRecord[];
     const idx = list.findIndex((r) => r.id === id);
     if (idx < 0) return null;
+    const previous = list[idx];
     list[idx] = { ...list[idx], ...patch, id };
-    if (this.prismaMode && this.prismaStore) {
-      const store = this.prismaStore;
-      const op = () => store.updateAsync(collection, id, patch);
+    if (this.supabaseMode && this.supabaseStore) {
+      const store = this.supabaseStore;
+      const op = () => store.updateAsync(collection, id, patch).catch((err) => {
+        console.error(`[VisStore] durable update failed for ${String(collection)}:`, err instanceof Error ? err.message : err);
+        const current = this.data[collection] as VisRecord[];
+        const currentIndex = current.findIndex((item) => item.id === id);
+        if (currentIndex >= 0) current[currentIndex] = previous;
+        throw err;
+      });
       this.writeChain = this.writeChain.then(op, op);
       this.pending.push(this.writeChain);
     } else if (
@@ -324,11 +332,19 @@ export class VisStore {
 
   remove<K extends keyof VisStoreData>(collection: K, id: string): boolean {
     const list = this.data[collection] as VisRecord[];
+    const removed = list.find((r) => r.id === id);
     const next = list.filter((r) => r.id !== id);
-    if (next.length === list.length) return false;
+    if (!removed || next.length === list.length) return false;
     (this.data as any)[collection] = next;
-    if (this.prismaMode && this.prismaStore) {
-      this.pending.push(this.prismaStore.removeAsync(collection, id).catch(() => undefined));
+    if (this.supabaseMode && this.supabaseStore) {
+      const store = this.supabaseStore;
+      const op = () => store.removeAsync(collection, id).catch((err) => {
+        console.error(`[VisStore] durable delete failed for ${String(collection)}:`, err instanceof Error ? err.message : err);
+        (this.data[collection] as VisRecord[]).push(removed);
+        throw err;
+      });
+      this.writeChain = this.writeChain.then(op, op);
+      this.pending.push(this.writeChain);
     } else {
       this.persist();
     }
@@ -381,7 +397,7 @@ export class VisStore {
         { name: 'severity', label: 'Severity', type: 'select', required: true },
       ],
     });
-    if (!this.prismaMode) this.persist();
+    if (!this.supabaseMode) this.persist();
   }
 }
 
@@ -396,9 +412,17 @@ export function resetVisStoreForTests(filePath?: string): VisStore {
   return singleton;
 }
 
-export async function resetVisStorePrismaForTests(): Promise<VisStore> {
-  process.env.VIS_PERSISTENCE = 'prisma';
+export function clearVisStoreForTests(): void {
+  singleton = null;
+}
+
+export async function resetVisStoreSupabaseForTests(): Promise<VisStore> {
+  process.env.VIS_PERSISTENCE = 'supabase';
+  delete process.env.VIS_STORE_MEMORY;
   singleton = new VisStore();
-  await singleton.hydrateFromPrisma();
+  await singleton.hydrate();
   return singleton;
 }
+
+/** @deprecated Use resetVisStoreSupabaseForTests(). */
+export const resetVisStorePrismaForTests = resetVisStoreSupabaseForTests;

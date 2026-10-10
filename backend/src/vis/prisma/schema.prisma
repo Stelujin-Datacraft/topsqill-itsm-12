@@ -1,5 +1,7 @@
-// Versatile Integration Studio — Prisma SoR (Phases 1–10 production persistence).
-// Runtime selects this via VIS_DATABASE_URL + VIS_PERSISTENCE=prisma.
+// HISTORICAL column reference only. Runtime persistence is Supabase, not Prisma.
+// Do not set VIS_DATABASE_URL. Apply:
+//   supabase/migrations/20261010120000_vis_supabase_persistence.sql
+// The datasource URL below is unused by the backend.
 
 generator client {
   provider = "prisma-client-js"

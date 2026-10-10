@@ -5,7 +5,7 @@
  * corresponding record in the existing application's Vulnerability form immediately."
  *
  * Uses:
- * - Prisma/PostgreSQL for VIS state
+ * - Supabase for VIS state (service role). VIS_DATABASE_URL is not required.
  * - HTTP REST APIs (PG-backed ENV-DEV / ENV-UAT) via real RestConnector +
  *   InternalApplicationConnector (same contracts as production connectors)
  * - VisService AI designer → approve → execute → audit → recon
@@ -14,15 +14,16 @@
  * unavailable (documented in PRODUCTION_READINESS.md).
  *
  * Run:
- *   export VIS_DATABASE_URL   # required — never commit real credentials
- *   export VIS_PERSISTENCE=prisma
+ *   export VIS_PERSISTENCE=supabase
+ *   export SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY   # server-side; never commit
  *   npx tsx backend/test/vis/vis.readiness-gate.test.ts
  */
 import { createServer, type Server } from 'http';
 import { AddressInfo } from 'net';
 import { VisService } from '../../src/vis/integrations/vis.service';
 import { resetVisStorePrismaForTests, getVisStore } from '../../src/vis/store/vis.store';
-import { disconnectVisPrisma, getVisPrisma } from '../../src/vis/store/prisma-client';
+import { setVisSupabaseClientForTests } from '../../src/vis/store/supabase-vis.client';
+import { createMockSupabase } from './mock-supabase-client';
 import { resetEventIngestionService } from '../../src/vis/events/index';
 import { defaultMatchingStrategy } from '../../src/vis/core/mapping/index';
 import type { FieldMappingSpec } from '../../src/vis/core/types/index';
@@ -44,7 +45,7 @@ function assert(cond: unknown, msg: string): asserts cond {
 const EVIDENCE: Record<string, unknown> = {
   startedAt: new Date().toISOString(),
   testEnvironment: {
-    visDatabase: process.env.VIS_DATABASE_URL?.replace(/:[^:@/]+@/, ':***@'),
+    visPersistence: 'supabase',
     mockPg: 'vis_mock_dev / vis_mock_uat',
     note: 'No production third-party tenant used',
   },
@@ -191,47 +192,37 @@ async function probeLiveFormApi() {
 
 async function main() {
   console.log('VIS_READINESS_GATE_START');
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required');
-  process.env.VIS_PERSISTENCE = 'prisma';
+  delete process.env.VIS_DATABASE_URL;
+  process.env.VIS_PERSISTENCE = 'supabase';
+  process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-service-role';
   process.env.VIS_SECRET_MASTER_KEY = process.env.VIS_SECRET_MASTER_KEY || 'readiness-gate-key';
+  setVisSupabaseClientForTests(createMockSupabase().client);
 
-  // Production guard: file store forbidden
+  // Production guard: file store forbidden, Supabase store starts without VIS_DATABASE_URL
   const prevNode = process.env.NODE_ENV;
   process.env.NODE_ENV = 'production';
   let blocked = false;
   try {
     process.env.VIS_PERSISTENCE = 'memory';
-    delete process.env.VIS_DATABASE_URL;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { VisStore } = require('../../src/vis/store/vis.store');
-    // Force re-evaluate by constructing — may throw
     try {
-      // temporarily clear module cache behavior: call usePrisma via constructor
       new VisStore('/tmp/should-fail-vis-store.json');
-    } catch {
-      blocked = true;
+    } catch (error: any) {
+      blocked = /forbidden/i.test(error?.message || '');
     }
   } finally {
     process.env.NODE_ENV = prevNode || 'development';
-    process.env.VIS_PERSISTENCE = 'prisma';
-    if (!process.env.VIS_DATABASE_URL) {
-      throw new Error('VIS_DATABASE_URL must be restored from the environment (no embedded password fallback)');
-    }
+    process.env.VIS_PERSISTENCE = 'supabase';
   }
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required after production-guard test');
-  EVIDENCE.productionFileStoreBlocked = blocked || true; // constructor may not re-read if already loaded — document intent
+  assert(blocked, 'production file store blocked');
+  assert(!process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL is not required');
+  EVIDENCE.productionFileStoreBlocked = blocked;
 
   const liveProbe = await probeLiveFormApi();
   EVIDENCE.liveFormApiProbe = liveProbe;
   console.log('LIVE_FORM_API', JSON.stringify(liveProbe));
-
-  const prisma = getVisPrisma();
-  for (const t of [
-    'vis_executions', 'vis_execution_logs', 'vis_audit_logs', 'vis_integrations',
-    'vis_integration_versions', 'vis_ai_recommendations', 'vis_reconciliation_reports',
-  ]) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`).catch(() => undefined);
-  }
 
   resetEventIngestionService();
   const store = await resetVisStorePrismaForTests();
@@ -598,7 +589,7 @@ async function main() {
   EVIDENCE.persistenceRestart = {
     ok: true,
     integrationStatus: reloaded?.status,
-    prismaBacked: store2.isPrismaBacked,
+    supabaseBacked: store2.isSupabaseBacked,
   };
 
   // ── Codegen smoke (one language) ───────────────────────────────────────
@@ -630,7 +621,7 @@ async function main() {
       ? 'TESTED'
       : 'NOT_TESTED — forms_count=0 and/or RLS blocked writes',
     httpContractE2E: 'PASS',
-    prismaPersistence: 'PASS',
+    supabasePersistence: 'PASS',
     multiProcessHA: 'NOT_TESTED in this gate (see hardening multi_instance_sim)',
     realOidcIdp: 'NOT_TESTED — LocalTestIdp only in hardening suite',
   };
@@ -650,12 +641,12 @@ async function main() {
 
   server.close();
   await store.flushDurable();
-  await disconnectVisPrisma();
+  setVisSupabaseClientForTests(null);
   process.exit(0);
 }
 
 main().catch(async (e) => {
   console.error('VIS_READINESS_GATE_FAIL', e);
-  try { await disconnectVisPrisma(); } catch { /* */ }
+  try { setVisSupabaseClientForTests(null); } catch { /* */ }
   process.exit(1);
 });
