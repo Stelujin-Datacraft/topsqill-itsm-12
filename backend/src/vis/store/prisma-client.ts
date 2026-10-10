@@ -1,36 +1,27 @@
 /**
- * Prisma client bootstrap for VIS.
- * Selected when VIS_DATABASE_URL is set and VIS_PERSISTENCE=prisma (default when URL present).
+ * @deprecated VIS no longer uses Prisma at runtime.
+ * Persistence is Supabase (`vis_documents` / `vis_secret_blobs`) via
+ * `vis-supabase-client.ts` / `supabase-vis.store.ts`.
+ *
+ * This stub remains so legacy imports fail clearly instead of requiring
+ * VIS_DATABASE_URL or a generated Prisma client at Nest boot.
  */
-import { PrismaClient } from '../generated/prisma';
 
-let client: PrismaClient | null = null;
-
-export function getVisPrisma(): PrismaClient {
-  if (!client) {
-    const url = process.env.VIS_DATABASE_URL;
-    if (!url) {
-      throw new Error('VIS_DATABASE_URL is required for Prisma persistence');
-    }
-    client = new PrismaClient({
-      datasources: { db: { url } },
-      log: process.env.VIS_PRISMA_LOG === '1' ? ['error', 'warn'] : ['error'],
-    });
-  }
-  return client;
+export function getVisPrisma(): never {
+  throw new Error(
+    'Prisma VIS persistence has been removed. '
+      + 'Use Supabase (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY) with VIS_PERSISTENCE=supabase.',
+  );
 }
 
-export async function disconnectVisPrisma() {
-  if (client) {
-    await client.$disconnect();
-    client = null;
-  }
+export async function disconnectVisPrisma(): Promise<void> {
+  /* no-op */
 }
 
+/** @deprecated Use isVisSupabasePersistenceEnabled */
 export function isPrismaPersistenceEnabled(): boolean {
-  if (process.env.VIS_PERSISTENCE === 'file' || process.env.VIS_PERSISTENCE === 'memory') return false;
-  if (process.env.VIS_PERSISTENCE === 'prisma') return true;
-  return Boolean(process.env.VIS_DATABASE_URL);
+  const { isVisSupabasePersistenceEnabled } = require('./vis-supabase-client') as typeof import('./vis-supabase-client');
+  return isVisSupabasePersistenceEnabled();
 }
 
-export type { PrismaClient };
+export type PrismaClient = never;
