@@ -285,7 +285,7 @@ export async function createDevUatMockPair() {
   const fromVisUrl = process.env.VIS_DATABASE_URL?.replace(/\/[^/?]+(\?.*)?$/, '') || '';
   const base = process.env.VIS_MOCK_PG_BASE || fromVisUrl;
   if (!base) {
-    throw new Error('VIS_MOCK_PG_BASE or VIS_DATABASE_URL is required for PG mock apps (no embedded passwords)');
+    throw new Error('VIS_MOCK_PG_BASE is required for PG mock apps. VIS persistence does not use VIS_DATABASE_URL.');
   }
   const dev = new PgMockEnterpriseApp({ databaseUrl: `${base}/vis_mock_dev`, envName: 'ENV-DEV' });
   const uat = new PgMockEnterpriseApp({ databaseUrl: `${base}/vis_mock_uat`, envName: 'ENV-UAT' });

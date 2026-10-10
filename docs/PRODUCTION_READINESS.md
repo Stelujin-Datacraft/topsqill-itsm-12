@@ -50,7 +50,7 @@ Evidence artifacts:
 | SSO | EXPERIMENTAL | OIDC + LocalTestIdp | Real IdP |
 | Secrets | NEEDS HARDENING | Local encrypted + Vault client | Live Vault |
 | Code Generation | READY | TS/Py/Java/C#/Go build+test (hardening); Python rechecked in gate | — |
-| PostgreSQL Persistence | READY (when configured) | Prisma hydrate after restart | Default prod requires `VIS_DATABASE_URL` |
+| PostgreSQL Persistence | READY (when schema applied) | Supabase hydrate after restart | Uses `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. Apply `supabase/migrations/20261010120000_vis_supabase_persistence.sql`. |
 | HA | EXPERIMENTAL | Concurrent writer sim only | 2 API + N workers process test |
 | Observability | READY (basic) | audit + execution logs + correlationId | Full OTEL exporter |
 | Connector SDK | NEEDS HARDENING | Marketplace certify path | External publisher UX |
@@ -63,7 +63,7 @@ Evidence artifacts:
 
 | Feature | Implementation | Test Evidence | Status | Risk | Required Action |
 |---------|----------------|---------------|--------|------|-----------------|
-| VisStore file/memory | Still available for tests | Production throws without DB URL | NEEDS HARDENING | Accidental file mode | Ops: always set `VIS_PERSISTENCE=prisma` |
+| VisStore file/memory | Still available for tests | Production throws without Supabase credentials | NEEDS HARDENING | Accidental file mode | Ops: set `VIS_PERSISTENCE=supabase` |
 | createStoreTargetAdapter | In-memory mockRecords | Unit/phase tests | STUB for prod target | Silent local-only writes | Prefer HTTP adapter when connection bound (**done in this PR**) |
 | Vis mocks controller | In-process demo API | Phase 1–4 | Demo | Not customer SoR | Use `/vis/env` PG APIs or live Form API |
 | Live FormApiService | Supabase forms/submissions | Probe: read OK, write RLS deny | NOT READY for gate writes | Org RLS | Seed test form in Demo org with service policy |
@@ -83,11 +83,11 @@ Evidence artifacts:
 8. Human approve  
 9–17. Source create → execution SUCCESS → **target verified by HTTP GET**  
 10. Update → still one target  
-Audit + recon + drift + RBAC + Prisma restart  
+Audit + recon + drift + RBAC + Supabase restart  
 
 ```bash
-export VIS_DATABASE_URL   # required — do not embed passwords in docs/source
-export VIS_PERSISTENCE=prisma
+export VIS_PERSISTENCE=supabase
+# SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY come from the backend environment
 cd backend && npx tsx test/vis/vis.readiness-gate.test.ts
 ```
 
@@ -102,7 +102,7 @@ Scanned `backend/src/vis`, `backend/test/vis`, and `docs` for literal secret ass
 | Test fixtures using `'must-not-leak'` / `'should-redact'` | Intentional — assert redaction |
 | Example env placeholders (`CHANGE_ME`) | Local/docs only — not customer secrets |
 | Real `sk_live_` / AWS `AKIA…` / committed OAuth client secrets | **None found** |
-| Prior `vis_dev_password` literals | Removed from source defaults; supply via `VIS_DATABASE_URL` / `VIS_MOCK_PG_BASE` |
+| Prior `vis_dev_password` literals | Removed from source defaults. VIS persistence uses the Supabase service-role key. `VIS_MOCK_PG_BASE` is only for optional mock apps. |
 
 ## What was not tested (explicit)
 

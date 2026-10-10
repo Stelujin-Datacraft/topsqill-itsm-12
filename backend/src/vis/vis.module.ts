@@ -6,6 +6,7 @@ import { VisEventsController } from './events/vis-events.controller';
 import { VisEnterpriseController } from './enterprise/vis-enterprise.controller';
 import { VisService } from './integrations/vis.service';
 import { VisEnterpriseService } from './enterprise/vis-enterprise.service';
+import { VisPersistenceService } from './store/vis-persistence.service';
 
 @Module({
   controllers: [
@@ -15,7 +16,7 @@ import { VisEnterpriseService } from './enterprise/vis-enterprise.service';
     VisEventsController,
     VisEnterpriseController,
   ],
-  providers: [VisService, VisEnterpriseService],
+  providers: [VisService, VisEnterpriseService, VisPersistenceService],
   exports: [VisService, VisEnterpriseService],
 })
 export class VisModule {}

@@ -3,8 +3,8 @@
  * prerequisites are met. Never fabricates live API success.
  *
  * Run:
- *   export VIS_DATABASE_URL="$VIS_DATABASE_URL"   # required
- *   export VIS_PERSISTENCE=prisma
+ *   export VIS_PERSISTENCE=supabase
+ *   export SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY   # server-side; never commit
  *   export VIS_PILOT_ENV=TEST
  *   export REDIS_URL=redis://127.0.0.1:6379       # optional HA
  *   npx tsx test/vis/vis.pilot-enablement.test.ts
@@ -15,7 +15,8 @@ import { resolve } from 'path';
 import { mkdirSync, writeFileSync } from 'fs';
 import { VisService } from '../../src/vis/integrations/vis.service';
 import { resetVisStorePrismaForTests, getVisStore } from '../../src/vis/store/vis.store';
-import { disconnectVisPrisma, getVisPrisma } from '../../src/vis/store/prisma-client';
+import { setVisSupabaseClientForTests } from '../../src/vis/store/supabase-vis.client';
+import { createMockSupabase } from './mock-supabase-client';
 import { resetEventIngestionService } from '../../src/vis/events/index';
 import { defaultMatchingStrategy } from '../../src/vis/core/mapping/index';
 import type { FieldMappingSpec } from '../../src/vis/core/types/index';
@@ -239,8 +240,11 @@ async function main() {
     require('dotenv').config({ path: resolve(process.cwd(), '.env') });
   } catch { /* optional */ }
 
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required (never embed passwords in source)');
-  process.env.VIS_PERSISTENCE = 'prisma';
+  delete process.env.VIS_DATABASE_URL;
+  process.env.VIS_PERSISTENCE = 'supabase';
+  process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase.co';
+  process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'test-service-role';
+  setVisSupabaseClientForTests(createMockSupabase().client);
   process.env.VIS_PILOT_ENV = process.env.VIS_PILOT_ENV || 'TEST';
   if (!process.env.REDIS_URL && !process.env.VIS_REDIS_URL) {
     process.env.REDIS_URL = 'redis://127.0.0.1:6379';
@@ -279,15 +283,6 @@ async function main() {
     capability: topsqillDiag.writeCapability,
   });
 
-  // Prisma bootstrap
-  const prisma = getVisPrisma();
-  for (const t of [
-    'vis_executions', 'vis_execution_logs', 'vis_audit_logs', 'vis_integrations',
-    'vis_integration_versions', 'vis_ai_recommendations', 'vis_reconciliation_reports',
-    'vis_schema_cache',
-  ]) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`).catch(() => undefined);
-  }
   resetEventIngestionService();
   const store = await resetVisStorePrismaForTests();
   await store.flushDurable();
@@ -693,7 +688,7 @@ async function main() {
 
   server.close();
   await store.flushDurable();
-  await disconnectVisPrisma();
+  setVisSupabaseClientForTests(null);
   process.exit(0);
 }
 
@@ -706,6 +701,6 @@ main().catch(async (e) => {
       JSON.stringify({ ...EVIDENCE, error: String(e?.stack || e) }, null, 2),
     );
   } catch { /* */ }
-  try { await disconnectVisPrisma(); } catch { /* */ }
+  try { setVisSupabaseClientForTests(null); } catch { /* */ }
   process.exit(1);
 });

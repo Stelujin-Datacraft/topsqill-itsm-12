@@ -1,3 +1,7 @@
+-- SUPERSEDED. VIS runtime persistence is Supabase.
+-- Apply supabase/migrations/20261010120000_vis_supabase_persistence.sql instead.
+-- This Prisma migration is history and is not executed by the backend.
+
 -- CreateTable
 CREATE TABLE "vis_user_refs" (
     "id" TEXT NOT NULL,

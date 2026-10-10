@@ -4,7 +4,7 @@
 
 | Feature | Status | Evidence | Remaining work |
 |---------|--------|----------|----------------|
-| Prisma/PostgreSQL persistence | FUNCTIONAL_BUT_NEEDS_HARDENING | `vis.hardening` prisma_persistence; dual-write VisStore | Full cutover of all VisService paths; remove file default in prod config |
+| Supabase persistence | FUNCTIONAL_BUT_NEEDS_HARDENING | `vis.supabase-persistence` mocked client; dual-write VisStore | Apply `supabase/migrations/20261010120000_vis_supabase_persistence.sql` before production writes |
 | Codegen TypeScript | PRODUCTION_READY | tsc + node:test PASS | — |
 | Codegen Python | PRODUCTION_READY | py_compile + unittest PASS | — |
 | Codegen Java | PRODUCTION_READY | `mvn test` PASS | — |
@@ -32,9 +32,8 @@
 
 ## B. Database migration
 
-- Schema: `backend/src/vis/prisma/schema.prisma`
-- SQL: `backend/src/vis/prisma/migrations/20260929120000_init_vis_enterprise/migration.sql`
-- Applied via `prisma db push` against PostgreSQL 16
+- Schema: `supabase/migrations/20261010120000_vis_supabase_persistence.sql` (review only; not applied by the app)
+- Historical Prisma schema: `backend/src/vis/prisma/schema.prisma` (unused at runtime)
 
 ## C–O. Measured results
 
@@ -68,24 +67,21 @@ See artifacts:
 ## Q. Commands
 
 ```bash
-# Start local PG + Redis, create DBs (once)
-sudo pg_ctlcluster 16 main start
-redis-server --daemonize yes
-# user/db: vis / vis_platform, vis_mock_dev, vis_mock_uat
-
-export VIS_DATABASE_URL   # required — never commit credentials
+export VIS_PERSISTENCE=supabase
 export PATH="$HOME/.dotnet:$PATH"
 cd backend
 npm i
-npx prisma generate --schema=src/vis/prisma/schema.prisma
-npx prisma db push --schema=src/vis/prisma/schema.prisma
 
-# Regression (file/memory)
+# Apply supabase/migrations/20261010120000_vis_supabase_persistence.sql
+# to the Dev Supabase project before durable writes. Do not apply it to Prod from this change.
+
+# Regression (file/memory) and mocked Supabase persistence
 VIS_STORE_MEMORY=1 VIS_PERSISTENCE=memory npm run test:vis
+npm run test:vis:persistence
 
-# Hardening (real PostgreSQL)
-VIS_PERSISTENCE=prisma npm run test:vis:hardening
-VIS_PERSISTENCE=prisma VIS_LOAD_100K=1 npm run test:vis:hardening:100k
+# Hardening (Supabase client; ENV-DEV/UAT mock apps still use VIS_MOCK_PG_BASE)
+VIS_PERSISTENCE=supabase npm run test:vis:hardening
+VIS_PERSISTENCE=supabase VIS_LOAD_100K=1 npm run test:vis:hardening:100k
 
 # Security + DR
 npm run security:scan

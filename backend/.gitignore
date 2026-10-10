@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-vis-test/
 .env
 *.log
 

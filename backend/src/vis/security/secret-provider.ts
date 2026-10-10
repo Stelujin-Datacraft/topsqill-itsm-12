@@ -2,8 +2,9 @@
  * Production SecretProvider architecture.
  * Select via VIS_SECRET_PROVIDER=local|vault (default local).
  */
-import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'crypto';
-import { getVisPrisma, isPrismaPersistenceEnabled } from '../store/prisma-client';
+import { createHash, randomBytes, createCipheriv, createDecipheriv, randomUUID } from 'crypto';
+import { getVisSupabase } from '../store/supabase-vis.client';
+import { isSupabasePersistenceEnabled } from '../store/vis-persistence-mode';
 
 export interface SecretProvider {
   readonly kind: string;
@@ -37,7 +38,12 @@ function decrypt(packed: string): string {
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
 
-/** Local AES-GCM store — memory + optional Prisma durability. */
+function assertSecretWrite(error: { message?: string } | null, operation: string): void {
+  if (!error) return;
+  throw new Error(`VIS secret ${operation} failed: ${error.message || 'unknown error'}`);
+}
+
+/** Local AES-GCM store — memory plus Supabase ciphertext when durable mode is on. */
 export class LocalEncryptedSecretProvider implements SecretProvider {
   readonly kind = 'local-encrypted';
   private memory = new Map<string, string>();
@@ -45,21 +51,41 @@ export class LocalEncryptedSecretProvider implements SecretProvider {
   async put(refId: string, plaintext: string): Promise<void> {
     const ciphertext = encrypt(plaintext);
     this.memory.set(refId, ciphertext);
-    if (isPrismaPersistenceEnabled()) {
-      const prisma = getVisPrisma();
-      await prisma.visSecretBlob.upsert({
-        where: { refId },
-        create: { refId, ciphertext, provider: this.kind },
-        update: { ciphertext, provider: this.kind },
-      });
+    if (!isSupabasePersistenceEnabled()) return;
+    const client = getVisSupabase();
+    const existing = await client.from('vis_secret_blobs').select('id').eq('ref_id', refId).maybeSingle();
+    assertSecretWrite(existing.error, 'read');
+    const now = new Date().toISOString();
+    if (existing.data?.id) {
+      const updated = await client.from('vis_secret_blobs').update({
+        ciphertext,
+        provider: this.kind,
+        updated_at: now,
+      }).eq('ref_id', refId);
+      assertSecretWrite(updated.error, 'update');
+      return;
     }
+    const inserted = await client.from('vis_secret_blobs').insert({
+      id: randomUUID(),
+      ref_id: refId,
+      ciphertext,
+      provider: this.kind,
+      created_at: now,
+      updated_at: now,
+    });
+    assertSecretWrite(inserted.error, 'insert');
   }
 
   async get(refId: string): Promise<string | null> {
     let packed = this.memory.get(refId);
-    if (!packed && isPrismaPersistenceEnabled()) {
-      const row = await getVisPrisma().visSecretBlob.findUnique({ where: { refId } });
-      packed = row?.ciphertext;
+    if (!packed && isSupabasePersistenceEnabled()) {
+      const { data, error } = await getVisSupabase()
+        .from('vis_secret_blobs')
+        .select('ciphertext')
+        .eq('ref_id', refId)
+        .maybeSingle();
+      assertSecretWrite(error, 'read');
+      packed = data?.ciphertext;
       if (packed) this.memory.set(refId, packed);
     }
     if (!packed) return null;
@@ -68,19 +94,19 @@ export class LocalEncryptedSecretProvider implements SecretProvider {
 
   async delete(refId: string): Promise<void> {
     this.memory.delete(refId);
-    if (isPrismaPersistenceEnabled()) {
-      await getVisPrisma().visSecretBlob.deleteMany({ where: { refId } });
-    }
+    if (!isSupabasePersistenceEnabled()) return;
+    const { error } = await getVisSupabase().from('vis_secret_blobs').delete().eq('ref_id', refId);
+    assertSecretWrite(error, 'delete');
   }
 
   async rotate(refId: string, plaintext: string): Promise<void> {
     await this.put(refId, plaintext);
-    if (isPrismaPersistenceEnabled()) {
-      await getVisPrisma().visSecretBlob.updateMany({
-        where: { refId },
-        data: { rotatedAt: new Date() },
-      });
-    }
+    if (!isSupabasePersistenceEnabled()) return;
+    const { error } = await getVisSupabase().from('vis_secret_blobs').update({
+      rotated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('ref_id', refId);
+    assertSecretWrite(error, 'rotate');
   }
 }
 
