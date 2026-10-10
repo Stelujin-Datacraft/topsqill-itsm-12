@@ -9,6 +9,11 @@ import { resolve } from 'path';
 import type { DiscoveryStore } from './store';
 import type { DiscoveryJob, NetworkScope } from './types';
 import { assertPostgresUrlForPersistence } from './persistence-config';
+import {
+  ITAM_DISCOVERY_APPLY_ORDER,
+  ItamDiscoverySchemaMissingError,
+  isItamDiscoverySchemaMissingError,
+} from './schema-missing.error';
 
 export {
   assertPostgresUrlForPersistence,
@@ -20,6 +25,15 @@ export {
   resolveDiscoveryPersistenceMode,
   shouldApplyDiscoverySchema,
 } from './persistence-config';
+
+export {
+  ITAM_DISCOVERY_APPLY_ORDER,
+  ItamDiscoverySchemaMissingError,
+  isItamDiscoverySchemaMissingError,
+} from './schema-missing.error';
+
+/** Alias kept for existing tests/callers */
+export const ITAM_DISCOVERY_MIGRATION_FILES = ITAM_DISCOVERY_APPLY_ORDER;
 
 let pool: Pool | null = null;
 
@@ -77,58 +91,51 @@ export const REQUIRED_DISCOVERY_RELATIONS = [
   'asset_software',
 ] as const;
 
-export const ITAM_DISCOVERY_MIGRATION_FILES = [
-  'supabase/migrations/20260930120000_itam_network_discovery.sql',
-  'supabase/migrations/20260930130000_itam_phases_b_d.sql',
-  'supabase/migrations/20260930140000_itam_form_sync.sql',
-] as const;
-
 /**
  * Fail closed with an actionable message when required ITAM Discovery relations
  * are missing. Does not create schema and does not fall back to memory.
  */
 export async function assertRequiredDiscoverySchema(client?: PoolClient | Pool): Promise<void> {
   const db = client || getDiscoveryPool();
-  const result = await db.query<{ relname: string }>(
-    `SELECT c.relname
-       FROM pg_class c
-       JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public'
-        AND c.relkind = 'r'
-        AND c.relname = ANY($1::text[])`,
-    [REQUIRED_DISCOVERY_RELATIONS as unknown as string[]],
-  );
-  const present = new Set(result.rows.map((r) => r.relname));
+  let present: Set<string>;
+  try {
+    const result = await db.query<{ relname: string }>(
+      `SELECT c.relname
+         FROM pg_class c
+         JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind = 'r'
+          AND c.relname = ANY($1::text[])`,
+      [REQUIRED_DISCOVERY_RELATIONS as unknown as string[]],
+    );
+    present = new Set(result.rows.map((r) => r.relname));
+  } catch (e: any) {
+    const msg = String(e?.message || e);
+    if (/does not exist|relation|permission denied/i.test(msg)) {
+      throw new ItamDiscoverySchemaMissingError([...REQUIRED_DISCOVERY_RELATIONS]);
+    }
+    throw e;
+  }
   const missing = REQUIRED_DISCOVERY_RELATIONS.filter((name) => !present.has(name));
   if (missing.length === 0) return;
-
-  throw new Error(
-    `ITAM Discovery schema is incomplete — missing relation(s): ${missing.join(', ')}. `
-      + 'Nest will not auto-create these tables (ITAM_DISCOVERY_APPLY_SCHEMA defaults off). '
-      + 'Apply the Dev Supabase migrations in order, then restart the backend:\n  - '
-      + ITAM_DISCOVERY_MIGRATION_FILES.join('\n  - ')
-      + '\nSee docs/ITAM_NETWORK_DISCOVERY_READINESS.md (Dev migration procedure). '
-      + 'In-memory persistence is not used as a fallback.',
-  );
+  throw new ItamDiscoverySchemaMissingError(missing as string[]);
 }
 
 export async function hydrateDiscoveryStore(store: DiscoveryStore): Promise<void> {
   const db = getDiscoveryPool();
+  await assertRequiredDiscoverySchema(db);
+
+  let scopes;
   try {
-    await assertRequiredDiscoverySchema(db);
+    scopes = await db.query(`SELECT * FROM itam_network_scopes`);
   } catch (e: any) {
+    if (isItamDiscoverySchemaMissingError(e)) throw e;
     const msg = String(e?.message || e);
-    if (/ITAM Discovery schema is incomplete/i.test(msg)) throw e;
     if (/does not exist|relation/i.test(msg)) {
-      throw new Error(
-        `ITAM Discovery hydrate failed because required tables are missing (${msg}). `
-          + `Apply migrations:\n  - ${ITAM_DISCOVERY_MIGRATION_FILES.join('\n  - ')}`,
-      );
+      throw new ItamDiscoverySchemaMissingError(['itam_network_scopes']);
     }
     throw e;
   }
-
-  const scopes = await db.query(`SELECT * FROM itam_network_scopes`);
   store.scopes = scopes.rows.map(mapScope);
 
   const jobs = await db.query(`SELECT * FROM itam_discovery_jobs`);
