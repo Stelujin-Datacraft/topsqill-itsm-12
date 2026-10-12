@@ -4,6 +4,11 @@
  * Secrets persist in `vis_secret_blobs` via SecretProvider.
  *
  * Uses the shared Supabase project (service-role, server-only).
+ *
+ * Document addressing:
+ *   * `vis_documents.id` — PostgreSQL UUID primary key (DB-generated)
+ *   * `vis_documents.logical_id` — application id (e.g. `form-vulnerability`)
+ *   * `payload.id` — same logical id for JSON consumers / cache keys
  */
 import { randomUUID } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -49,11 +54,26 @@ const ALL_COLLECTIONS: Collection[] = [
   'healingActions',
 ];
 
-function asRecord(payload: unknown, id: string): VisRecord {
-  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-    return { ...(payload as Record<string, unknown>), id } as VisRecord;
+type VisDocumentRow = {
+  id?: string;
+  logical_id?: string | null;
+  payload?: unknown;
+};
+
+/** Prefer logical_id, then payload.id, then UUID text — never require UUID == app id. */
+export function mapVisDocumentRow(row: VisDocumentRow): VisRecord {
+  const payloadId =
+    row.payload && typeof row.payload === 'object' && !Array.isArray(row.payload)
+      ? String((row.payload as Record<string, unknown>).id || '')
+      : '';
+  const logical =
+    (row.logical_id && String(row.logical_id))
+    || payloadId
+    || (row.id ? String(row.id) : '');
+  if (row.payload && typeof row.payload === 'object' && !Array.isArray(row.payload)) {
+    return { ...(row.payload as Record<string, unknown>), id: logical } as VisRecord;
   }
-  return { id };
+  return { id: logical };
 }
 
 export class SupabaseVisStore {
@@ -65,12 +85,12 @@ export class SupabaseVisStore {
   }
 
   async ready() {
-    const { error } = await this.sb.from('vis_documents').select('id').limit(1);
+    const { error } = await this.sb.from('vis_documents').select('id, logical_id').limit(1);
     if (error) {
       throw new Error(
         `VIS Supabase readiness check failed (${error.message}). `
-          + 'Apply the reviewable migration supabase/migrations/*_vis_supabase_persistence.sql '
-          + 'to the Dev Supabase project before starting production.',
+          + 'Apply reviewable migrations supabase/migrations/*_vis_supabase_persistence.sql '
+          + 'and *_vis_documents_logical_id.sql to the Dev Supabase project before starting production.',
       );
     }
     await this.ensureMockSeed();
@@ -89,22 +109,25 @@ export class SupabaseVisStore {
   }
 
   async createAsync<K extends Collection>(collection: K, record: VisRecord): Promise<VisRecord> {
-    const row: VisRecord = { id: record.id || randomUUID(), ...record };
+    const logicalId = String(record.id || randomUUID());
+    const row: VisRecord = { ...record, id: logicalId };
     if (collection === 'events' && !row.eventId) row.eventId = row.id;
     if (collection === 'credentials' && !row.secretHandle) row.secretHandle = `ref-${row.id}`;
     if (collection === 'credentials' && !row.type) row.type = 'GENERIC';
     if (collection === 'connections' && !row.authType) row.authType = 'NONE';
     if (collection === 'connections' && !row.kind) row.kind = 'REST';
 
+    // Let Postgres generate the UUID PK. Upsert on (collection, logical_id) so
+    // repeated seeds / soft-deleted restores do not create duplicates.
     const { error } = await this.sb.from('vis_documents').upsert(
       {
-        id: row.id,
         collection,
+        logical_id: logicalId,
         payload: row,
         deleted_at: null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'id' },
+      { onConflict: 'collection,logical_id' },
     );
     if (error) throw new Error(`VIS create ${collection} failed: ${error.message}`);
     this.cacheSet(collection, row);
@@ -123,11 +146,12 @@ export class SupabaseVisStore {
     const { error } = await this.sb
       .from('vis_documents')
       .update({
+        logical_id: id,
         payload,
         updated_at: new Date().toISOString(),
         deleted_at: null,
       })
-      .eq('id', id)
+      .eq('logical_id', id)
       .eq('collection', collection)
       .is('deleted_at', null);
     if (error) throw new Error(`VIS update ${collection}/${id} failed: ${error.message}`);
@@ -142,16 +166,44 @@ export class SupabaseVisStore {
   async getAsync<K extends Collection>(collection: K, id: string): Promise<VisRecord | null> {
     const { data, error } = await this.sb
       .from('vis_documents')
-      .select('id, payload')
-      .eq('id', id)
+      .select('id, logical_id, payload')
+      .eq('logical_id', id)
       .eq('collection', collection)
       .is('deleted_at', null)
       .maybeSingle();
     if (error) throw new Error(`VIS get ${collection}/${id} failed: ${error.message}`);
-    if (!data) return null;
-    const mapped = asRecord(data.payload, data.id);
+    if (!data) {
+      // Compatibility: rows created before logical_id migration may only have payload.id
+      // or (incorrectly) used a UUID as both PK and app id. Try payload->>'id' via filter.
+      return this.getAsyncLegacyFallback(collection, id);
+    }
+    const mapped = mapVisDocumentRow(data as VisDocumentRow);
     this.cacheSet(collection, mapped);
     return mapped;
+  }
+
+  /**
+   * Read path for pre-migration rows where logical_id may be missing from the
+   * client schema cache or only present inside payload.id.
+   */
+  private async getAsyncLegacyFallback<K extends Collection>(
+    collection: K,
+    id: string,
+  ): Promise<VisRecord | null> {
+    const { data, error } = await this.sb
+      .from('vis_documents')
+      .select('id, logical_id, payload')
+      .eq('collection', collection)
+      .eq('payload->>id' as 'payload', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (error) throw new Error(`VIS get ${collection}/${id} failed: ${error.message}`);
+    if (!data) return null;
+    const mapped = mapVisDocumentRow(data as VisDocumentRow);
+    // Prefer requested logical id for cache keys even if column was blank
+    const withId = { ...mapped, id } as VisRecord;
+    this.cacheSet(collection, withId);
+    return withId;
   }
 
   list<K extends Collection>(collection: K): VisRecord[] {
@@ -161,12 +213,12 @@ export class SupabaseVisStore {
   async listAsync<K extends Collection>(collection: K): Promise<VisRecord[]> {
     const { data, error } = await this.sb
       .from('vis_documents')
-      .select('id, payload')
+      .select('id, logical_id, payload')
       .eq('collection', collection)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
     if (error) throw new Error(`VIS list ${collection} failed: ${error.message}`);
-    const mapped = (data || []).map((r) => asRecord(r.payload, r.id));
+    const mapped = (data || []).map((r) => mapVisDocumentRow(r as VisDocumentRow));
     this.cacheReplace(collection, mapped);
     return mapped;
   }
@@ -181,7 +233,7 @@ export class SupabaseVisStore {
     const { data, error } = await this.sb
       .from('vis_documents')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id)
+      .eq('logical_id', id)
       .eq('collection', collection)
       .is('deleted_at', null)
       .select('id');
