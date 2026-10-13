@@ -69,7 +69,27 @@ const BLOCKED_TABLES = new Set<string>();
 export class DatabaseService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
+  /**
+   * Reject missing filter values. JSON.stringify drops `undefined`, so clients can
+   * send `{ column: "id", operator: "eq" }` without `value`; supabase-js then
+   * queries `eq=undefined` and Postgres returns:
+   *   invalid input syntax for type uuid: "undefined"
+   */
+  assertFilterValues(filters: FilterClause[] | undefined) {
+    if (!filters?.length) return;
+    for (const filter of filters) {
+      if (filter.kind === 'or') continue;
+      const value = filter.value;
+      if (value === undefined || value === null || value === 'undefined') {
+        throw new BadRequestException(
+          `Filter value is required for column "${filter.column}"`,
+        );
+      }
+    }
+  }
+
   private applyFilters(query: any, filters: FilterClause[]) {
+    this.assertFilterValues(filters);
     for (const filter of filters) {
       if (filter.kind === 'or') {
         query = query.or(filter.expression);
