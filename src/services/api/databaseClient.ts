@@ -7,11 +7,14 @@
 
 import { request } from './apiClient';
 import { rawSupabase } from '@/integrations/supabase/rawClient';
+import {
+  assertFiltersHaveValues,
+  unwrapNestQueryPayload,
+  type GuardFilterClause,
+} from '@/utils/databaseQueryGuards';
 
-export type FilterClause =
-  | { kind: 'filter'; column: string; operator: string; value: unknown }
-  | { kind: 'not'; column: string; operator: string; value: unknown }
-  | { kind: 'or'; expression: string };
+export type FilterClause = GuardFilterClause;
+export { assertFiltersHaveValues, unwrapNestQueryPayload } from '@/utils/databaseQueryGuards';
 
 export interface SelectOptions {
   count?: 'exact' | 'planned' | 'estimated';
@@ -160,6 +163,12 @@ class QueryBuilder extends FilterMixin {
   }
 
   private async executeViaApi(): Promise<QueryResult> {
+    try {
+      assertFiltersHaveValues(this.filters);
+    } catch (e: any) {
+      return { data: null, error: { message: e?.message || String(e) } };
+    }
+
     const result = await request<QueryResult['data']>('/database/query', {
       method: 'POST',
       body: JSON.stringify({
@@ -180,15 +189,26 @@ class QueryBuilder extends FilterMixin {
       return { data: null, error: result.error };
     }
 
-    const payload = result.data as QueryResult;
+    const payload = result.data as QueryResult & { count?: number | null };
+    const count = payload && typeof payload === 'object' && 'count' in payload
+      ? (payload as QueryResult).count
+      : undefined;
     return {
-      data: payload?.data ?? payload,
+      data: unwrapNestQueryPayload(payload, {
+        maybeSingle: this.maybeSingleResult,
+        single: this.singleResult,
+      }),
       error: null,
-      count: payload?.count ?? undefined,
+      count: count ?? undefined,
     };
   }
 
   private async executeViaSupabase(): Promise<QueryResult> {
+    try {
+      assertFiltersHaveValues(this.filters);
+    } catch (e: any) {
+      return { data: null, error: { message: e?.message || String(e) } };
+    }
     let query: any = (rawSupabase as any).from(this.table).select(this.selectCols, this.selectOptions);
     query = applyFilters(query, this.filters);
     for (const o of this.orderBy) {
@@ -320,8 +340,13 @@ class UpdateBuilder extends FilterMixin {
 
   select(columns = '*') {
     return new ReturningResult(() => withFallback(
-      () =>
-        request('/database/update', {
+      async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
+        return request('/database/update', {
           method: 'POST',
           body: JSON.stringify({
             table: this.table,
@@ -329,8 +354,14 @@ class UpdateBuilder extends FilterMixin {
             filters: this.filters,
             returning: columns,
           }),
-        }).then(normalizeResult),
+        }).then(normalizeResult);
+      },
       async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
         let query: any = (rawSupabase as any).from(this.table).update(this.data as never);
         query = applyFilters(query, this.filters);
         const { data, error } = await query.select(columns);
@@ -351,12 +382,23 @@ class DeleteBuilder extends FilterMixin {
 
   select(columns = '*') {
     return new ReturningResult(() => withFallback(
-      () =>
-        request('/database/delete', {
+      async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
+        return request('/database/delete', {
           method: 'POST',
           body: JSON.stringify({ table: this.table, filters: this.filters, returning: columns }),
-        }).then(normalizeResult),
+        }).then(normalizeResult);
+      },
       async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
         let query: any = (rawSupabase as any).from(this.table).delete();
         query = applyFilters(query, this.filters);
         const { data, error } = await query.select(columns);
