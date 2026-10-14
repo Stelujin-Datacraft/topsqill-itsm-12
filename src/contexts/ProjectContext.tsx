@@ -3,6 +3,10 @@ import { backend as supabase } from '@/services/api';
 import { useAuth } from './AuthContext';
 import { useImpersonation } from './ImpersonationContext';
 import { Project, ProjectPermission } from '@/types/project';
+import {
+  resolveProfileLoadPhase,
+  shouldDeferProjectFetch,
+} from '@/utils/authProjectLoadGate';
 
 const normalizeProject = (project: any): Project => ({
   ...project,
@@ -48,19 +52,35 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userProjectPermissions, setUserProjectPermissions] = useState<Record<string, string[]>>({});
   const latestLoadRequestRef = useRef(0);
-  const { userProfile } = useAuth();
+  const { user, userProfile, isLoading: authLoading, profileError } = useAuth();
   const { isImpersonating, impersonatedUser } = useImpersonation();
 
   // Determine effective user for project loading
   const effectiveUser = isImpersonating && impersonatedUser ? impersonatedUser : userProfile;
   const effectiveRole = effectiveUser?.role || 'user';
+  const profilePhase = resolveProfileLoadPhase({
+    authLoading,
+    userId: user?.id,
+    userProfileId: userProfile?.id,
+    profileError,
+  });
 
   const loadProjects = useCallback(async () => {
     const requestId = ++latestLoadRequestRef.current;
     const isStaleRequest = () => latestLoadRequestRef.current !== requestId;
 
+    // Authenticated but profile still resolving — keep loading, do not finalize empty.
+    if (shouldDeferProjectFetch(profilePhase)) {
+      if (isStaleRequest()) return;
+      setLoading(true);
+      return;
+    }
+
     if (!effectiveUser?.organization_id || !effectiveUser?.id) {
       if (isStaleRequest()) return;
+      setProjects([]);
+      setCurrentProject(null);
+      setUserProjectPermissions({});
       setLoading(false);
       return;
     }
@@ -178,7 +198,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveRole, effectiveUser?.id, effectiveUser?.organization_id]);
+  }, [effectiveRole, effectiveUser?.id, effectiveUser?.organization_id, profilePhase]);
 
   useEffect(() => {
     loadProjects();

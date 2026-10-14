@@ -5,16 +5,21 @@
  * Mirrors the Supabase query builder API so existing hooks work unchanged.
  */
 
-import { request } from './apiClient';
+import { request, clearAuthTokenCache } from './apiClient';
 import { rawSupabase } from '@/integrations/supabase/rawClient';
 import {
   assertFiltersHaveValues,
   unwrapNestQueryPayload,
   type GuardFilterClause,
 } from '@/utils/databaseQueryGuards';
+import {
+  isNestAuthRejectionMessage,
+  shouldUseSupabaseAuthFallback,
+} from '@/utils/authProjectLoadGate';
 
 export type FilterClause = GuardFilterClause;
 export { assertFiltersHaveValues, unwrapNestQueryPayload } from '@/utils/databaseQueryGuards';
+export { shouldUseSupabaseAuthFallback, isNestAuthRejectionMessage } from '@/utils/authProjectLoadGate';
 
 export interface SelectOptions {
   count?: 'exact' | 'planned' | 'estimated';
@@ -71,6 +76,25 @@ async function withFallback(
     backendUnavailable = true;
     return viaSupabase();
   }
+
+  // Nest 401 with a live Supabase session: Dev JWT/config mismatch or stale cached
+  // bearer. Use PostgREST + RLS for this call only — do not permanently disable Nest
+  // or bypass auth when there is no client session.
+  if (result.error && isNestAuthRejectionMessage(result.error.message)) {
+    try {
+      const { data: { session } } = await rawSupabase.auth.getSession();
+      if (shouldUseSupabaseAuthFallback({
+        errorMessage: result.error.message,
+        hasSupabaseSession: !!session?.access_token,
+      })) {
+        clearAuthTokenCache();
+        return viaSupabase();
+      }
+    } catch {
+      // Keep Nest error if session lookup fails
+    }
+  }
+
   return result;
 }
 
