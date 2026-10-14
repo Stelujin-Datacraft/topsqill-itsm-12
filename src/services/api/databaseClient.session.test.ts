@@ -1,10 +1,14 @@
 /**
- * Frontend-side unit checks for session UUID filter guards.
+ * Frontend-side unit checks for session UUID filter guards + Nest auth fallback rules.
  * Run: npx tsx src/services/api/databaseClient.session.test.ts
  */
 import assert from 'assert';
 import { assertFiltersHaveValues, unwrapNestQueryPayload } from '../../utils/databaseQueryGuards';
 import { normalizeUserSessionRow } from '../../utils/userSessionRow';
+import {
+  isNestAuthRejectionMessage,
+  shouldUseSupabaseAuthFallback,
+} from '../../utils/authProjectLoadGate';
 
 console.log('databaseClient session UUID guards');
 
@@ -35,6 +39,25 @@ console.log('databaseClient session UUID guards');
 {
   assert.equal(normalizeUserSessionRow({ id: 'undefined', is_active: true }), null);
   console.log('  ✓ literal "undefined" id rejected');
+}
+
+{
+  assert.equal(isNestAuthRejectionMessage('Request failed (401)'), true);
+  assert.equal(
+    shouldUseSupabaseAuthFallback({
+      errorMessage: 'Unauthorized',
+      hasSupabaseSession: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldUseSupabaseAuthFallback({
+      errorMessage: 'Unauthorized',
+      hasSupabaseSession: false,
+    }),
+    false,
+  );
+  console.log('  ✓ Nest 401 fallback gated on live Supabase session');
 }
 
 console.log('\nAll databaseClient session tests passed.');

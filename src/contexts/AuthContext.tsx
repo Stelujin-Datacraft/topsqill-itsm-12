@@ -122,6 +122,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return loadUserProfile(userId, retryCount + 1, activeRequestId);
         }
         if (isStaleRequest()) return;
+        setUserProfile(null);
+        setOrganization(null);
         setProfileError(error.message);
         return;
       }
@@ -290,6 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isStaleRequest()) return;
       setUserProfile(null);
       setOrganization(null);
+      setProfileError(error instanceof Error ? error.message : 'Failed to load user profile');
     }
   };
 
@@ -392,22 +395,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         previousUserIdRef.current = nextUserId;
 
+        // Drop cached Nest bearer so TOKEN_REFRESHED / SIGNED_IN cannot keep an expired JWT.
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'SIGNED_OUT') {
+          clearAuthTokenCache();
+        }
+
         if (session?.user) {
           if (isSameUserSessionRefresh) {
-            setIsLoading(false);
+            // Same-user TOKEN_REFRESHED / duplicate SIGNED_IN: do not re-fetch profile
+            // and do not force isLoading false — getSession / in-flight load owns that flag.
             return;
           }
 
+          // Keep auth loading true until profile settles. Do not call setIsLoading(false)
+          // before loadUserProfile finishes (that left ProjectContext with a null profile).
+          setIsLoading(true);
+          // Defer Supabase calls out of the auth callback to avoid auth deadlocks.
           setTimeout(async () => {
-            const isValid = await validateSessionInDb(session.user.id, session.access_token);
-            if (isValid) {
-              await loadUserProfile(session.user.id);
+            try {
+              const isValid = await validateSessionInDb(session.user.id, session.access_token);
+              if (isValid) {
+                await loadUserProfile(session.user.id);
+              }
+            } finally {
+              setIsLoading(false);
             }
-          }, 100);
-        } else {
-          setUserProfile(null);
-          setOrganization(null);
+          }, 0);
+          return;
         }
+
+        setUserProfile(null);
+        setOrganization(null);
         setIsLoading(false);
       }
     );
@@ -571,6 +589,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (data.session) {
           await createSession(data.user.id, data.session.access_token);
         }
+
+        // Ensure Nest API client picks up the new access token immediately.
+        clearAuthTokenCache();
 
         // Record successful login
         await recordSuccessfulLogin(data.user.id);
@@ -756,6 +777,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (otpData.session) {
         await createSession(otpData.user.id, otpData.session.access_token);
       }
+      clearAuthTokenCache();
       await recordSuccessfulLogin(otpData.user.id);
 
       await supabase.from('audit_logs').insert({
