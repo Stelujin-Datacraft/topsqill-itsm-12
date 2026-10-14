@@ -8,6 +8,9 @@ import { normalizeUserSessionRow } from '../../utils/userSessionRow';
 import {
   isNestAuthRejectionMessage,
   shouldUseSupabaseAuthFallback,
+  shouldSkipNestWithoutAccessToken,
+  buildBearerAuthorization,
+  mustUseRawSupabaseForPreAuthProfileLookup,
 } from '../../utils/authProjectLoadGate';
 
 console.log('databaseClient session UUID guards');
@@ -43,6 +46,7 @@ console.log('databaseClient session UUID guards');
 
 {
   assert.equal(isNestAuthRejectionMessage('Request failed (401)'), true);
+  assert.equal(isNestAuthRejectionMessage('No authorization header'), true);
   assert.equal(
     shouldUseSupabaseAuthFallback({
       errorMessage: 'Unauthorized',
@@ -57,7 +61,10 @@ console.log('databaseClient session UUID guards');
     }),
     false,
   );
-  console.log('  ✓ Nest 401 fallback gated on live Supabase session');
+  assert.equal(shouldSkipNestWithoutAccessToken(null), true);
+  assert.equal(mustUseRawSupabaseForPreAuthProfileLookup(false), true);
+  assert.equal(buildBearerAuthorization('abc'), 'Bearer abc');
+  console.log('  ✓ Nest 401 / missing-header gated on live Supabase session');
 }
 
 console.log('\nAll databaseClient session tests passed.');

@@ -30,13 +30,36 @@ async function getAuthToken(): Promise<string | null> {
   try {
     const { rawSupabase } = await import('@/integrations/supabase/rawClient');
     const { data: { session } } = await rawSupabase.auth.getSession();
-    cachedAuthToken = session?.access_token || null;
-    authTokenExpiresAt = Date.now() + AUTH_TOKEN_CACHE_MS;
-    return cachedAuthToken;
+    if (session?.access_token) {
+      seedAuthTokenCache(session.access_token, session.expires_at);
+      return cachedAuthToken;
+    }
+    cachedAuthToken = null;
+    authTokenExpiresAt = 0;
+    return null;
   } catch {
     cachedAuthToken = null;
     authTokenExpiresAt = 0;
     return null;
+  }
+}
+
+/**
+ * Seed the Nest bearer cache from a known Supabase session (sign-in / TOKEN_REFRESHED).
+ * Prevents protected `/api/database/*` calls from racing ahead of getSession persistence.
+ */
+export function seedAuthTokenCache(accessToken: string, expiresAtSeconds?: number | null): void {
+  const token = String(accessToken || '').trim();
+  if (!token) {
+    clearAuthTokenCache();
+    return;
+  }
+  cachedAuthToken = token;
+  if (expiresAtSeconds && Number.isFinite(expiresAtSeconds)) {
+    // expires_at is unix seconds; keep a small safety margin
+    authTokenExpiresAt = Math.max(Date.now(), expiresAtSeconds * 1000 - 5_000);
+  } else {
+    authTokenExpiresAt = Date.now() + AUTH_TOKEN_CACHE_MS;
   }
 }
 
@@ -63,9 +86,12 @@ async function request<T = unknown>(
 
   if (requireAuth) {
     const token = await getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (!token) {
+      // Never call Nest protected routes without a bearer — matches SupabaseAuthGuard
+      // and avoids the Dev "No authorization header" 401 loop.
+      return { data: null, error: { message: 'No authorization header' } };
     }
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   try {

@@ -5,7 +5,7 @@
  * Mirrors the Supabase query builder API so existing hooks work unchanged.
  */
 
-import { request, clearAuthTokenCache } from './apiClient';
+import { request, clearAuthTokenCache, seedAuthTokenCache } from './apiClient';
 import { rawSupabase } from '@/integrations/supabase/rawClient';
 import {
   assertFiltersHaveValues,
@@ -14,6 +14,7 @@ import {
 } from '@/utils/databaseQueryGuards';
 import {
   isNestAuthRejectionMessage,
+  shouldSkipNestWithoutAccessToken,
   shouldUseSupabaseAuthFallback,
 } from '@/utils/authProjectLoadGate';
 
@@ -71,6 +72,24 @@ async function withFallback(
   viaSupabase: () => Promise<QueryResult>,
 ): Promise<QueryResult> {
   if (backendUnavailable) return viaSupabase();
+
+  let accessToken: string | null = null;
+  try {
+    const { data: { session } } = await rawSupabase.auth.getSession();
+    accessToken = session?.access_token ?? null;
+    if (accessToken) {
+      seedAuthTokenCache(accessToken, session?.expires_at);
+    }
+  } catch {
+    accessToken = null;
+  }
+
+  // Pre-session / signed-out: never hit Nest without Authorization (guard 401).
+  // Use PostgREST + RLS with the anon key instead.
+  if (shouldSkipNestWithoutAccessToken(accessToken)) {
+    return viaSupabase();
+  }
+
   const result = await viaApi();
   if (isNetworkError(result.error)) {
     backendUnavailable = true;
@@ -81,17 +100,12 @@ async function withFallback(
   // bearer. Use PostgREST + RLS for this call only — do not permanently disable Nest
   // or bypass auth when there is no client session.
   if (result.error && isNestAuthRejectionMessage(result.error.message)) {
-    try {
-      const { data: { session } } = await rawSupabase.auth.getSession();
-      if (shouldUseSupabaseAuthFallback({
-        errorMessage: result.error.message,
-        hasSupabaseSession: !!session?.access_token,
-      })) {
-        clearAuthTokenCache();
-        return viaSupabase();
-      }
-    } catch {
-      // Keep Nest error if session lookup fails
+    if (shouldUseSupabaseAuthFallback({
+      errorMessage: result.error.message,
+      hasSupabaseSession: !!accessToken,
+    })) {
+      clearAuthTokenCache();
+      return viaSupabase();
     }
   }
 

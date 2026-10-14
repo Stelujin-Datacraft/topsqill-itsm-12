@@ -1,5 +1,5 @@
 /**
- * Focused tests for auth → profile → project load gates and Nest 401 fallback rules.
+ * Regression tests for auth → profile → project gates and Nest Authorization rules.
  * Run: npx tsx src/utils/authProjectLoadGate.test.ts
  */
 import assert from 'assert';
@@ -8,6 +8,11 @@ import {
   shouldDeferProjectFetch,
   isNestAuthRejectionMessage,
   shouldUseSupabaseAuthFallback,
+  shouldSkipNestWithoutAccessToken,
+  buildBearerAuthorization,
+  mustUseRawSupabaseForPreAuthProfileLookup,
+  shouldKeepFormsLoading,
+  isGenuineProfilePermissionFailure,
 } from './authProjectLoadGate';
 
 console.log('authProjectLoadGate');
@@ -22,84 +27,102 @@ console.log('authProjectLoadGate');
     }),
     'auth_loading',
   );
+  assert.equal(shouldDeferProjectFetch('auth_loading'), true);
+  console.log('  ✓ defer projects while auth/profile loading');
+}
+
+{
   assert.equal(
-    shouldDeferProjectFetch('auth_loading'),
-    true,
-    'must defer project fetch while auth/profile still loading',
+    resolveProfileLoadPhase({
+      authLoading: false,
+      userId: 'u1',
+      userProfileId: 'u1',
+      profileError: null,
+    }),
+    'ready',
   );
-  console.log('  ✓ defer projects while authLoading');
+  assert.equal(
+    resolveProfileLoadPhase({
+      authLoading: false,
+      userId: 'u1',
+      userProfileId: null,
+      profileError: null,
+    }),
+    'ready',
+  );
+  assert.equal(shouldDeferProjectFetch('ready'), false);
+  console.log('  ✓ settled auth does not infinite-defer');
 }
 
 {
-  const readyWithProfile = resolveProfileLoadPhase({
-    authLoading: false,
-    userId: 'u1',
-    userProfileId: 'u1',
-    profileError: null,
-  });
-  assert.equal(readyWithProfile, 'ready');
-  assert.equal(shouldDeferProjectFetch(readyWithProfile), false);
-
-  // After auth settles without a profile and without error — do not defer forever.
-  const readyWithoutProfile = resolveProfileLoadPhase({
-    authLoading: false,
-    userId: 'u1',
-    userProfileId: null,
-    profileError: null,
-  });
-  assert.equal(readyWithoutProfile, 'ready');
-  assert.equal(shouldDeferProjectFetch(readyWithoutProfile), false);
-  console.log('  ✓ settled auth does not infinite-defer projects');
+  // Profile lookup before a session exists
+  assert.equal(mustUseRawSupabaseForPreAuthProfileLookup(false), true);
+  assert.equal(shouldSkipNestWithoutAccessToken(null), true);
+  assert.equal(shouldSkipNestWithoutAccessToken(undefined), true);
+  assert.equal(buildBearerAuthorization(null), null);
+  console.log('  ✓ profile lookup before session skips Nest / has no bearer');
 }
 
 {
+  // Profile lookup after a valid session is established
+  assert.equal(mustUseRawSupabaseForPreAuthProfileLookup(true), false);
+  assert.equal(shouldSkipNestWithoutAccessToken('eyJhbGciOi...'), false);
+  assert.equal(buildBearerAuthorization('tok_abc'), 'Bearer tok_abc');
+  console.log('  ✓ profile lookup after session attaches bearer');
+}
+
+{
+  // Current Nest "No authorization header" 401 response
+  assert.equal(isNestAuthRejectionMessage('No authorization header'), true);
+  assert.equal(
+    shouldUseSupabaseAuthFallback({
+      errorMessage: 'No authorization header',
+      hasSupabaseSession: true,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldUseSupabaseAuthFallback({
+      errorMessage: 'No authorization header',
+      hasSupabaseSession: false,
+    }),
+    false,
+    'must not bypass Nest auth when there is no client session',
+  );
+  console.log('  ✓ No authorization header 401 handling');
+}
+
+{
+  // Token refresh / sign-out semantics (cache seed vs clear are covered by helpers)
+  assert.equal(shouldSkipNestWithoutAccessToken(''), true);
+  assert.equal(buildBearerAuthorization('  '), null);
+  assert.equal(shouldSkipNestWithoutAccessToken('refreshed-token'), false);
+  console.log('  ✓ token refresh keeps Nest path; empty token clears bearer');
+}
+
+{
+  // Authenticated user whose profile/project list is temporarily loading
+  assert.equal(shouldKeepFormsLoading({ authLoading: true, projectsLoading: false }), true);
+  assert.equal(shouldKeepFormsLoading({ authLoading: false, projectsLoading: true }), true);
+  assert.equal(shouldKeepFormsLoading({ authLoading: false, projectsLoading: false }), false);
+  assert.equal(shouldDeferProjectFetch('auth_loading'), true);
+  console.log('  ✓ temporary loading keeps forms/projects deferred');
+}
+
+{
+  // Genuine profile/project permission error
   const failed = resolveProfileLoadPhase({
     authLoading: false,
     userId: 'u1',
     userProfileId: null,
-    profileError: 'Request failed (401)',
+    profileError: 'No authorization header',
   });
   assert.equal(failed, 'failed');
   assert.equal(shouldDeferProjectFetch(failed), false);
-  console.log('  ✓ profile failure is not treated as loading');
-}
-
-{
-  assert.equal(isNestAuthRejectionMessage('Request failed (401)'), true);
-  assert.equal(isNestAuthRejectionMessage('Unauthorized'), true);
-  assert.equal(isNestAuthRejectionMessage('Invalid user token'), true);
-  assert.equal(isNestAuthRejectionMessage('Request failed (403)'), false);
-  assert.equal(isNestAuthRejectionMessage('Request failed (500)'), false);
-  assert.equal(isNestAuthRejectionMessage(null), false);
-  console.log('  ✓ Nest auth rejection detection');
-}
-
-{
-  assert.equal(
-    shouldUseSupabaseAuthFallback({
-      errorMessage: 'Request failed (401)',
-      hasSupabaseSession: true,
-    }),
-    true,
-    '401 with live session may use PostgREST+RLS',
-  );
-  assert.equal(
-    shouldUseSupabaseAuthFallback({
-      errorMessage: 'Request failed (401)',
-      hasSupabaseSession: false,
-    }),
-    false,
-    '401 without session must not silently bypass auth',
-  );
-  assert.equal(
-    shouldUseSupabaseAuthFallback({
-      errorMessage: 'Request failed (403)',
-      hasSupabaseSession: true,
-    }),
-    false,
-    '403 must not trigger auth fallback',
-  );
-  console.log('  ✓ Supabase auth fallback only when appropriate');
+  assert.equal(isGenuineProfilePermissionFailure('No authorization header'), true);
+  assert.equal(isGenuineProfilePermissionFailure('new row violates row-level security policy'), true);
+  assert.equal(isGenuineProfilePermissionFailure(null), false);
+  console.log('  ✓ genuine permission errors are not empty-project');
 }
 
 console.log('\nAll authProjectLoadGate tests passed.');

@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { useImpersonation } from './ImpersonationContext';
 import { Project, ProjectPermission } from '@/types/project';
 import {
+  isGenuineProfilePermissionFailure,
   resolveProfileLoadPhase,
   shouldDeferProjectFetch,
 } from '@/utils/authProjectLoadGate';
@@ -73,6 +74,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (shouldDeferProjectFetch(profilePhase)) {
       if (isStaleRequest()) return;
       setLoading(true);
+      return;
+    }
+
+    if (profilePhase === 'failed' || isGenuineProfilePermissionFailure(profileError)) {
+      if (isStaleRequest()) return;
+      console.error(
+        '[ProjectContext] Profile load failed; not treating as empty project list:',
+        profileError,
+      );
+      setProjects([]);
+      setCurrentProject(null);
+      setUserProjectPermissions({});
+      setLoading(false);
       return;
     }
 
