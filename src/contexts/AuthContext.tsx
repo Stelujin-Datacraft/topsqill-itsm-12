@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { backend as supabase, clearAuthTokenCache } from '@/services/api';
+import { backend as supabase, clearAuthTokenCache, seedAuthTokenCache } from '@/services/api';
 import { rawSupabase } from '@/integrations/supabase/rawClient';
 import { User, Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
@@ -395,8 +395,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         previousUserIdRef.current = nextUserId;
 
-        // Drop cached Nest bearer so TOKEN_REFRESHED / SIGNED_IN cannot keep an expired JWT.
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_OUT') {
+          clearAuthTokenCache();
+        } else if (session?.access_token) {
+          // Seed Nest bearer from the live session so profile/project queries never
+          // race ahead with a missing Authorization header.
+          seedAuthTokenCache(session.access_token, session.expires_at);
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           clearAuthTokenCache();
         }
 
@@ -413,6 +418,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Defer Supabase calls out of the auth callback to avoid auth deadlocks.
           setTimeout(async () => {
             try {
+              seedAuthTokenCache(session.access_token, session.expires_at);
               const isValid = await validateSessionInDb(session.user.id, session.access_token);
               if (isValid) {
                 await loadUserProfile(session.user.id);
@@ -426,6 +432,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUserProfile(null);
         setOrganization(null);
+        setProfileError(null);
         setIsLoading(false);
       }
     );
@@ -439,10 +446,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       previousUserIdRef.current = session?.user?.id ?? null;
       if (session?.user) {
+        seedAuthTokenCache(session.access_token, session.expires_at);
         const isValid = await validateSessionInDb(session.user.id, session.access_token);
         if (isValid) {
           await loadUserProfile(session.user.id);
         }
+      } else {
+        clearAuthTokenCache();
       }
       setIsLoading(false);
     });
@@ -587,11 +597,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Create session record
         if (data.session) {
+          seedAuthTokenCache(data.session.access_token, data.session.expires_at);
           await createSession(data.user.id, data.session.access_token);
         }
-
-        // Ensure Nest API client picks up the new access token immediately.
-        clearAuthTokenCache();
 
         // Record successful login
         await recordSuccessfulLogin(data.user.id);
@@ -775,9 +783,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (otpData.session) {
+        seedAuthTokenCache(otpData.session.access_token, otpData.session.expires_at);
         await createSession(otpData.user.id, otpData.session.access_token);
       }
-      clearAuthTokenCache();
       await recordSuccessfulLogin(otpData.user.id);
 
       await supabase.from('audit_logs').insert({

@@ -1,5 +1,5 @@
 /**
- * Pure helpers for auth → profile → project loading gates.
+ * Pure helpers for auth → profile → project loading gates and Nest auth header rules.
  * Keeps ProjectContext from treating a temporarily missing profile as "no projects".
  *
  * AuthContext must keep `authLoading` true until loadUserProfile settles so we do not
@@ -49,4 +49,50 @@ export function shouldUseSupabaseAuthFallback(input: {
   hasSupabaseSession: boolean;
 }): boolean {
   return input.hasSupabaseSession && isNestAuthRejectionMessage(input.errorMessage);
+}
+
+/**
+ * Protected Nest `/api/database/*` calls must not be sent without a bearer token.
+ * Without a session, use PostgREST+RLS (anon) instead of a guaranteed Nest 401.
+ */
+export function shouldSkipNestWithoutAccessToken(accessToken: string | null | undefined): boolean {
+  return !accessToken;
+}
+
+/** Build Authorization header value when a usable access token exists. */
+export function buildBearerAuthorization(accessToken: string | null | undefined): string | null {
+  if (!accessToken || !String(accessToken).trim()) return null;
+  return `Bearer ${accessToken}`;
+}
+
+/**
+ * Pre-login security lookups (lockout by email) must not use the Nest database client.
+ * They run before any session exists and would produce "No authorization header".
+ */
+export function mustUseRawSupabaseForPreAuthProfileLookup(hasSession: boolean): boolean {
+  return !hasSession;
+}
+
+/** Forms/projects should not finalize empty while auth or project list is still loading. */
+export function shouldKeepFormsLoading(input: {
+  authLoading: boolean;
+  projectsLoading: boolean;
+}): boolean {
+  return input.authLoading || input.projectsLoading;
+}
+
+/** Genuine permission/auth failures must not be treated as an empty project list. */
+export function isGenuineProfilePermissionFailure(profileError: string | null | undefined): boolean {
+  if (!profileError) return false;
+  const m = profileError.toLowerCase();
+  return (
+    m.includes('permission') ||
+    m.includes('row-level security') ||
+    m.includes('rls') ||
+    m.includes('forbidden') ||
+    m.includes('not authorized') ||
+    m.includes('401') ||
+    m.includes('403') ||
+    isNestAuthRejectionMessage(profileError)
+  );
 }
