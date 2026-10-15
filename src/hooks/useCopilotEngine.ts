@@ -328,6 +328,7 @@ export function useCopilotEngine() {
 
     const { __reportConfirmed: _confirmed, ...safeParams } = params || {};
 
+    // Nest `/api/ai/copilot-action` via apiClient (OpenRouter). No Edge/Lovable fallback.
     const { data, error } = await supabase.functions.invoke('ai-copilot-action', {
       body: {
         action,

@@ -12,6 +12,11 @@ export {
   clearAuthTokenCache,
   seedAuthTokenCache,
 } from './apiClient';
+export {
+  isNestOnlyAiFunction,
+  mapNestAiInvokeResult,
+  NEST_ONLY_AI_FUNCTIONS,
+} from './aiNestInvoke';
 export { db, paginatedRange } from './databaseClient';
 
 import { rawSupabase } from '@/integrations/supabase/rawClient';
