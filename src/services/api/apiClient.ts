@@ -1,6 +1,7 @@
 /**
  * NestJS API client — replaces direct Supabase Edge Function invocations.
  */
+import { isNestOnlyAiFunction, mapNestAiInvokeResult } from './aiNestInvoke';
 
 function resolveNestApiBase(): string {
   const configured = String(import.meta.env?.VITE_API_URL || '').replace(/\/$/, '');
@@ -306,6 +307,11 @@ export const api = {
       method: route.method || 'POST',
       body: options?.body ? JSON.stringify(options.body) : undefined,
     }, route.auth !== false);
+
+    // AI assistant / copilot: Nest + OpenRouter only — never fall back to Edge/Lovable.
+    if (isNestOnlyAiFunction(functionName)) {
+      return mapNestAiInvokeResult<T>(result);
+    }
 
     const payload =
       result.data && typeof result.data === 'object'

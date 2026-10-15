@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { EngineHostService } from '../engines/engine-host.service';
+import { unwrapEngineResult } from './unwrap-engine-result';
 
 @Injectable()
 export class AiService {
   constructor(private readonly engineHost: EngineHostService) {}
 
   async assistant(body: Record<string, unknown>) {
-    return this.engineHost.aiAssistant(body);
+    const raw = await this.engineHost.aiAssistant(body);
+    return unwrapEngineResult(raw);
   }
 
   async copilotAction(body: Record<string, unknown>) {
-    return this.engineHost.aiCopilotAction(body);
+    const raw = await this.engineHost.aiCopilotAction(body);
+    return unwrapEngineResult(raw);
   }
 }
