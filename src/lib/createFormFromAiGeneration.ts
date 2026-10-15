@@ -1,5 +1,12 @@
 import { backend as supabase } from '@/services/api';
+import { rawSupabase } from '@/integrations/supabase/rawClient';
 import { ensureSystemStatusField } from '@/lib/systemStatusField';
+import {
+  assertAiFormCreateAccess,
+  formatAiFormCreateDiagnostics,
+  isDevAiFormDiagnosticsEnabled,
+  type AiFormAccessSnapshot,
+} from '@/lib/aiFormCreateAuth';
 
 export interface AiGeneratedFormField {
   label: string;
@@ -94,6 +101,66 @@ function buildFieldCustomConfig(field: AiGeneratedFormField): Record<string, unk
 }
 
 /**
+ * Resolve authenticated user + project org, then validate forms_insert access.
+ * Always prefers auth.getUser() and the project's organization_id over caller hints.
+ */
+export async function resolveAiFormCreateContext(
+  context: CreateFormFromAiContext,
+): Promise<{ projectId: string; organizationId: string; userId: string }> {
+  const { data: authData, error: authError } = await rawSupabase.auth.getUser();
+  const authUserId = authData?.user?.id;
+  if (authError || !authUserId) {
+    throw new Error('Not authenticated. Sign in again, then retry saving the form.');
+  }
+
+  if (!context.projectId) {
+    throw new Error('No project selected. Select a project, then retry.');
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('id, organization_id')
+    .eq('id', context.projectId)
+    .maybeSingle();
+
+  if (projectError) {
+    throw new Error(projectError.message || 'Failed to load selected project');
+  }
+  if (!project?.id) {
+    throw new Error('Selected project was not found or is not accessible.');
+  }
+
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('id, organization_id')
+    .eq('id', authUserId)
+    .maybeSingle();
+
+  const { data: membership } = await supabase
+    .from('project_users')
+    .select('user_id')
+    .eq('project_id', context.projectId)
+    .eq('user_id', authUserId)
+    .maybeSingle();
+
+  const snapshot: AiFormAccessSnapshot = {
+    authUserId,
+    projectId: context.projectId,
+    projectOrganizationId: project.organization_id || null,
+    profileOrganizationId: profile?.organization_id || null,
+    isProjectMember: Boolean(membership?.user_id),
+    submittedOrganizationId: context.organizationId || null,
+    submittedUserId: context.userId || null,
+  };
+
+  if (isDevAiFormDiagnosticsEnabled()) {
+    console.info(formatAiFormCreateDiagnostics(snapshot));
+  }
+
+  return assertAiFormCreateAccess(snapshot);
+}
+
+/**
  * Creates a form using the same steps as Forms → "Generate with AI".
  * Uses the frontend API client (RLS-aware) instead of the copilot edge action.
  */
@@ -101,7 +168,7 @@ export async function createFormFromAiGeneration(
   generatedForm: AiGeneratedFormSchema,
   context: CreateFormFromAiContext,
 ): Promise<{ formId: string; formName: string; fieldCount: number; pageCount: number }> {
-  const { projectId, organizationId, userId } = context;
+  const { projectId, organizationId, userId } = await resolveAiFormCreateContext(context);
 
   if (!Array.isArray(generatedForm.fields) || generatedForm.fields.length === 0) {
     throw new Error('AI did not return any form fields. Try describing the fields you need.');
