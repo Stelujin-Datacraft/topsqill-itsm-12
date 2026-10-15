@@ -2,6 +2,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EngineContext } from './shared/engine-context';
 import { SMTPClient } from './shared/smtp-client';
+import {
+  chatCompletions,
+  tryResolveAiGatewayConfig,
+} from './shared/ai-gateway';
 
    
  const corsHeaders = {
@@ -22,7 +26,7 @@ export async function predictSlaBreach(
    try {
      const supabaseUrl = ctx.getEnv('SUPABASE_URL')!;
      const supabaseKey = ctx.getEnv('SUPABASE_SERVICE_ROLE_KEY')!;
-     const LOVABLE_API_KEY = ctx.getEnv('LOVABLE_API_KEY');
+     const aiGateway = tryResolveAiGatewayConfig((key) => ctx.getEnv(key));
  
      
  
@@ -168,38 +172,32 @@ export async function predictSlaBreach(
      // Sort by risk score descending
      predictions.sort((a, b) => b.risk_score - a.risk_score);
  
-     // Use AI for additional insights if we have high-risk items
+     // Use AI for additional insights if we have high-risk items (optional — never fail the prediction).
      let aiInsights = null;
-     if (LOVABLE_API_KEY && predictions.filter(p => p.risk_level === 'critical' || p.risk_level === 'high').length > 0) {
+     if (aiGateway && predictions.filter(p => p.risk_level === 'critical' || p.risk_level === 'high').length > 0) {
        try {
          const highRiskItems = predictions.filter(p => p.risk_level === 'critical' || p.risk_level === 'high').slice(0, 5);
          
-         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-           method: 'POST',
-           headers: {
-             'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-             'Content-Type': 'application/json',
-           },
-           body: JSON.stringify({
-             model: 'google/gemini-2.0-flash',
-             messages: [
-               {
-                 role: 'system',
-                 content: 'You are an SLA management expert. Analyze the high-risk SLA instances and provide actionable insights in 2-3 bullet points. Be concise and specific.'
-               },
-               {
-                 role: 'user',
-                 content: `Analyze these high-risk SLA instances and provide insights:\n${JSON.stringify(highRiskItems, null, 2)}`
-               }
-             ],
-             temperature: 0.3,
-             max_tokens: 300,
-           }),
+         const aiResult = await chatCompletions(aiGateway, {
+           model: 'google/gemini-2.0-flash',
+           messages: [
+             {
+               role: 'system',
+               content: 'You are an SLA management expert. Analyze the high-risk SLA instances and provide actionable insights in 2-3 bullet points. Be concise and specific.'
+             },
+             {
+               role: 'user',
+               content: `Analyze these high-risk SLA instances and provide insights:\n${JSON.stringify(highRiskItems, null, 2)}`
+             }
+           ],
+           temperature: 0.3,
+           max_tokens: 300,
          });
  
-         if (aiResponse.ok) {
-           const aiData = await aiResponse.json();
-           aiInsights = aiData.choices[0]?.message?.content;
+         if (aiResult.ok) {
+           aiInsights = aiResult.data.choices?.[0]?.message?.content ?? null;
+         } else {
+           console.error('AI insights error:', aiResult.status, aiResult.error);
          }
        } catch (aiError) {
          console.error('AI insights error:', aiError);

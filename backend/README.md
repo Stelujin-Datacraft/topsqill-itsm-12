@@ -39,7 +39,10 @@ npm run build && npm run start:prod
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_ANON_KEY` | Supabase anon key (for JWT validation) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (for privileged DB ops) |
-| `LOVABLE_API_KEY` | Optional AI API key |
+| `AI_PROVIDER` | AI gateway: `lovable` (default) or `openrouter` |
+| `LOVABLE_API_KEY` | Lovable AI gateway key (when `AI_PROVIDER=lovable`) |
+| `OPENROUTER_API_KEY` | OpenRouter API key (when `AI_PROVIDER=openrouter`) |
+| `OPENROUTER_MODEL` | OpenRouter model slug (default `google/gemini-2.5-flash`) |
 
 Environment loading is independent of the command's working directory, so
 both `cd backend && npm run start:dev` and

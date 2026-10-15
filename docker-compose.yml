@@ -24,7 +24,10 @@ services:
       - ITAM_DISCOVERY_PERSISTENCE=${ITAM_DISCOVERY_PERSISTENCE:-postgres}
       # Default off: apply supabase/migrations/2026093012* manually; do not auto-DDL.
       - ITAM_DISCOVERY_APPLY_SCHEMA=${ITAM_DISCOVERY_APPLY_SCHEMA:-0}
+      - AI_PROVIDER=${AI_PROVIDER:-lovable}
       - LOVABLE_API_KEY=${LOVABLE_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-}
     restart: unless-stopped
 
   frontend:

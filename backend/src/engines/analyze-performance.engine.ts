@@ -2,6 +2,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EngineContext } from './shared/engine-context';
 import { SMTPClient } from './shared/smtp-client';
+import {
+  chatCompletions,
+  resolveAiGatewayConfig,
+} from './shared/ai-gateway';
 
 // Performance Analysis Edge Function v5 - Single Record Analysis with Enterprise Project Portfolio Tracker Awareness
 
@@ -912,8 +916,7 @@ export async function analyzePerformance(
   
 
   try {
-    const LOVABLE_API_KEY = ctx.getEnv("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const aiGateway = resolveAiGatewayConfig((key) => ctx.getEnv(key));
 
     const supabaseUrl = ctx.getEnv("SUPABASE_URL")!;
     const supabaseKey = ctx.getEnv("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -1106,147 +1109,138 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
 
       let analysis;
       try {
-        const aiResponse = await fetch(
-          "https://ai.gateway.lovable.dev/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are an expert project performance analyst specializing in enterprise project portfolio management. You have deep knowledge of project financial metrics (NPV, IRR, ROI, EAC, ETC), schedule performance (SPI, duration/effort variance), and risk scoring. Always respond with precise, data-driven analysis referencing actual values.",
-                },
-                { role: "user", content: prompt },
-              ],
-              max_tokens: 8192,
-              tools: [{
-                type: "function",
-                function: {
-                  name: "performance_analysis",
+        const performanceTools = [{
+          type: "function",
+          function: {
+            name: "performance_analysis",
+            description:
+              "Return structured single-record performance analysis results",
+            parameters: {
+              type: "object",
+              properties: {
+                risk_score: {
+                  type: "number",
                   description:
-                    "Return structured single-record performance analysis results",
-                  parameters: {
+                    "Overall risk score 0-100 for this specific record",
+                },
+                health_status: {
+                  type: "string",
+                  enum: ["green", "yellow", "orange", "red"],
+                },
+                summary: {
+                  type: "string",
+                  description:
+                    "3-5 sentence executive summary of this record's health, referencing actual values (costs, dates, scores)",
+                },
+                anomalies: {
+                  type: "array",
+                  items: {
                     type: "object",
                     properties: {
-                      risk_score: {
-                        type: "number",
-                        description:
-                          "Overall risk score 0-100 for this specific record",
-                      },
-                      health_status: {
+                      metric: { type: "string" },
+                      description: { type: "string" },
+                      severity: {
                         type: "string",
-                        enum: ["green", "yellow", "orange", "red"],
+                        enum: ["low", "medium", "high", "critical"],
                       },
-                      summary: {
-                        type: "string",
-                        description:
-                          "3-5 sentence executive summary of this record's health, referencing actual values (costs, dates, scores)",
-                      },
-                      anomalies: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            metric: { type: "string" },
-                            description: { type: "string" },
-                            severity: {
-                              type: "string",
-                              enum: ["low", "medium", "high", "critical"],
-                            },
-                            value: { type: "number" },
-                            expected_value: { type: "number" },
-                          },
-                          required: ["metric", "description", "severity"],
-                        },
-                      },
-                      predictions: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            type: {
-                              type: "string",
-                              enum: [
-                                "budget_forecast",
-                                "completion_date",
-                                "resource_need",
-                                "risk_trend",
-                                "milestone_delay",
-                              ],
-                            },
-                            description: { type: "string" },
-                            predicted_value: { type: "number" },
-                            confidence: {
-                              type: "number",
-                              description: "Value between 0 and 1",
-                            },
-                            timeframe: { type: "string" },
-                          },
-                          required: ["type", "description", "confidence"],
-                        },
-                      },
-                      recommendations: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            priority: {
-                              type: "string",
-                              enum: ["low", "medium", "high", "critical"],
-                            },
-                            title: { type: "string" },
-                            description: { type: "string" },
-                            impact: { type: "string" },
-                          },
-                          required: ["priority", "title", "description"],
-                        },
-                      },
-                      threshold_violations: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            metric_name: { type: "string" },
-                            threshold_value: { type: "number" },
-                            actual_value: { type: "number" },
-                            severity: { type: "string" },
-                          },
-                          required: ["metric_name", "actual_value"],
-                        },
-                      },
+                      value: { type: "number" },
+                      expected_value: { type: "number" },
                     },
-                    required: [
-                      "risk_score",
-                      "health_status",
-                      "summary",
-                      "anomalies",
-                      "predictions",
-                      "recommendations",
-                    ],
+                    required: ["metric", "description", "severity"],
                   },
                 },
-              }],
-              tool_choice: {
-                type: "function",
-                function: { name: "performance_analysis" },
+                predictions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      type: {
+                        type: "string",
+                        enum: [
+                          "budget_forecast",
+                          "completion_date",
+                          "resource_need",
+                          "risk_trend",
+                          "milestone_delay",
+                        ],
+                      },
+                      description: { type: "string" },
+                      predicted_value: { type: "number" },
+                      confidence: {
+                        type: "number",
+                        description: "Value between 0 and 1",
+                      },
+                      timeframe: { type: "string" },
+                    },
+                    required: ["type", "description", "confidence"],
+                  },
+                },
+                recommendations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      priority: {
+                        type: "string",
+                        enum: ["low", "medium", "high", "critical"],
+                      },
+                      title: { type: "string" },
+                      description: { type: "string" },
+                      impact: { type: "string" },
+                    },
+                    required: ["priority", "title", "description"],
+                  },
+                },
+                threshold_violations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      metric_name: { type: "string" },
+                      threshold_value: { type: "number" },
+                      actual_value: { type: "number" },
+                      severity: { type: "string" },
+                    },
+                    required: ["metric_name", "actual_value"],
+                  },
+                },
               },
-            }),
+              required: [
+                "risk_score",
+                "health_status",
+                "summary",
+                "anomalies",
+                "predictions",
+                "recommendations",
+              ],
+            },
           },
-        );
+        }];
 
-        if (!aiResponse.ok) {
-          const errText = await aiResponse.text();
-          console.error("AI gateway error:", aiResponse.status, errText);
-          throw new Error(`AI gateway returned ${aiResponse.status}`);
+        const aiResult = await chatCompletions(aiGateway, {
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an expert project performance analyst specializing in enterprise project portfolio management. You have deep knowledge of project financial metrics (NPV, IRR, ROI, EAC, ETC), schedule performance (SPI, duration/effort variance), and risk scoring. Always respond with precise, data-driven analysis referencing actual values.",
+            },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 8192,
+          tools: performanceTools,
+          tool_choice: {
+            type: "function",
+            function: { name: "performance_analysis" },
+          },
+        });
+
+        if (!aiResult.ok) {
+          console.error("AI gateway error:", aiResult.status, aiResult.bodyText || aiResult.error);
+          throw new Error(aiResult.error || `AI gateway returned ${aiResult.status}`);
         }
 
-        const aiData = await aiResponse.json();
+        const aiData = aiResult.data;
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
         if (toolCall?.function?.arguments) {
