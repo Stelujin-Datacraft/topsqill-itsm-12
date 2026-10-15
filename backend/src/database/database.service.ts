@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import {
   DEFAULT_QUERY_LIMIT,
@@ -7,6 +12,10 @@ import {
   MAX_QUERY_LIMIT,
   RPC_NAME_PATTERN,
 } from '../common/constants/database.constants';
+import {
+  isDevDatabaseDiagnosticsEnabled,
+  normalizeFormsInsertRowsForAuth,
+} from './forms-insert-auth';
 
 export type FilterClause =
   | { kind: 'filter'; column: string; operator: string; value: unknown }
@@ -176,7 +185,14 @@ export class DatabaseService {
     return { limit };
   }
 
-  private getClient(authHeader?: string) {
+  private getClient(authHeader?: string, opts?: { requireUser?: boolean }) {
+    if (opts?.requireUser) {
+      if (!authHeader) {
+        throw new UnauthorizedException('No authorization header');
+      }
+      // Never fall back to service-role for user mutations (would bypass or mis-apply RLS).
+      return this.supabaseService.getClientForUser(authHeader);
+    }
     return authHeader
       ? this.supabaseService.getClientForUser(authHeader)
       : this.supabaseService.getServiceClient();
@@ -254,16 +270,38 @@ export class DatabaseService {
 
   async insert(dto: DatabaseInsertDto, authHeader?: string) {
     this.validateTable(dto.table);
-    const client = this.getClient(authHeader);
+    // User-scoped client only — forms_insert (and other RLS) must see auth.uid().
+    const client = this.getClient(authHeader, { requireUser: true });
     const select = dto.returning || '*';
-    const rows = Array.isArray(dto.data) ? dto.data : [dto.data];
+    let payload: Record<string, unknown> | Record<string, unknown>[] = dto.data;
+
+    if (dto.table === 'forms') {
+      const user = await this.supabaseService.getUserFromToken(authHeader);
+      if (!user?.id) {
+        throw new UnauthorizedException('Invalid user token');
+      }
+      try {
+        const normalized = normalizeFormsInsertRowsForAuth(dto.data, user.id);
+        if (isDevDatabaseDiagnosticsEnabled()) {
+          console.info(normalized.diagnostics);
+        }
+        payload =
+          Array.isArray(dto.data) ? normalized.rows : normalized.rows[0];
+      } catch (err) {
+        throw new BadRequestException(
+          err instanceof Error ? err.message : 'Invalid forms insert payload',
+        );
+      }
+    }
+
+    const rows = Array.isArray(payload) ? payload : [payload];
 
     if (rows.length > MAX_BATCH_INSERT_SIZE) {
       const data = await this.chunkInsert(client, dto.table, rows, select);
       return { data, error: null };
     }
 
-    const { data, error } = await client.from(dto.table).insert(dto.data).select(select);
+    const { data, error } = await client.from(dto.table).insert(payload).select(select);
     if (error) throw new BadRequestException(error.message);
     return { data, error: null };
   }

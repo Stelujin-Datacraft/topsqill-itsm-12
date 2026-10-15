@@ -63,8 +63,14 @@ export class SupabaseService {
     return this.supabaseUrl;
   }
 
+  /**
+   * User-scoped PostgREST client. Callers that must enforce RLS (e.g. database inserts)
+   * must pass a Bearer access token — do not call this without auth and expect service role.
+   */
   getClientForUser(authHeader?: string): SupabaseClient {
     if (!authHeader) {
+      // Prefer failing closed for RLS-sensitive paths; DatabaseService.insert requires auth.
+      // Legacy callers without a header still receive the service client.
       return this.serviceClient;
     }
 
