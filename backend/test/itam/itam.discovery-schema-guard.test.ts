@@ -11,7 +11,10 @@ import {
   ItamDiscoverySchemaMissingError,
   isItamDiscoverySchemaMissingError,
 } from '../../src/itam/discovery/pg-persistence';
-import { ITAM_DISCOVERY_APPLY_ORDER } from '../../src/itam/discovery/schema-missing.error';
+import {
+  ITAM_DISCOVERY_APPLY_ORDER,
+  ITAM_DISCOVERY_RLS_FORWARD_ORDER,
+} from '../../src/itam/discovery/schema-missing.error';
 import { ItamDiscoveryService } from '../../src/itam/discovery/discovery.service';
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -55,9 +58,23 @@ async function main() {
     for (const f of ITAM_DISCOVERY_APPLY_ORDER) {
       assert(msg.includes(f), `mentions ${f}`);
     }
+    for (const f of ITAM_DISCOVERY_RLS_FORWARD_ORDER) {
+      assert(msg.includes(f), `mentions forward RLS ${f}`);
+    }
+    assert(/forward-only/i.test(msg), 'mentions forward-only repair path');
   }
   assert(threw, 'must throw when relations missing');
   console.log('  ✓ assertRequiredDiscoverySchema missing tables');
+
+  assert(
+    ITAM_DISCOVERY_RLS_FORWARD_ORDER[0].includes('20261017140000'),
+    'forward order starts with unique-index preflight',
+  );
+  assert(
+    ITAM_DISCOVERY_RLS_FORWARD_ORDER[3].includes('20261017143000'),
+    'forward order ends with form-sync RLS',
+  );
+  console.log('  ✓ forward RLS apply order listed');
 
   const fakeOk = {
     query: async () => ({

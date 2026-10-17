@@ -17,6 +17,11 @@ const HELPER = 'supabase/migrations/20260930110000_get_current_user_org_id.sql';
 const M120 = 'supabase/migrations/20260930120000_itam_network_discovery.sql';
 const M130 = 'supabase/migrations/20260930130000_itam_phases_b_d.sql';
 const M140 = 'supabase/migrations/20260930140000_itam_form_sync.sql';
+/** Forward-only apply path when 1200/1300/1400 versions are already recorded. */
+const FWD_A = 'supabase/migrations/20261017141000_itam_phase_a_rls_forward.sql';
+const FWD_BD = 'supabase/migrations/20261017142000_itam_phases_b_d_rls_forward.sql';
+const FWD_SYNC = 'supabase/migrations/20261017143000_itam_form_sync_rls_forward.sql';
+const FWD_UNIQUE = 'supabase/migrations/20261017140000_itam_unique_indexes_preflight.sql';
 
 const PHASE_A_TABLES = [
   'itam_network_scopes',
@@ -209,6 +214,38 @@ async function main() {
     'SQL must not treat Nest ITAM_ADMIN header role as DB admin',
   );
   console.log('  ✓ no invented Nest role strings in SQL');
+
+  // Forward-only migrations (apply when shipped timestamps already recorded)
+  const fwdA = load(FWD_A);
+  const fwdBd = load(FWD_BD);
+  const fwdSync = load(FWD_SYNC);
+  const fwdUnique = load(FWD_UNIQUE);
+  assertNoLooseAdminForAll(fwdA + fwdBd + fwdSync);
+  for (const t of PHASE_A_TABLES) assertRlsEnabled(fwdA, t);
+  for (const t of PHASE_BD_TABLES) {
+    assertRlsEnabled(fwdBd, t);
+    assertAdminWrite(fwdBd, t, 'INSERT');
+  }
+  for (const t of FORM_SYNC_ORG_TABLES) {
+    assertRlsEnabled(fwdSync, t);
+    assertAdminWrite(fwdSync, t, 'INSERT');
+  }
+  assertNoAuthenticatedUpdateDelete(fwdA, 'itam_discovery_audit');
+  assertNoAuthenticatedUpdateDelete(fwdBd, 'itam_cloud_changes');
+  assertNoAuthenticatedUpdateDelete(fwdBd, 'itam_passive_events');
+  assertNoAuthenticatedUpdateDelete(fwdBd, 'itam_topology_history');
+  assertNoAuthenticatedUpdateDelete(fwdSync, 'itam_sync_history');
+  assertNoAuthenticatedUpdateDelete(fwdSync, 'itam_sync_provenance');
+  assertRlsEnabled(fwdSync, 'itam_sync_schema_cache');
+  assert(
+    /REVOKE ALL ON TABLE public\.itam_sync_schema_cache FROM authenticated/.test(fwdSync),
+    'forward schema_cache revoke authenticated',
+  );
+  assert(/RAISE EXCEPTION/i.test(fwdUnique), 'unique preflight raises on duplicates');
+  assert(/CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_software/.test(fwdUnique), 'forward unique asset_software');
+  assert(/CREATE UNIQUE INDEX IF NOT EXISTS uq_itam_network_scopes/.test(fwdUnique), 'forward unique scopes');
+  assert(!/\bDELETE\s+FROM\s+public\./i.test(fwdUnique), 'preflight must not delete rows');
+  console.log('  ✓ forward ITAM RLS + unique-index preflight migrations');
 
   console.log('All ITAM RLS policy security tests passed.');
 }
