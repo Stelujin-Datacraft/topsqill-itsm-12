@@ -183,7 +183,7 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
 
   async discoverForms() {
     const res = await this.connector.discoverForms(this.ctx);
-    if (!res.ok) throw new Error(res.error?.message || 'discoverForms failed');
+    if (!res.ok) throw new Error(res.error || 'discoverForms failed');
     return asArray(res.data).map((f: any) => ({
       id: String(f.id),
       name: String(f.name || f.reference_id || f.id),
@@ -193,7 +193,7 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
 
   async getFormSchema(formId: string): Promise<FormSchemaSnapshot> {
     const res = await this.connector.getFormSchema(formId, this.ctx);
-    if (!res.ok) throw new Error(res.error?.message || 'getFormSchema failed');
+    if (!res.ok) throw new Error(res.error || 'getFormSchema failed');
     const root = unwrapData(res.data) as any;
     const formObj = root?.form || (root?.id ? root : unwrapData((res.data as any)?.data) ) || {};
     let rawFields: any[] = [];
@@ -239,7 +239,7 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
 
   async searchRecords(formId: string, query: Record<string, unknown>) {
     const res = await this.connector.searchRecords(formId, query, this.ctx);
-    if (!res.ok) throw new Error(res.error?.message || 'searchRecords failed');
+    if (!res.ok) throw new Error(res.error || 'searchRecords failed');
     return asArray(res.data).map((r: any) => ({
       id: String(r.id),
       data: (r.submission_data || r.data || r) as Record<string, unknown>,
@@ -259,14 +259,15 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
   async createRecord(formId: string, body: Record<string, unknown>) {
     const res = await this.connector.createRecord(formId, body, this.ctx);
     if (!res.ok) {
-      const code = res.error?.code || '';
-      if (/401|auth/i.test(code + (res.error?.message || ''))) {
-        throw Object.assign(new Error(res.error?.message || 'auth failed'), { category: 'AUTHENTICATION_FAILED' });
+      const msg = res.error || 'create failed';
+      const statusHint = res.status != null ? String(res.status) : '';
+      if (res.status === 401 || /401|auth/i.test(statusHint + msg)) {
+        throw Object.assign(new Error(msg || 'auth failed'), { category: 'AUTHENTICATION_FAILED' });
       }
-      if (/429|rate/i.test(code + (res.error?.message || ''))) {
-        throw Object.assign(new Error(res.error?.message || 'rate limited'), { category: 'RATE_LIMITED' });
+      if (res.status === 429 || /429|rate/i.test(statusHint + msg)) {
+        throw Object.assign(new Error(msg || 'rate limited'), { category: 'RATE_LIMITED' });
       }
-      throw Object.assign(new Error(res.error?.message || 'create failed'), { category: 'API_ERROR' });
+      throw Object.assign(new Error(msg), { category: 'API_ERROR' });
     }
     const d = unwrapData(res.data) as any;
     return { id: String(d?.id || d?.data?.id), data: (d?.submission_data || d?.data || d) as Record<string, unknown> };
@@ -275,7 +276,7 @@ export class HttpExistingAppTarget implements ExistingAppTarget {
   async updateRecord(formId: string, recordId: string, body: Record<string, unknown>) {
     const res = await this.connector.updateRecord(formId, recordId, body, this.ctx);
     if (!res.ok) {
-      throw Object.assign(new Error(res.error?.message || 'update failed'), { category: 'API_ERROR' });
+      throw Object.assign(new Error(res.error || 'update failed'), { category: 'API_ERROR' });
     }
     const d = unwrapData(res.data) as any;
     return { id: String(d?.id || recordId), data: (d?.submission_data || d?.data || d) as Record<string, unknown> };

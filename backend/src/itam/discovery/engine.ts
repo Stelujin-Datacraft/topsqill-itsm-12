@@ -4,7 +4,7 @@
  */
 import { randomUUID } from 'crypto';
 import type { DiscoveredHostEvidence, DiscoveryJob, DiscoveryProviderContext, INetworkDiscoveryProvider } from './types';
-import { buildAuthorizedTargets, assertIpInAuthorizedScopes } from './scope';
+import { buildAuthorizedTargets, assertIpInAuthorizedScopes, type ScopeValidationResult } from './scope';
 import { classifyDeviceType, correlateDiscoveredHost } from './correlation';
 import type { DiscoveryStore, StoredAsset } from './store';
 import { resolveSoftwareProduct, ensureBuiltinCatalog } from './software-normalize';
@@ -39,7 +39,7 @@ export class DiscoveryEngine {
     return this;
   }
 
-  async validateJob(job: DiscoveryJob): Promise<{ ok: boolean; estimatedHosts: number; errors: string[]; warnings: string[] }> {
+  async validateJob(job: DiscoveryJob): Promise<ScopeValidationResult> {
     const approvedIncludes = this.store.scopes.filter(
       (s) =>
         s.organizationId === job.organizationId
@@ -59,7 +59,7 @@ export class DiscoveryEngine {
     ];
 
     if (job.environmentId === 'PROD' && process.env.ITAM_ALLOW_PROD_DISCOVERY !== '1') {
-      return { ok: false, estimatedHosts: 0, errors: ['PROD discovery requires ITAM_ALLOW_PROD_DISCOVERY=1'], warnings: [] };
+      return { ok: false, targets: [], estimatedHosts: 0, errors: ['PROD discovery requires ITAM_ALLOW_PROD_DISCOVERY=1'], warnings: [] };
     }
 
     // Every include CIDR must be covered by an approved scope (or job ranges explicitly matching approved)
@@ -75,6 +75,7 @@ export class DiscoveryEngine {
       if (!covered) {
         return {
           ok: false,
+          targets: [],
           estimatedHosts: 0,
           errors: [`CIDR ${cidr} is not an APPROVED network scope — refuse to scan`],
           warnings: [],
@@ -82,13 +83,12 @@ export class DiscoveryEngine {
       }
     }
 
-    const built = buildAuthorizedTargets({
+    return buildAuthorizedTargets({
       includeCidrs: includes,
       excludeCidrs: excludes,
       maxHosts: job.maxHosts,
       requirePrivate: job.environmentId !== 'LAB' ? true : true,
     });
-    return built;
   }
 
   async runJob(jobId: string, opts?: { actorId?: string }): Promise<{ runId: string; metrics: EngineMetrics }> {
@@ -148,7 +148,7 @@ export class DiscoveryEngine {
       },
     };
 
-    const providers = this.providers.length
+    const providers: INetworkDiscoveryProvider[] = this.providers.length
       ? this.providers
       : [
           new MockNetworkDiscoveryProvider(),
@@ -158,9 +158,18 @@ export class DiscoveryEngine {
           new LinuxInventoryProvider(),
         ];
 
-    const hostProviders = providers.filter((p) => typeof p.discoverHosts === 'function');
-    const serviceProviders = providers.filter((p) => typeof p.discoverServices === 'function');
-    const inventoryProviders = providers.filter((p) => typeof p.collectInventory === 'function');
+    const hostProviders = providers.filter(
+      (p): p is INetworkDiscoveryProvider & { discoverHosts: NonNullable<INetworkDiscoveryProvider['discoverHosts']> } =>
+        typeof p.discoverHosts === 'function',
+    );
+    const serviceProviders = providers.filter(
+      (p): p is INetworkDiscoveryProvider & { discoverServices: NonNullable<INetworkDiscoveryProvider['discoverServices']> } =>
+        typeof p.discoverServices === 'function',
+    );
+    const inventoryProviders = providers.filter(
+      (p): p is INetworkDiscoveryProvider & { collectInventory: NonNullable<INetworkDiscoveryProvider['collectInventory']> } =>
+        typeof p.collectInventory === 'function',
+    );
 
     let hostsScanned = 0;
     let hostsDiscovered = 0;
@@ -195,7 +204,7 @@ export class DiscoveryEngine {
       const t0 = Date.now();
       let evidence: DiscoveredHostEvidence | null = null;
       for (const p of hostProviders) {
-        const found = await p.discoverHosts!([ip], ctx);
+        const found = await p.discoverHosts([ip], ctx);
         if (found.length) {
           evidence = found[0];
           break;
@@ -213,7 +222,7 @@ export class DiscoveryEngine {
       // Service discovery
       if (job.enableTcp) {
         for (const p of serviceProviders) {
-          const services = await p.discoverServices!(evidence, job.tcpPorts, ctx);
+          const services = await p.discoverServices(evidence, job.tcpPorts, ctx);
           evidence.services = [...(evidence.services || []), ...services];
           if (services.length) {
             evidence.discoveryMethods = [...new Set([...(evidence.discoveryMethods || []), p.kind])];
@@ -227,7 +236,7 @@ export class DiscoveryEngine {
         for (const p of inventoryProviders) {
           if (!job.enableSnmp && p.kind === 'SNMP') continue;
           if (!job.enableCredentialed && (p.kind === 'WINRM' || p.kind === 'SSH')) continue;
-          const inv = await p.collectInventory!(evidence, ctx);
+          const inv = await p.collectInventory(evidence, ctx);
           evidence = {
             ...evidence,
             ...inv,
