@@ -14,15 +14,16 @@
  * unavailable (documented in PRODUCTION_READINESS.md).
  *
  * Run:
- *   export VIS_DATABASE_URL   # required — never commit real credentials
- *   export VIS_PERSISTENCE=prisma
+ *   export SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY  # required — never commit
+ *   export VIS_PERSISTENCE=supabase
+ *   Apply supabase/migrations/20261010090000_vis_supabase_persistence.sql first
  *   npx tsx backend/test/vis/vis.readiness-gate.test.ts
  */
 import { createServer, type Server } from 'http';
 import { AddressInfo } from 'net';
 import { VisService } from '../../src/vis/integrations/vis.service';
 import { resetVisStorePrismaForTests, getVisStore } from '../../src/vis/store/vis.store';
-import { disconnectVisPrisma, getVisPrisma } from '../../src/vis/store/prisma-client';
+import { createClient } from '@supabase/supabase-js';
 import { resetEventIngestionService } from '../../src/vis/events/index';
 import { defaultMatchingStrategy } from '../../src/vis/core/mapping/index';
 import type { FieldMappingSpec } from '../../src/vis/core/types/index';
@@ -44,7 +45,7 @@ function assert(cond: unknown, msg: string): asserts cond {
 const EVIDENCE: Record<string, unknown> = {
   startedAt: new Date().toISOString(),
   testEnvironment: {
-    visDatabase: process.env.VIS_DATABASE_URL?.replace(/:[^:@/]+@/, ':***@'),
+    visDatabase: process.env.SUPABASE_URL,
     mockPg: 'vis_mock_dev / vis_mock_uat',
     note: 'No production third-party tenant used',
   },
@@ -191,47 +192,49 @@ async function probeLiveFormApi() {
 
 async function main() {
   console.log('VIS_READINESS_GATE_START');
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required');
-  process.env.VIS_PERSISTENCE = 'prisma';
+  assert(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY required');
+  process.env.VIS_PERSISTENCE = 'supabase';
+  delete process.env.VIS_DATABASE_URL;
   process.env.VIS_SECRET_MASTER_KEY = process.env.VIS_SECRET_MASTER_KEY || 'readiness-gate-key';
 
-  // Production guard: file store forbidden
+  // Production guard: file/memory store forbidden without explicit allow
   const prevNode = process.env.NODE_ENV;
+  const savedUrl = process.env.SUPABASE_URL;
+  const savedKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   process.env.NODE_ENV = 'production';
   let blocked = false;
   try {
     process.env.VIS_PERSISTENCE = 'memory';
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.VIS_DATABASE_URL;
+    delete process.env.VIS_ALLOW_FILE_STORE;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { VisStore } = require('../../src/vis/store/vis.store');
-    // Force re-evaluate by constructing — may throw
     try {
-      // temporarily clear module cache behavior: call usePrisma via constructor
       new VisStore('/tmp/should-fail-vis-store.json');
     } catch {
       blocked = true;
     }
   } finally {
     process.env.NODE_ENV = prevNode || 'development';
-    process.env.VIS_PERSISTENCE = 'prisma';
-    if (!process.env.VIS_DATABASE_URL) {
-      throw new Error('VIS_DATABASE_URL must be restored from the environment (no embedded password fallback)');
+    process.env.VIS_PERSISTENCE = 'supabase';
+    if (savedUrl) process.env.SUPABASE_URL = savedUrl;
+    if (savedKey) process.env.SUPABASE_SERVICE_ROLE_KEY = savedKey;
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE credentials must be restored from the environment (no embedded password fallback)');
     }
   }
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required after production-guard test');
-  EVIDENCE.productionFileStoreBlocked = blocked || true; // constructor may not re-read if already loaded — document intent
+  assert(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE credentials required after production-guard test');
+  EVIDENCE.productionFileStoreBlocked = blocked;
 
   const liveProbe = await probeLiveFormApi();
   EVIDENCE.liveFormApiProbe = liveProbe;
   console.log('LIVE_FORM_API', JSON.stringify(liveProbe));
 
-  const prisma = getVisPrisma();
-  for (const t of [
-    'vis_executions', 'vis_execution_logs', 'vis_audit_logs', 'vis_integrations',
-    'vis_integration_versions', 'vis_ai_recommendations', 'vis_reconciliation_reports',
-  ]) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`).catch(() => undefined);
-  }
+  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+  await sb.from('vis_documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await sb.from('vis_secret_blobs').delete().neq('ref_id', '__none__');
 
   resetEventIngestionService();
   const store = await resetVisStorePrismaForTests();
@@ -650,12 +653,12 @@ async function main() {
 
   server.close();
   await store.flushDurable();
-  await disconnectVisPrisma();
+  /* supabase client GC */;
   process.exit(0);
 }
 
 main().catch(async (e) => {
   console.error('VIS_READINESS_GATE_FAIL', e);
-  try { await disconnectVisPrisma(); } catch { /* */ }
+  try { /* supabase client GC */; } catch { /* */ }
   process.exit(1);
 });
