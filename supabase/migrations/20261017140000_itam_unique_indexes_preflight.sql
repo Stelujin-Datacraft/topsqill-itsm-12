@@ -8,6 +8,11 @@
 -- CREATE UNIQUE INDEX IF NOT EXISTS is idempotent once the index exists.
 
 -- ── Preflight: asset_software (asset_id, software_name, version) ───────────
+-- Index: UNIQUE (asset_id, software_name, version) without NULLS NOT DISTINCT.
+-- Columns: asset_id NOT NULL, software_name NOT NULL, version TEXT NULLABLE.
+-- Postgres UNIQUE treats NULLs as distinct, so multiple rows with version IS NULL
+-- for the same (asset_id, software_name) are allowed by the index and must NOT
+-- fail preflight. Only non-NULL version collisions are unique violations.
 DO $$
 DECLARE
   dup_report text;
@@ -30,7 +35,7 @@ BEGIN
     ) AS line
     FROM public.asset_software
     GROUP BY asset_id, software_name, version
-    HAVING count(*) > 1
+    HAVING count(*) > 1 AND version IS NOT NULL
   ) d;
 
   IF dup_report IS NOT NULL AND length(btrim(dup_report)) > 0 THEN

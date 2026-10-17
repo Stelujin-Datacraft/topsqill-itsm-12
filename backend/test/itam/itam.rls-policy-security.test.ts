@@ -245,6 +245,19 @@ async function main() {
   assert(/CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_software/.test(fwdUnique), 'forward unique asset_software');
   assert(/CREATE UNIQUE INDEX IF NOT EXISTS uq_itam_network_scopes/.test(fwdUnique), 'forward unique scopes');
   assert(!/\bDELETE\s+FROM\s+public\./i.test(fwdUnique), 'preflight must not delete rows');
+  {
+    const ddlLines = fwdUnique
+      .split('\n')
+      .filter((l) => /^\s*CREATE UNIQUE INDEX\b/i.test(l) || /^\s*ON public\.(asset_software|itam_network_scopes)\b/i.test(l));
+    assert(
+      !ddlLines.some((l) => /NULLS NOT DISTINCT/i.test(l)),
+      'preflight must not alter index DDL NULL semantics',
+    );
+  }
+  assert(
+    /HAVING count\(\*\) > 1 AND version IS NOT NULL/i.test(fwdUnique),
+    'asset_software preflight must match UNIQUE NULL semantics',
+  );
   console.log('  ✓ forward ITAM RLS + unique-index preflight migrations');
 
   console.log('All ITAM RLS policy security tests passed.');

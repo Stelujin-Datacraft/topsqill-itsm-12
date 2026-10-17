@@ -21,6 +21,50 @@ function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`ASSERT: ${msg}`);
 }
 
+/**
+ * Mirrors 20261017140000 asset_software preflight under Postgres UNIQUE NULL
+ * semantics (no NULLS NOT DISTINCT): only non-NULL version collisions violate.
+ * Does not connect to a database — used for regression fixtures only.
+ */
+type AssetSoftwareRow = {
+  id: string;
+  asset_id: string;
+  software_name: string;
+  version: string | null;
+};
+
+function findAssetSoftwareUniqueViolations(
+  rows: AssetSoftwareRow[],
+): Array<{ asset_id: string; software_name: string; version: string; ids: string[] }> {
+  const groups = new Map<string, AssetSoftwareRow[]>();
+  for (const row of rows) {
+    // Match SQL GROUP BY: NULL versions share a group key, but HAVING filters them out.
+    const key = `${row.asset_id}\0${row.software_name}\0${row.version === null ? '\0NULL' : row.version}`;
+    const list = groups.get(key) || [];
+    list.push(row);
+    groups.set(key, list);
+  }
+  const violations: Array<{
+    asset_id: string;
+    software_name: string;
+    version: string;
+    ids: string[];
+  }> = [];
+  for (const list of groups.values()) {
+    if (list.length <= 1) continue;
+    const version = list[0].version;
+    // HAVING count(*) > 1 AND version IS NOT NULL
+    if (version === null) continue;
+    violations.push({
+      asset_id: list[0].asset_id,
+      software_name: list[0].software_name,
+      version,
+      ids: list.map((r) => r.id).sort(),
+    });
+  }
+  return violations;
+}
+
 const ROOT = resolve(__dirname, '../../..');
 const MIG = resolve(ROOT, 'supabase/migrations');
 
@@ -171,6 +215,21 @@ async function main() {
   assert(/uq_itam_network_scopes_org_cidr_kind/.test(pre), 'creates scopes unique index');
   assert(/CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_software/.test(pre), 'idempotent index create');
   assert(/CREATE UNIQUE INDEX IF NOT EXISTS uq_itam_network_scopes/.test(pre), 'idempotent scopes index');
+  {
+    const ddlLines = pre
+      .split('\n')
+      .filter((l) => /^\s*CREATE UNIQUE INDEX\b/i.test(l) || /^\s*ON public\.(asset_software|itam_network_scopes)\b/i.test(l));
+    assert(
+      !ddlLines.some((l) => /NULLS NOT DISTINCT/i.test(l)),
+      'must not change index DDL to NULLS NOT DISTINCT',
+    );
+  }
+  assert(
+    /GROUP BY asset_id, software_name, version\s+HAVING count\(\*\) > 1 AND version IS NOT NULL/i.test(
+      pre,
+    ),
+    'asset_software preflight must ignore NULL version groups (Postgres UNIQUE semantics)',
+  );
   assert(/Do not auto-delete/i.test(pre), 'documents non-destructive policy');
   assert(
     pre.indexOf('RAISE EXCEPTION') < pre.indexOf('CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_software'),
@@ -182,6 +241,31 @@ async function main() {
     'scopes RAISE must precede unique index create',
   );
   console.log('  ✓ unique-index preflight is non-destructive and ordered');
+
+  // Regression: multiple NULL versions are allowed by UNIQUE; must not flag.
+  {
+    const nullVersionRows: AssetSoftwareRow[] = [
+      { id: 'a1', asset_id: 'asset-1', software_name: 'Chrome', version: null },
+      { id: 'a2', asset_id: 'asset-1', software_name: 'Chrome', version: null },
+      { id: 'a3', asset_id: 'asset-1', software_name: 'Chrome', version: null },
+    ];
+    const v = findAssetSoftwareUniqueViolations(nullVersionRows);
+    assert(v.length === 0, 'multiple version IS NULL rows must not be unique violations');
+  }
+  // Regression: true non-NULL duplicate key must be reported with ids.
+  {
+    const trueDupRows: AssetSoftwareRow[] = [
+      { id: 'b1', asset_id: 'asset-2', software_name: 'Firefox', version: '1.0' },
+      { id: 'b2', asset_id: 'asset-2', software_name: 'Firefox', version: '1.0' },
+      { id: 'b3', asset_id: 'asset-2', software_name: 'Firefox', version: null },
+      { id: 'b4', asset_id: 'asset-2', software_name: 'Firefox', version: null },
+    ];
+    const v = findAssetSoftwareUniqueViolations(trueDupRows);
+    assert(v.length === 1, 'exactly one non-NULL duplicate group expected');
+    assert(v[0].version === '1.0', 'duplicate version must be 1.0');
+    assert(v[0].ids.join(',') === 'b1,b2', 'must report exact duplicate row ids');
+  }
+  console.log('  ✓ asset_software NULL-version vs true-duplicate preflight semantics');
 
   // ── Phase A forward RLS ─────────────────────────────────────────────────
   const a = loadMig(PHASE_A);
