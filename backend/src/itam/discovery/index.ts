@@ -7,4 +7,6 @@ export * from './software-normalize';
 export * from './engine';
 export * from './discovery.service';
 export * from './discovery.controller';
+export * from './persistence-config';
+export * from './schema-missing.error';
 export * from './pg-persistence';

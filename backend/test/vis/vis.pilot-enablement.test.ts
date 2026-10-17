@@ -3,8 +3,8 @@
  * prerequisites are met. Never fabricates live API success.
  *
  * Run:
- *   export VIS_DATABASE_URL="$VIS_DATABASE_URL"   # required
- *   export VIS_PERSISTENCE=prisma
+ *   export SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY  # required
+ *   export VIS_PERSISTENCE=supabase
  *   export VIS_PILOT_ENV=TEST
  *   export REDIS_URL=redis://127.0.0.1:6379       # optional HA
  *   npx tsx test/vis/vis.pilot-enablement.test.ts
@@ -15,7 +15,7 @@ import { resolve } from 'path';
 import { mkdirSync, writeFileSync } from 'fs';
 import { VisService } from '../../src/vis/integrations/vis.service';
 import { resetVisStorePrismaForTests, getVisStore } from '../../src/vis/store/vis.store';
-import { disconnectVisPrisma, getVisPrisma } from '../../src/vis/store/prisma-client';
+import { createClient } from '@supabase/supabase-js';
 import { resetEventIngestionService } from '../../src/vis/events/index';
 import { defaultMatchingStrategy } from '../../src/vis/core/mapping/index';
 import type { FieldMappingSpec } from '../../src/vis/core/types/index';
@@ -239,8 +239,9 @@ async function main() {
     require('dotenv').config({ path: resolve(process.cwd(), '.env') });
   } catch { /* optional */ }
 
-  assert(process.env.VIS_DATABASE_URL, 'VIS_DATABASE_URL required (never embed passwords in source)');
-  process.env.VIS_PERSISTENCE = 'prisma';
+  assert(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY, 'SUPABASE credentials required (never embed passwords in source)');
+  process.env.VIS_PERSISTENCE = 'supabase';
+  delete process.env.VIS_DATABASE_URL;
   process.env.VIS_PILOT_ENV = process.env.VIS_PILOT_ENV || 'TEST';
   if (!process.env.REDIS_URL && !process.env.VIS_REDIS_URL) {
     process.env.REDIS_URL = 'redis://127.0.0.1:6379';
@@ -279,15 +280,12 @@ async function main() {
     capability: topsqillDiag.writeCapability,
   });
 
-  // Prisma bootstrap
-  const prisma = getVisPrisma();
-  for (const t of [
-    'vis_executions', 'vis_execution_logs', 'vis_audit_logs', 'vis_integrations',
-    'vis_integration_versions', 'vis_ai_recommendations', 'vis_reconciliation_reports',
-    'vis_schema_cache',
-  ]) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`).catch(() => undefined);
-  }
+  // Supabase VIS document SoR bootstrap
+  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  await sb.from('vis_documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await sb.from('vis_secret_blobs').delete().neq('ref_id', '__none__');
   resetEventIngestionService();
   const store = await resetVisStorePrismaForTests();
   await store.flushDurable();
@@ -693,7 +691,6 @@ async function main() {
 
   server.close();
   await store.flushDurable();
-  await disconnectVisPrisma();
   process.exit(0);
 }
 
@@ -706,6 +703,5 @@ main().catch(async (e) => {
       JSON.stringify({ ...EVIDENCE, error: String(e?.stack || e) }, null, 2),
     );
   } catch { /* */ }
-  try { await disconnectVisPrisma(); } catch { /* */ }
   process.exit(1);
 });

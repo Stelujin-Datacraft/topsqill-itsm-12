@@ -1,6 +1,7 @@
 /**
- * In-memory + optional Supabase-backed discovery state.
- * Production path uses Supabase tables; tests use memory so agent SoR stays intact.
+ * In-memory + optional PostgreSQL-backed discovery state.
+ * Deployed Dev/Prod use ITAM_DISCOVERY_DATABASE_URL (Supabase Postgres).
+ * Memory is allowed only with ITAM_DISCOVERY_UNIT_TEST=1.
  */
 import { randomUUID } from 'crypto';
 import type {
@@ -311,33 +312,31 @@ export function resetDiscoveryStore(): DiscoveryStore {
 }
 
 /**
- * Boot production/lab store.
- * - memory: unit tests only
- * - postgres: hydrate from ITAM_DISCOVERY_DATABASE_URL (required in production)
+ * Boot discovery store.
+ * - memory: ITAM_DISCOVERY_UNIT_TEST=1 only (never Dev/Prod)
+ * - postgres: hydrate from ITAM_DISCOVERY_DATABASE_URL (required when deployed)
  */
 export async function initDiscoveryStore(opts?: {
   mode?: 'memory' | 'postgres';
   applySchema?: boolean;
 }): Promise<DiscoveryStore> {
   const {
-    isPostgresPersistenceRequired,
-    getItamDiscoveryDatabaseUrl,
+    resolveDiscoveryPersistenceMode,
+    assertPostgresUrlForPersistence,
+    shouldApplyDiscoverySchema,
     applyDiscoverySchema,
     hydrateDiscoveryStore,
   } = await import('./pg-persistence');
 
-  const mode =
-    opts?.mode
-    || (process.env.ITAM_DISCOVERY_PERSISTENCE as 'memory' | 'postgres' | undefined)
-    || (isPostgresPersistenceRequired() ? 'postgres' : 'memory');
+  const mode = resolveDiscoveryPersistenceMode(process.env, { mode: opts?.mode });
 
   if (mode === 'postgres') {
-    if (!getItamDiscoveryDatabaseUrl()) {
-      throw new Error(
-        'Production discovery persistence requires ITAM_DISCOVERY_DATABASE_URL (in-memory store forbidden)',
-      );
-    }
-    if (opts?.applySchema !== false) {
+    assertPostgresUrlForPersistence();
+    const apply =
+      opts?.applySchema !== undefined
+        ? opts.applySchema
+        : shouldApplyDiscoverySchema();
+    if (apply) {
       await applyDiscoverySchema();
     }
     const store = resetDiscoveryStore();
@@ -354,9 +353,6 @@ export async function initDiscoveryStore(opts?: {
   }
 
   persistenceMode = 'memory';
-  if (process.env.NODE_ENV === 'production' && process.env.ITAM_ALLOW_MEMORY_STORE !== '1') {
-    throw new Error('In-memory DiscoveryStore is forbidden in production');
-  }
   return resetDiscoveryStore();
 }
 
