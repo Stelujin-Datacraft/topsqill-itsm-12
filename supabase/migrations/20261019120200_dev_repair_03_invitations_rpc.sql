@@ -6,6 +6,8 @@
 -- docs/dev-schema-repair/PENDING_get_organization_users.md
 -- =============================================================================
 
+BEGIN;
+
 CREATE OR REPLACE FUNCTION public.get_user_project_invitations()
 RETURNS TABLE(
   id UUID,
@@ -48,3 +50,5 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_user_project_invitations() TO authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';
+
+COMMIT;

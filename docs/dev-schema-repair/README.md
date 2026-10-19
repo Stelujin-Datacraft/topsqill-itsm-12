@@ -1,6 +1,6 @@
 # Dev schema repair — Forms RLS / helpers / FK (review package)
 
-**Status:** Prepared for review. **Do not apply to Production. Do not apply to Dev until explicitly approved.**
+**Status:** Reviewed (see `GO_NO_GO.md`). **Verdict: NO-GO for DB apply** until live Dev/Prod capture blockers clear. **Do not apply to Production. Do not apply to Dev until explicitly approved.**
 
 **Scope:** Restore verified missing functions and intended RLS for `forms`, `form_fields`, `form_submissions`, `form_audit_logs`; restore `get_user_project_invitations`; safe form-delete FK behavior.
 

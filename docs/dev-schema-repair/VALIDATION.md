@@ -2,6 +2,8 @@
 
 **Do not run against Production.**
 
+**Before apply:** run `capture_prod_readonly.sql` on **both** Dev and Prod (read-only) and attach results to the PR. PR #229 review could not execute those queries (no DB credentials in Cursor).
+
 ## Pre-flight (read-only)
 
 ```sql

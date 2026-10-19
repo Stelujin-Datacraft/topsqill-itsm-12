@@ -1,5 +1,7 @@
 # PENDING — `get_organization_users(uuid)` (cannot invent)
 
+**PR #229 review status:** Still blocked. Cursor has no Production database credentials, so `pg_get_functiondef` could not be run from this environment. An operator must run `docs/dev-schema-repair/capture_prod_readonly.sql` on Production (read-only) and paste the function definition into a new migration for review.
+
 ## Why blocked
 
 - Called by `src/hooks/useOrganizationUsers.ts` and `src/hooks/useCopilotEngine.ts`.
