@@ -1,0 +1,8 @@
+OPTIONAL — NOT included in 03_itam_phase_a_apply.sql
+
+Nest ITAM discovery boot (REQUIRED_DISCOVERY_RELATIONS) does not require:
+  - 20260930130000_itam_phases_b_d.sql / 20261017142000_itam_phases_b_d_rls_forward.sql
+  - 20260930140000_itam_form_sync.sql / 20261017143000_itam_form_sync_rls_forward.sql
+
+Apply those only after Phase A + VIS are verified and product requires cloud/passive/topology
+or form-sync features. Prefer the forward RLS files if DDL already exists but RLS is missing.
