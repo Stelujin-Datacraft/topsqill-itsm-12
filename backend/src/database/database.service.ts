@@ -154,6 +154,29 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * Guard update/delete against oversized mutations without using PostgREST
+   * Limited Update/Delete (`limit` on PATCH/DELETE), which requires an explicit
+   * `order` on a unique column (PGRST109: "A 'limit' was applied without an
+   * explicit 'order'"). Count matching rows first, then mutate without `.limit()`.
+   */
+  private async assertMutationWithinRowLimit(
+    client: ReturnType<SupabaseService['getServiceClient']>,
+    table: string,
+    filters: FilterClause[],
+    operation: 'Update' | 'Delete',
+  ) {
+    let countQuery = client.from(table).select('*', { count: 'exact', head: true });
+    countQuery = this.applyFilters(countQuery, filters);
+    const { count, error } = await countQuery;
+    if (error) throw new BadRequestException(error.message);
+    if ((count ?? 0) > MAX_MUTATION_ROWS) {
+      throw new BadRequestException(
+        `${operation} would affect more than ${MAX_MUTATION_ROWS} rows. Add more specific filters.`,
+      );
+    }
+  }
+
   private resolvePagination(dto: DatabaseQueryDto): {
     rangeFrom?: number;
     rangeTo?: number;
@@ -341,18 +364,16 @@ export class DatabaseService {
     this.validateTable(dto.table);
     this.requireFilters(dto.filters, 'update');
     const client = this.getClient(authHeader);
+    await this.assertMutationWithinRowLimit(client, dto.table, dto.filters, 'Update');
 
     let query = client.from(dto.table).update(dto.data);
     query = this.applyFilters(query, dto.filters);
 
     const select = dto.returning || 'id';
-    const { data, error } = await query.select(select).limit(MAX_MUTATION_ROWS + 1);
+    // Do not call .limit() on PATCH — PostgREST treats it as Limited Update and
+    // requires order on a unique column (see assertMutationWithinRowLimit).
+    const { data, error } = await query.select(select);
     if (error) throw new BadRequestException(error.message);
-    if (Array.isArray(data) && data.length > MAX_MUTATION_ROWS) {
-      throw new BadRequestException(
-        `Update would affect more than ${MAX_MUTATION_ROWS} rows. Add more specific filters.`,
-      );
-    }
     return { data, error: null };
   }
 
@@ -360,18 +381,15 @@ export class DatabaseService {
     this.validateTable(dto.table);
     this.requireFilters(dto.filters, 'delete');
     const client = this.getClient(authHeader);
+    await this.assertMutationWithinRowLimit(client, dto.table, dto.filters, 'Delete');
 
     let query = client.from(dto.table).delete();
     query = this.applyFilters(query, dto.filters);
 
     const returning = dto.returning || 'id';
-    const { data, error } = await query.select(returning).limit(MAX_MUTATION_ROWS + 1);
+    // Do not call .limit() on DELETE — same PostgREST Limited Delete constraint.
+    const { data, error } = await query.select(returning);
     if (error) throw new BadRequestException(error.message);
-    if (Array.isArray(data) && data.length > MAX_MUTATION_ROWS) {
-      throw new BadRequestException(
-        `Delete would affect more than ${MAX_MUTATION_ROWS} rows. Add more specific filters.`,
-      );
-    }
     return { data, error: null };
   }
 
