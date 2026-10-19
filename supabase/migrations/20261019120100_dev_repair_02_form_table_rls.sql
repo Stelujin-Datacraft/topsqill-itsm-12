@@ -5,7 +5,10 @@
 -- deny-all-only authenticated policies per confirmed inventory).
 -- No USING (true) / WITH CHECK (true). RLS stays enabled.
 -- Depends on: 20261019120000_dev_repair_01_form_access_helpers.sql
+-- Review correction: single transaction so drop-all cannot leave deny-all mid-failure.
 -- =============================================================================
+
+BEGIN;
 
 ALTER TABLE public.forms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.form_fields ENABLE ROW LEVEL SECURITY;
@@ -318,3 +321,5 @@ USING (
 );
 
 NOTIFY pgrst, 'reload schema';
+
+COMMIT;

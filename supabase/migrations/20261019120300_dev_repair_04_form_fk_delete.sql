@@ -10,18 +10,34 @@
 --   form_submissions         → NO automatic CASCADE in this migration
 --                              (business records — require explicit purge / Prod check)
 --
--- Other forms FKs already CASCADE/SET NULL in prior migrations (feeds, workflows,
--- SLA, assignments, etc.) — left unchanged.
---
--- This migration is idempotent: drops and recreates named constraints when present.
--- Do NOT apply to Production without a separate Prod FK inventory.
+-- Review corrections:
+--   - Single transaction
+--   - Refuse SET NULL if form_audit_logs.form_id is NOT NULL
+--   - Temporary helper always dropped (EXCEPTION handler)
+--   - form_submissions FK deliberately untouched
 -- =============================================================================
 
--- Drop any existing FK from child.form_id → public.forms, then recreate with target action.
+BEGIN;
+
+-- Refuse SET NULL rebind if form_id is NOT NULL (would break form delete).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'form_audit_logs'
+      AND column_name = 'form_id'
+      AND is_nullable = 'NO'
+  ) THEN
+    RAISE EXCEPTION
+      'Dev repair 04 blocked: form_audit_logs.form_id is NOT NULL; cannot use ON DELETE SET NULL. Alter nullability first or keep CASCADE with explicit retention decision.';
+  END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.__dev_repair_rebind_forms_fk(
   _child_table text,
   _constraint_name text,
-  _on_delete text  -- 'CASCADE' | 'SET NULL'
+  _on_delete text
 ) RETURNS void
 LANGUAGE plpgsql
 AS $$
@@ -32,6 +48,7 @@ BEGIN
     SELECT 1 FROM information_schema.tables
     WHERE table_schema = 'public' AND table_name = _child_table
   ) THEN
+    RAISE NOTICE 'Dev repair 04: skip % — table missing', _child_table;
     RETURN;
   END IF;
 
@@ -39,6 +56,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = _child_table AND column_name = 'form_id'
   ) THEN
+    RAISE NOTICE 'Dev repair 04: skip % — form_id column missing', _child_table;
     RETURN;
   END IF;
 
@@ -72,23 +90,26 @@ BEGIN
 END;
 $$;
 
-SELECT public.__dev_repair_rebind_forms_fk('form_fields', 'form_fields_form_id_fkey', 'CASCADE');
-SELECT public.__dev_repair_rebind_forms_fk('form_user_access', 'form_user_access_form_id_fkey', 'CASCADE');
-SELECT public.__dev_repair_rebind_forms_fk('form_access_requests', 'form_access_requests_form_id_fkey', 'CASCADE');
-SELECT public.__dev_repair_rebind_forms_fk('form_audit_logs', 'form_audit_logs_form_id_fkey', 'SET NULL');
+DO $$
+BEGIN
+  PERFORM public.__dev_repair_rebind_forms_fk('form_fields', 'form_fields_form_id_fkey', 'CASCADE');
+  PERFORM public.__dev_repair_rebind_forms_fk('form_user_access', 'form_user_access_form_id_fkey', 'CASCADE');
+  PERFORM public.__dev_repair_rebind_forms_fk('form_access_requests', 'form_access_requests_form_id_fkey', 'CASCADE');
+  PERFORM public.__dev_repair_rebind_forms_fk('form_audit_logs', 'form_audit_logs_form_id_fkey', 'SET NULL');
+EXCEPTION
+  WHEN OTHERS THEN
+    DROP FUNCTION IF EXISTS public.__dev_repair_rebind_forms_fk(text, text, text);
+    RAISE;
+END $$;
 
-DROP FUNCTION public.__dev_repair_rebind_forms_fk(text, text, text);
+DROP FUNCTION IF EXISTS public.__dev_repair_rebind_forms_fk(text, text, text);
 
--- ----- form_submissions: intentionally NOT altered here -----
--- Before changing ON DELETE, run on Dev AND Prod (read-only):
+-- form_submissions: intentionally NOT altered — capture Dev+Prod confdeltype before any change.
 --   SELECT c.conname, c.confdeltype, pg_get_constraintdef(c.oid)
 --   FROM pg_constraint c
 --   JOIN pg_class rel ON rel.oid = c.conrelid
 --   WHERE rel.relname = 'form_submissions' AND c.contype = 'f'
 --     AND c.confrelid = 'public.forms'::regclass;
--- If Prod is CASCADE and Dev is NO ACTION, add a follow-up migration after review.
--- If Prod is NO ACTION, keep Dev NO ACTION and require app-side submission purge
--- before form delete (or soft-delete forms instead).
 
 DO $$
 BEGIN
@@ -101,3 +122,5 @@ BEGIN
       'Dev repair: CASCADE so form delete removes field definitions; applied 20261019120300';
   END IF;
 END $$;
+
+COMMIT;

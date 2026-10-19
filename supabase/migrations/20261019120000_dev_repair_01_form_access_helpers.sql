@@ -3,19 +3,50 @@
 -- Source of truth: existing supabase/migrations (final CREATE OR REPLACE bodies).
 -- Do NOT invent function bodies. Do NOT apply to Production from this procedure.
 -- Idempotent: CREATE OR REPLACE + GRANT.
+-- Review correction: fail fast if required tables are missing (incl. record_delegations).
 -- =============================================================================
 
--- Prerequisite for can_act_for (final body expects this column).
+BEGIN;
+
+-- Required tables for helper bodies / later RLS (preflight — Dev must already have these).
 DO $$
+DECLARE
+  missing text[] := ARRAY[]::text[];
+  t text;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'record_delegations'
-  ) THEN
-    ALTER TABLE public.record_delegations
-      ADD COLUMN IF NOT EXISTS grant_delegator_access boolean NOT NULL DEFAULT true;
+  FOREACH t IN ARRAY ARRAY[
+    'forms',
+    'form_fields',
+    'form_submissions',
+    'form_audit_logs',
+    'user_profiles',
+    'project_users',
+    'projects',
+    'project_permissions',
+    'user_role_assignments',
+    'role_permissions',
+    'project_invitations',
+    'record_delegations'
+  ]
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = t
+    ) THEN
+      missing := array_append(missing, t);
+    END IF;
+  END LOOP;
+
+  IF array_length(missing, 1) IS NOT NULL THEN
+    RAISE EXCEPTION
+      'Dev repair 01 preflight failed — missing public tables: %. Apply prior migrations (esp. record_delegations 20260603095218) before this repair.',
+      array_to_string(missing, ', ');
   END IF;
 END $$;
+
+-- Prerequisite for can_act_for (final body expects this column).
+ALTER TABLE public.record_delegations
+  ADD COLUMN IF NOT EXISTS grant_delegator_access boolean NOT NULL DEFAULT true;
 
 -- ---------------------------------------------------------------------------
 -- can_view_project — final: 20260804120000_fix_reports_dashboard_create_policies.sql
@@ -281,3 +312,5 @@ GRANT EXECUTE ON FUNCTION public.can_act_for(uuid, uuid, uuid) TO authenticated,
 GRANT EXECUTE ON FUNCTION public.can_act_for_submission(uuid, uuid) TO authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';
+
+COMMIT;
