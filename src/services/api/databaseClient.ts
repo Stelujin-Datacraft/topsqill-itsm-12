@@ -292,7 +292,7 @@ class InsertBuilder {
             .select(columns);
           return { data: data ?? null, error: error ? { message: error.message } : null };
         },
-      ),
+      ).then((result) => requireAffectedRows(result, 'inserted')),
     );
   }
 
@@ -405,7 +405,7 @@ class UpdateBuilder extends FilterMixin {
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    ));
+    ).then((result) => requireAffectedRows(result, 'updated')));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -442,7 +442,7 @@ class DeleteBuilder extends FilterMixin {
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    ));
+    ).then((result) => requireAffectedRows(result, 'deleted')));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -454,6 +454,23 @@ function normalizeResult(result: { data: unknown; error: { message: string } | n
   if (result.error) return { data: null, error: result.error };
   const payload = result.data as QueryResult;
   return { data: payload?.data ?? payload, error: null, count: payload?.count };
+}
+
+/**
+ * RLS-denied mutations often return HTTP 200 with []. Never treat that as success.
+ */
+function requireAffectedRows(result: QueryResult, verb: 'inserted' | 'updated' | 'deleted'): QueryResult {
+  if (result.error) return result;
+  const rows = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+  if (rows.length === 0) {
+    return {
+      data: null,
+      error: {
+        message: `No rows were ${verb}. The record may be missing, already removed, or blocked by row-level security.`,
+      },
+    };
+  }
+  return result;
 }
 
 export function paginatedRange(page = 1, pageSize = 100) {
