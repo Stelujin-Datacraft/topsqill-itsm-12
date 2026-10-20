@@ -68,7 +68,72 @@ console.log('dev-crud-rls-modules-repair static review');
   assertContains(m08, 'user_has_dashboard_role_permission', '08 restores dashboard role permission helper');
   assert(!/USING\s*\(\s*true\s*\)/i.test(code), '08 must not use USING(true)');
   assert(!/\bDROP\s+TABLE\b/i.test(code), '08 must not DROP TABLE');
-  console.log('  ✓ migration 08 auth helpers (org id alias + role assignment)');
+
+  // SECURITY DEFINER privilege hardening: every GRANT EXECUTE must be preceded by
+  // REVOKE ALL … FROM PUBLIC for the same signature (no PUBLIC execute left).
+  const definerFns = [
+    'public.get_current_user_org_id()',
+    'public.get_current_user_organization_id()',
+    'public.is_org_admin_of(uuid)',
+    'public.is_current_user_admin_of_org(uuid)',
+    'public.is_project_member(uuid, uuid)',
+    'public.can_view_project(uuid, uuid)',
+    'public.user_has_any_role_assignment(uuid)',
+    'public.user_has_role_assignment(uuid, uuid)',
+    'public.is_admin_of_role(uuid)',
+    'public.is_admin_of_group(uuid)',
+    'public.can_view_group(uuid)',
+    'public.user_has_report_role_permission(uuid, uuid, text)',
+    'public.user_has_dashboard_role_permission(uuid, uuid, text)',
+    'public.user_has_project_report_role_permissions(uuid, uuid)',
+    'public.user_has_project_dashboard_role_permissions(uuid, uuid)',
+    'public.user_has_policy_role_permission(uuid, uuid, text)',
+    'public.user_has_project_policy_role_permissions(uuid, uuid)',
+    'public.user_can_create_analytics_in_project(uuid, uuid, text)',
+    'public.user_can_create_dashboard_in_project(uuid, uuid)',
+    'public.user_can_create_report_in_project(uuid, uuid)',
+  ];
+  for (const sig of definerFns) {
+    const revoke = `REVOKE ALL ON FUNCTION ${sig} FROM PUBLIC`;
+    const grant = `GRANT EXECUTE ON FUNCTION ${sig} TO authenticated, service_role`;
+    assertContains(m08, revoke, `08 revokes PUBLIC execute on ${sig}`);
+    assertContains(m08, grant, `08 grants execute to authenticated+service_role on ${sig}`);
+    const revokePos = m08.indexOf(revoke);
+    const grantPos = m08.indexOf(grant);
+    assert(revokePos >= 0 && grantPos > revokePos, `08 REVOKE PUBLIC before GRANT for ${sig}`);
+  }
+  // Explicit coverage for the six helpers that previously lacked REVOKE
+  assertContains(
+    m08,
+    'REVOKE ALL ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) FROM PUBLIC',
+    '08 revokes PUBLIC on user_has_report_role_permission',
+  );
+  assertContains(
+    m08,
+    'REVOKE ALL ON FUNCTION public.user_has_dashboard_role_permission(uuid, uuid, text) FROM PUBLIC',
+    '08 revokes PUBLIC on user_has_dashboard_role_permission',
+  );
+  assertContains(
+    m08,
+    'REVOKE ALL ON FUNCTION public.user_has_project_report_role_permissions(uuid, uuid) FROM PUBLIC',
+    '08 revokes PUBLIC on user_has_project_report_role_permissions',
+  );
+  assertContains(
+    m08,
+    'REVOKE ALL ON FUNCTION public.user_has_project_dashboard_role_permissions(uuid, uuid) FROM PUBLIC',
+    '08 revokes PUBLIC on user_has_project_dashboard_role_permissions',
+  );
+  assertContains(
+    m08,
+    'REVOKE ALL ON FUNCTION public.user_has_policy_role_permission(uuid, uuid, text) FROM PUBLIC',
+    '08 revokes PUBLIC on user_has_policy_role_permission',
+  );
+  assertContains(
+    m08,
+    'REVOKE ALL ON FUNCTION public.user_has_project_policy_role_permissions(uuid, uuid) FROM PUBLIC',
+    '08 revokes PUBLIC on user_has_project_policy_role_permissions',
+  );
+  console.log('  ✓ migration 08 auth helpers + SECURITY DEFINER privilege hardening');
 }
 
 {
