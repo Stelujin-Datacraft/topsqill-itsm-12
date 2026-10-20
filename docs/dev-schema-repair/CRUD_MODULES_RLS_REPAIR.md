@@ -36,6 +36,11 @@ Workflows / workflow_nodes / workflow_connections were already restored on Dev (
 | `user_role_assignments` | Org admin manage; self SELECT | **10** |
 | `project_top_level_permissions` | Project/org admin manage; members/self SELECT | **10** |
 | `groups` / `group_memberships` / `group_roles` / `group_role_assignments` | Org admin manage; org members view (where applicable) | **10** (if tables exist) |
+| `security_templates` / `user_security_parameters` / `organization_security_defaults` | Org members view templates/defaults; org admin manage; users view own security params | **10** (Users / Access Control open path) |
+
+**Access Control UI note:** Sidebar “Access Control” is `/users` (`Users.tsx`); `/roles-and-access` hosts the same role tabs. Repair 10 covers both open paths.
+
+**SELECT legacy path (reports/dashboards):** Final semantics from `20260521123035` — org-wide/project-member legacy visibility only when `NOT user_has_any_role_assignment(auth.uid())` (not the superseded project-scoped gate from the prior day).
 
 **Intentionally not opened to authenticated:** secrets/credentials (`smtp_configs`, `api_keys`, MFA/password history), service-only queue/execution logs, and **`projects_migration_deny`** (leave alone per ITAM guidance).
 

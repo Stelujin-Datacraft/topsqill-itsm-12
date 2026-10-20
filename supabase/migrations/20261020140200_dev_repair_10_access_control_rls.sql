@@ -326,6 +326,144 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
+-- Security templates / parameters (Users / Access Control open path)
+-- Source: 20260116091414 + 20260116090207
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'security_templates'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.security_templates ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'DROP POLICY IF EXISTS "Members can view org security templates" ON public.security_templates';
+    EXECUTE $p$
+      CREATE POLICY "Members can view org security templates"
+      ON public.security_templates FOR SELECT TO authenticated
+      USING (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles WHERE id = auth.uid()
+        )
+      )
+    $p$;
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can manage security templates" ON public.security_templates';
+    EXECUTE $p$
+      CREATE POLICY "Admins can manage security templates"
+      ON public.security_templates FOR ALL TO authenticated
+      USING (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+      WITH CHECK (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+    $p$;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'user_security_parameters'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.user_security_parameters ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can view all security parameters in their org" ON public.user_security_parameters';
+    EXECUTE $p$
+      CREATE POLICY "Admins can view all security parameters in their org"
+      ON public.user_security_parameters FOR SELECT TO authenticated
+      USING (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+    $p$;
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can insert security parameters in their org" ON public.user_security_parameters';
+    EXECUTE $p$
+      CREATE POLICY "Admins can insert security parameters in their org"
+      ON public.user_security_parameters FOR INSERT TO authenticated
+      WITH CHECK (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+    $p$;
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can update security parameters in their org" ON public.user_security_parameters';
+    EXECUTE $p$
+      CREATE POLICY "Admins can update security parameters in their org"
+      ON public.user_security_parameters FOR UPDATE TO authenticated
+      USING (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+      WITH CHECK (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+    $p$;
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can delete security parameters in their org" ON public.user_security_parameters';
+    EXECUTE $p$
+      CREATE POLICY "Admins can delete security parameters in their org"
+      ON public.user_security_parameters FOR DELETE TO authenticated
+      USING (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+    $p$;
+    EXECUTE 'DROP POLICY IF EXISTS "Users can view their own security parameters" ON public.user_security_parameters';
+    EXECUTE $p$
+      CREATE POLICY "Users can view their own security parameters"
+      ON public.user_security_parameters FOR SELECT TO authenticated
+      USING (user_id = auth.uid())
+    $p$;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'organization_security_defaults'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.organization_security_defaults ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'DROP POLICY IF EXISTS "Members can view org security defaults" ON public.organization_security_defaults';
+    EXECUTE $p$
+      CREATE POLICY "Members can view org security defaults"
+      ON public.organization_security_defaults FOR SELECT TO authenticated
+      USING (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles WHERE id = auth.uid()
+        )
+      )
+    $p$;
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can manage org security defaults" ON public.organization_security_defaults';
+    EXECUTE $p$
+      CREATE POLICY "Admins can manage org security defaults"
+      ON public.organization_security_defaults FOR ALL TO authenticated
+      USING (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+      WITH CHECK (
+        organization_id IN (
+          SELECT organization_id FROM public.user_profiles
+          WHERE id = auth.uid() AND role = 'admin'
+        )
+      )
+    $p$;
+  END IF;
+END $$;
+
+-- ---------------------------------------------------------------------------
 -- Drop exact known Access Control RESTRICTIVE deny policies AFTER replacements.
 -- Do NOT drop projects_migration_deny, smtp/api_keys/secrets denies, etc.
 -- ---------------------------------------------------------------------------
@@ -359,6 +497,24 @@ BEGIN
     WHERE table_schema = 'public' AND table_name = 'group_role_assignments'
   ) THEN
     EXECUTE 'DROP POLICY IF EXISTS "group_role_assignments_migration_deny" ON public.group_role_assignments';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'security_templates'
+  ) THEN
+    EXECUTE 'DROP POLICY IF EXISTS "security_templates_migration_deny" ON public.security_templates';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'user_security_parameters'
+  ) THEN
+    EXECUTE 'DROP POLICY IF EXISTS "user_security_parameters_migration_deny" ON public.user_security_parameters';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'organization_security_defaults'
+  ) THEN
+    EXECUTE 'DROP POLICY IF EXISTS "organization_security_defaults_migration_deny" ON public.organization_security_defaults';
   END IF;
 END $$;
 

@@ -48,7 +48,7 @@ ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dashboards ENABLE ROW LEVEL SECURITY;
 
 -- ---------------------------------------------------------------------------
--- REPORTS — SELECT (20260520081641 project-scoped legacy path)
+-- REPORTS — SELECT (final: 20260521123035 — legacy gated by any role assignment)
 -- ---------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Users can view reports in their organization" ON public.reports;
 CREATE POLICY "Users can view reports in their organization"
@@ -71,8 +71,10 @@ USING (
   )
   OR public.user_has_report_role_permission(reports.id, auth.uid(), 'read')
   OR (
-    organization_id = public.get_current_user_organization_id()
-    AND NOT public.user_has_project_report_role_permissions(reports.project_id, auth.uid())
+    organization_id = (
+      SELECT up.organization_id FROM public.user_profiles up WHERE up.id = auth.uid()
+    )
+    AND NOT public.user_has_any_role_assignment(auth.uid())
   )
 );
 
@@ -148,8 +150,24 @@ USING (
   OR created_by = auth.uid()
 );
 
+-- Role-based UPDATE/DELETE (20260521121432) — coexists with admin/owner policies
+DROP POLICY IF EXISTS "Role-based users can update reports" ON public.reports;
+CREATE POLICY "Role-based users can update reports"
+ON public.reports
+FOR UPDATE
+TO authenticated
+USING (public.user_has_report_role_permission(id, auth.uid(), 'update'))
+WITH CHECK (public.user_has_report_role_permission(id, auth.uid(), 'update'));
+
+DROP POLICY IF EXISTS "Role-based users can delete reports" ON public.reports;
+CREATE POLICY "Role-based users can delete reports"
+ON public.reports
+FOR DELETE
+TO authenticated
+USING (public.user_has_report_role_permission(id, auth.uid(), 'delete'));
+
 -- ---------------------------------------------------------------------------
--- DASHBOARDS — SELECT (20260520081641)
+-- DASHBOARDS — SELECT (final: 20260521123035)
 -- ---------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Project members can view dashboards" ON public.dashboards;
 DROP POLICY IF EXISTS "Users can view dashboards in their projects" ON public.dashboards;
@@ -172,7 +190,7 @@ USING (
       WHERE pu.project_id = dashboards.project_id
         AND pu.user_id = auth.uid()
     )
-    AND NOT public.user_has_project_dashboard_role_permissions(dashboards.project_id, auth.uid())
+    AND NOT public.user_has_any_role_assignment(auth.uid())
   )
 );
 
@@ -249,6 +267,22 @@ USING (
       AND pu.role = 'admin'
   )
 );
+
+-- Role-based UPDATE/DELETE (20260521121432)
+DROP POLICY IF EXISTS "Role-based users can update dashboards" ON public.dashboards;
+CREATE POLICY "Role-based users can update dashboards"
+ON public.dashboards
+FOR UPDATE
+TO authenticated
+USING (public.user_has_dashboard_role_permission(id, auth.uid(), 'update'))
+WITH CHECK (public.user_has_dashboard_role_permission(id, auth.uid(), 'update'));
+
+DROP POLICY IF EXISTS "Role-based users can delete dashboards" ON public.dashboards;
+CREATE POLICY "Role-based users can delete dashboards"
+ON public.dashboards
+FOR DELETE
+TO authenticated
+USING (public.user_has_dashboard_role_permission(id, auth.uid(), 'delete'));
 
 -- ---------------------------------------------------------------------------
 -- Drop known Dev RESTRICTIVE deny-all ONLY after scoped policies exist.

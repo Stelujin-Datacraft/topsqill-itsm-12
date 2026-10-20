@@ -80,10 +80,18 @@ console.log('dev-crud-rls-modules-repair static review');
   assertContains(m09, 'CREATE POLICY "Authorized users can create reports"', '09 report INSERT');
   assertContains(m09, 'CREATE POLICY "Admins can update reports"', '09 report UPDATE');
   assertContains(m09, 'CREATE POLICY "Admins can delete reports"', '09 report DELETE');
+  assertContains(m09, 'CREATE POLICY "Role-based users can update reports"', '09 report role UPDATE');
+  assertContains(m09, 'CREATE POLICY "Role-based users can delete reports"', '09 report role DELETE');
   assertContains(m09, 'CREATE POLICY "Project members can view dashboards"', '09 dashboard SELECT');
   assertContains(m09, 'CREATE POLICY "Authorized users can create dashboards"', '09 dashboard INSERT');
   assertContains(m09, 'CREATE POLICY "Org admins can update dashboards"', '09 dashboard UPDATE');
   assertContains(m09, 'CREATE POLICY "Org admins can delete dashboards"', '09 dashboard DELETE');
+  assertContains(m09, 'CREATE POLICY "Role-based users can update dashboards"', '09 dashboard role UPDATE');
+  assertContains(m09, 'CREATE POLICY "Role-based users can delete dashboards"', '09 dashboard role DELETE');
+
+  // Final SELECT legacy path uses user_has_any_role_assignment (20260521123035)
+  assertContains(m09, 'NOT public.user_has_any_role_assignment(auth.uid())', '09 SELECT legacy gate matches final migration');
+  assert(!/user_has_project_report_role_permissions\(reports\.project_id/.test(stripSqlComments(m09)), '09 SELECT must not use superseded project-scoped legacy gate');
 
   // Org / project isolation markers
   assertContains(m09, "up.role = 'admin'", '09 org-admin checks');
@@ -134,6 +142,10 @@ console.log('dev-crud-rls-modules-repair static review');
     '10 drops top-level deny',
   );
   assertContains(m10, 'groups_migration_deny', '10 drops groups deny when table exists');
+  assertContains(m10, 'CREATE POLICY "Members can view org security templates"', '10 security_templates SELECT');
+  assertContains(m10, 'CREATE POLICY "Users can view their own security parameters"', '10 user_security_parameters self SELECT');
+  assertContains(m10, 'security_templates_migration_deny', '10 drops security_templates deny when present');
+  assertContains(m10, 'user_security_parameters_migration_deny', '10 drops user_security_parameters deny when present');
   assert(!/projects_migration_deny/.test(code), '10 must not drop projects_migration_deny');
   assert(!/smtp_configs|api_keys|password_history|mfa_/.test(code), '10 must not touch secrets tables');
   assert(!/USING\s*\(\s*true\s*\)/i.test(code), '10 must not recreate USING(true)');
@@ -143,9 +155,12 @@ console.log('dev-crud-rls-modules-repair static review');
 
 {
   // Access Control tab query targets must be covered by repair 10
+  // Primary sidebar "Access Control" is /users; RolesAndAccess is /roles-and-access
   const hook = load(ACCESS_HOOK);
   const page = load(ROLES_PAGE);
-  assertContains(page, 'RolesAndAccess', 'Access Control page exists');
+  const usersPage = load('src/pages/Users.tsx');
+  assertContains(page, 'RolesAndAccess', 'Roles and Access page exists');
+  assertContains(usersPage, 'Access', 'Users/Access Control page exists');
   assertContains(hook, "from('project_top_level_permissions')", 'hook queries top-level permissions');
   assertContains(hook, "from('user_role_assignments')", 'hook queries role assignments');
   assertContains(hook, "from('role_permissions')", 'hook queries role permissions');
@@ -154,7 +169,9 @@ console.log('dev-crud-rls-modules-repair static review');
   assertContains(m10, 'project_top_level_permissions', '10 covers top-level table');
   assertContains(m10, 'user_role_assignments', '10 covers assignments');
   assertContains(m10, 'role_permissions', '10 covers role_permissions');
-  console.log('  ✓ Access Control tab query targets covered by repair 10');
+  assertContains(m10, 'security_templates', '10 covers security_templates for Users open path');
+  assertContains(m10, 'user_security_parameters', '10 covers user_security_parameters for Users open path');
+  console.log('  ✓ Access Control / Users query targets covered by repair 10');
 }
 
 {
