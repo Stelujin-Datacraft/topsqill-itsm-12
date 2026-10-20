@@ -2,91 +2,122 @@
 
 **Date:** 2026-10-20  
 **Branch:** `cursor/fix-dev-crud-create-delete-e654`  
-**Related:** PR #229 (`cursor/dev-forms-rls-repair-e654`) preserved; not modified.  
-**Verdict: CONDITIONAL GO for Dev apply** after explicit operator approval — package is complete in-repo. Still **NO-GO for Production**. Live smoke after apply remains required before claiming Dev fixed.
+**Related:** PR #229 preserved; not modified by this agent turn.
+**See also:** `FULL_DEV_AUDIT.md`
 
 SQL has **not** been applied to Dev or Production from this agent environment.
+**No commit / push / deploy** in the latest audit continuation.
+
+---
+
+## Verdict (migrations 06–07)
+
+| Scope | Decision |
+|-------|----------|
+| Apply **06 + 07** on **Dev** after operator approval | **CONDITIONAL GO** — package reviewed; empty-table assumptions hold per operator inventory; smoke required; **restrictive `*_migration_deny` policies now dropped in 06** |
+| Apply **01–05** on Dev (if not already applied) | **CONDITIONAL GO** — prior Forms package |
+| Apply anything on **Production** | **NO-GO** |
+| Claim app “fully fixed” without live smoke | **NO-GO** |
+
+---
+
+## Blocker resolved (repo): SLA `*_migration_deny` RESTRICTIVE policies
+
+**Discovered (Dev SQL Editor, operator):** these RESTRICTIVE policies exist with `USING (false)` / `WITH CHECK (false)` for `authenticated`:
+
+| Policy | Table |
+|--------|-------|
+| `business_holidays_migration_deny` | `business_holidays` |
+| `form_field_sla_config_migration_deny` | `form_field_sla_config` |
+| `sla_instances_migration_deny` | `sla_instances` |
+| `escalation_events_migration_deny` | `escalation_events` |
+
+**Why it blocked:** PostgreSQL RESTRICTIVE policies **AND** with permissive policies. Migration 06 previously only recreated scoped PERMISSIVE policies and never dropped these denies — authenticated access would remain denied after apply.
+
+**Resolution (repo, not yet applied):** `20261020080000_dev_repair_06_sla_canonical_columns.sql` now `DROP POLICY IF EXISTS` each exact name inside the transaction **before** creating/relying on scoped replacements. Unrelated policies (e.g. `"Project members can manage SLA instances"` from `20260608…`) are **not** dropped.
+
+Post-apply still required to confirm live access is restored.
+
+---
+
+## Migration review summary (06 / 07)
+
+### `20261020080000_dev_repair_06_sla_canonical_columns.sql`
+
+| Check | Result |
+|-------|--------|
+| Additive columns only; no DROP TABLE/COLUMN/TRUNCATE | **PASS** |
+| Preflight requires existing SLA tables | **PASS** |
+| Orphan checks before FKs (`form_id`, `chain_id`, group escalate) | **PASS** |
+| Nested-select FKs for `template`/`chain`/`form` embeds | **PASS** (after columns exist) |
+| Enums created idempotently | **PASS** |
+| `calculate_business_hours` signature matches canonical | **PASS** |
+| Drops exact Dev `*_migration_deny` RESTRICTIVE policies | **PASS** (repo fix) |
+| Replaces historical `USING (true)` / `WITH CHECK (true)` on instances/events | **PASS** (scoped to org admin / project admin\|editor) |
+| Ensures View + manage/insert policies on holidays, field config, instances, events | **PASS** (org/project scoped; no `USING (true)`) |
+| Does not drop unrelated scoped policies by name | **PASS** |
+| Compatible with Nest processor / UI / AI column names | **PASS** (code also fixed) |
+| Assumes Dev SLA tables empty or orphans absent | **Documented** — RAISE if orphans |
+
+### `20261020080100_dev_repair_07_workflow_queue_additive.sql`
+
+| Check | Result |
+|-------|--------|
+| Additive columns; preserves prior Dev repair columns | **PASS** |
+| No `error_message` column invented | **PASS** |
+| Orphan check before `submission_id` FK | **PASS** |
+| Claim uses `FOR UPDATE SKIP LOCKED` | **PASS** |
+| Stuck reclaim increments `retry_count`; terminal when maxed | **PASS** |
+| Claim sets `started_at = now()` (accurate stuck window) | **PASS** |
+| EXECUTE granted to `service_role` only; PUBLIC revoked | **PASS** |
+| Nest writes `last_error` + authenticated retry endpoint | **PASS** (code) |
+| Unchanged this turn (no concrete defect) | **PASS** |
 
 ---
 
 ## Checklist
 
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 1 | Inspect full SQL of migrations 01–05 | **PASS** | Bodies reviewed; 05 matches operator Prod capture |
-| 2 | Helper functions match authoritative FINAL migrations | **PASS** | See helper matrix below |
-| 3 | Migration 01 tables/columns exist on Dev (esp. `record_delegations`, `grant_delegator_access`) | **PASS (preflight)** | Migration **raises** if missing; operator must confirm Dev has tables before apply |
-| 4 | Migration 02 policy set vs Prod / deny-all safety | **PASS (documented)** | 22 policies; drop-all clears Dev deny-all in one txn; see `POLICY_COMPARISON.md`. Paste live Prod policy list into PR if extras exist |
-| 5 | `form_submissions` FK Dev vs Prod | **PASS (capture + repair)** | Capture: Prod **CASCADE**, Dev **NO ACTION**. Migration 04 now rebinds submissions → **CASCADE** to match Prod; post-check enforces `confdeltype = c` |
-| 6 | Migration 04 safe/repeatable; required FKs verified | **PASS** | Required: fields/submissions/audit; optional: access tables; audit SET NULL (intentional vs Prod CASCADE); transactional + post-checks |
-| 7 | `get_organization_users` from Prod capture | **PASS (repo)** | Migration 05 exact body; grants PUBLIC/anon/authenticated/service_role/postgres; no `search_path` |
-| 8 | Static tests + Nest build | **PASS** | `npm run test:database` + `npm run build` |
-| 9 | Live Dev apply + smoke | **PENDING** | Not run from this agent — blocks “Dev is fixed” claim |
+| # | Item | Status |
+|---|------|--------|
+| 1 | Forms repairs 01–05 in repo | **PASS** |
+| 2 | SLA additive schema 06 | **PASS (repo)** |
+| 2b | SLA `*_migration_deny` drop in 06 | **PASS (repo)** — live apply pending |
+| 3 | Queue additive + claim 07 | **PASS (repo)** |
+| 4 | Nest queue `last_error` + retries | **PASS** |
+| 5 | Queue UI retry via Nest auth endpoint | **PASS** |
+| 6 | SLA `USING(true)` hardened in 06 | **PASS (repo)** |
+| 7 | AI SLA column names | **PASS** |
+| 8 | Promo Prod-disabled by default | **PASS** (static) |
+| 9 | Dockerfile.frontend present | **PASS** |
+| 10 | Live Dev apply + smoke | **PENDING** |
+| 11 | Commit / push / PR update | **Not done** (awaiting approval) |
 
 ---
 
-## Helper verification matrix
+## Remaining unresolved / live-only
 
-| Function | FINAL source | Body match | SECURITY DEFINER | search_path | GRANT in repair |
-|----------|--------------|------------|------------------|-------------|-----------------|
-| `can_view_project` | `20260804120000` | OK | OK | OK | Added (intentional) |
-| `can_access_form` | `20260218042224` | OK | OK | OK | Added |
-| `can_modify_form` | `20260218042224` | OK | OK | OK | Added |
-| `can_modify_forms_row` | `20260218044247` | OK | OK | OK | Added |
-| `user_has_form_role_permission` | `20260520071315` | OK | OK | OK | Added |
-| `user_has_project_form_role_permissions` | `20260520071315` | OK | OK | OK | Added |
-| `can_access_forms_row` | `20260520071315` | OK | OK | OK | Added |
-| `can_act_for` | `20260604113932` | OK | OK | OK | Added |
-| `can_act_for_submission` | `20260606041529` | OK | OK | OK | Added |
-| `get_user_project_invitations` | `20250625074633` | OK | OK | **Added** (hardening) | Added |
-| `get_organization_users` | **Prod capture** | OK | OK | **None** (matches Prod) | PUBLIC, anon, authenticated, service_role, postgres |
+1. Confirm live Dev has zero orphan `form_id` / `submission_id` before FK add (migration raises if not).
+2. Confirm Forms 01–05 already applied on Dev (skip if yes).
+3. After 06: confirm the four `*_migration_deny` policies are gone and scoped View/Manage/Insert policies exist; smoke authenticated SLA reads/writes.
+4. After 06: verify processor nested select `chain:escalation_chains(..., levels:escalation_levels(*))` works.
+5. After 07: verify Nest; smoke enqueue → fail → auto-retry → manual retry via UI.
+6. Optional: inventory remaining SLA policies after apply (templates/chains/levels untouched; leave unless unsafe).
+7. ITAM/VIS live schema parity — requires Dev DB credentials (code-reviewed only).
 
 ---
 
-## FK matrix (repair 04)
+## Safe Dev apply order (manual)
 
-| Child FK | Target ON DELETE | Notes |
-|----------|------------------|-------|
-| `form_fields_form_id_fkey` | CASCADE | Required |
-| `form_user_access_form_id_fkey` | CASCADE | Optional table (NOTICE skip) |
-| `form_access_requests_form_id_fkey` | CASCADE | Optional table (NOTICE skip) |
-| `form_submissions_form_id_fkey` | CASCADE | **Required — match Production capture** |
-| `form_audit_logs_form_id_fkey` | SET NULL | Intentional retention vs Prod CASCADE |
+```bash
+# Confirm Dev target first: SELECT current_database(), current_user;
+psql "$DEV_DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f supabase/migrations/20261019120000_dev_repair_01_form_access_helpers.sql \
+  -f supabase/migrations/20261019120100_dev_repair_02_form_table_rls.sql \
+  -f supabase/migrations/20261019120200_dev_repair_03_invitations_rpc.sql \
+  -f supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql \
+  -f supabase/migrations/20261019120400_dev_repair_05_get_organization_users.sql \
+  -f supabase/migrations/20261020080000_dev_repair_06_sla_canonical_columns.sql \
+  -f supabase/migrations/20261020080100_dev_repair_07_workflow_queue_additive.sql
+```
 
----
-
-## Policy drop-all analysis
-
-See `POLICY_COMPARISON.md`. Repair 02 drops all policies on the four tables then recreates **22** policies. Dev deny-all is intentionally discarded. Relative to the repo last-writer set: **zero legitimate policies lost**.
-
----
-
-## Sequence integrity (01→05)
-
-| Step | File | Depends on | Destructive? | Rerunnable? |
-|------|------|------------|--------------|-------------|
-| 01 | `…20000_dev_repair_01_form_access_helpers.sql` | Core tables + `record_delegations` | REPLACE functions; ADD COLUMN IF NOT EXISTS | Yes |
-| 02 | `…20100_dev_repair_02_form_table_rls.sql` | 01 helpers | Drop-all policies on 4 tables then recreate | Yes (txn) |
-| 03 | `…20200_dev_repair_03_invitations_rpc.sql` | `project_invitations` | REPLACE function | Yes |
-| 04 | `…20300_dev_repair_04_form_fk_delete.sql` | forms + children | Drop/recreate FKs | Yes (txn + post-check) |
-| 05 | `…20400_dev_repair_05_get_organization_users.sql` | `user_profiles.status` | REPLACE function + GRANT | Yes |
-
----
-
-## Remaining before claiming Dev fixed
-
-1. Explicit approval to apply **01–05 on Dev only** (surgical `psql -f`, not `supabase db push` to Prod).
-2. Post-flight SQL in `VALIDATION.md` (helpers, grants, FK `confdeltype`, 22 policies, no `USING(true)`).
-3. UI/API smoke including **delete form with submissions** (should succeed after CASCADE) and `get_organization_users`.
-4. Optional: paste full Prod policy name list into PR if any extras beyond the 22.
-
----
-
-## Recommendation
-
-| Scope | Decision |
-|-------|----------|
-| Merge / keep PR as ready-to-apply package | OK after CI green |
-| Apply 01–05 on **Dev** | **CONDITIONAL GO** — approve then apply surgically; smoke required |
-| Apply anything on **Production** | **NO-GO** |
-| Claim “Dev is fixed” before live apply + smoke | **NO-GO** |
+Skip 01–05 if already applied. **Never** point at Production. **Never** `supabase db push` to Prod.
