@@ -70,7 +70,7 @@ console.log('dev-crud-rls-modules-repair static review');
   assert(!/\bDROP\s+TABLE\b/i.test(code), '08 must not DROP TABLE');
 
   // SECURITY DEFINER privilege hardening: every GRANT EXECUTE must be preceded by
-  // REVOKE ALL … FROM PUBLIC for the same signature (no PUBLIC execute left).
+  // REVOKE ALL … FROM PUBLIC and FROM anon (Supabase grants anon separately from PUBLIC).
   const definerFns = [
     'public.get_current_user_org_id()',
     'public.get_current_user_organization_id()',
@@ -94,46 +94,40 @@ console.log('dev-crud-rls-modules-repair static review');
     'public.user_can_create_report_in_project(uuid, uuid)',
   ];
   for (const sig of definerFns) {
-    const revoke = `REVOKE ALL ON FUNCTION ${sig} FROM PUBLIC`;
+    const revokePublic = `REVOKE ALL ON FUNCTION ${sig} FROM PUBLIC`;
+    const revokeAnon = `REVOKE ALL ON FUNCTION ${sig} FROM anon`;
     const grant = `GRANT EXECUTE ON FUNCTION ${sig} TO authenticated, service_role`;
-    assertContains(m08, revoke, `08 revokes PUBLIC execute on ${sig}`);
+    assertContains(m08, revokePublic, `08 revokes PUBLIC execute on ${sig}`);
+    assertContains(m08, revokeAnon, `08 revokes anon execute on ${sig}`);
     assertContains(m08, grant, `08 grants execute to authenticated+service_role on ${sig}`);
-    const revokePos = m08.indexOf(revoke);
+    const revokePublicPos = m08.indexOf(revokePublic);
+    const revokeAnonPos = m08.indexOf(revokeAnon);
     const grantPos = m08.indexOf(grant);
-    assert(revokePos >= 0 && grantPos > revokePos, `08 REVOKE PUBLIC before GRANT for ${sig}`);
+    assert(
+      revokePublicPos >= 0 && revokeAnonPos > revokePublicPos && grantPos > revokeAnonPos,
+      `08 REVOKE PUBLIC then anon before GRANT for ${sig}`,
+    );
+    // Must not grant execute to anon or PUBLIC
+    assert(
+      !new RegExp(
+        `GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+${sig.replace(/[()]/g, '\\$&')}\\s+TO\\s+[^;]*\\banon\\b`,
+        'i',
+      ).test(code),
+      `08 must not GRANT EXECUTE to anon on ${sig}`,
+    );
   }
-  // Explicit coverage for the six helpers that previously lacked REVOKE
+  // Explicit coverage for can_view_project (Dev ACL showed anon=X after PUBLIC-only revoke)
   assertContains(
     m08,
-    'REVOKE ALL ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) FROM PUBLIC',
-    '08 revokes PUBLIC on user_has_report_role_permission',
+    'REVOKE ALL ON FUNCTION public.can_view_project(uuid, uuid) FROM anon',
+    '08 revokes anon on can_view_project',
   );
   assertContains(
     m08,
-    'REVOKE ALL ON FUNCTION public.user_has_dashboard_role_permission(uuid, uuid, text) FROM PUBLIC',
-    '08 revokes PUBLIC on user_has_dashboard_role_permission',
+    'REVOKE ALL ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) FROM anon',
+    '08 revokes anon on user_has_report_role_permission',
   );
-  assertContains(
-    m08,
-    'REVOKE ALL ON FUNCTION public.user_has_project_report_role_permissions(uuid, uuid) FROM PUBLIC',
-    '08 revokes PUBLIC on user_has_project_report_role_permissions',
-  );
-  assertContains(
-    m08,
-    'REVOKE ALL ON FUNCTION public.user_has_project_dashboard_role_permissions(uuid, uuid) FROM PUBLIC',
-    '08 revokes PUBLIC on user_has_project_dashboard_role_permissions',
-  );
-  assertContains(
-    m08,
-    'REVOKE ALL ON FUNCTION public.user_has_policy_role_permission(uuid, uuid, text) FROM PUBLIC',
-    '08 revokes PUBLIC on user_has_policy_role_permission',
-  );
-  assertContains(
-    m08,
-    'REVOKE ALL ON FUNCTION public.user_has_project_policy_role_permissions(uuid, uuid) FROM PUBLIC',
-    '08 revokes PUBLIC on user_has_project_policy_role_permissions',
-  );
-  console.log('  ✓ migration 08 auth helpers + SECURITY DEFINER privilege hardening');
+  console.log('  ✓ migration 08 auth helpers + SECURITY DEFINER privilege hardening (PUBLIC+anon)');
 }
 
 {
