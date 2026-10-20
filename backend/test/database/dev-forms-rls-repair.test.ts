@@ -1,5 +1,5 @@
 /**
- * Static review of Dev Forms RLS repair migrations (PR #229).
+ * Static review of Dev Forms RLS repair migrations (PR #230 / package from #229).
  * Does not connect to a database.
  *
  *   npx tsx test/database/dev-forms-rls-repair.test.ts
@@ -17,6 +17,7 @@ const M01 = 'supabase/migrations/20261019120000_dev_repair_01_form_access_helper
 const M02 = 'supabase/migrations/20261019120100_dev_repair_02_form_table_rls.sql';
 const M03 = 'supabase/migrations/20261019120200_dev_repair_03_invitations_rpc.sql';
 const M04 = 'supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql';
+const M05 = 'supabase/migrations/20261019120400_dev_repair_05_get_organization_users.sql';
 
 const SRC = {
   can_access_form: 'supabase/migrations/20260218042224_7da33ce0-a945-4de4-afe0-ac02a35c4b07.sql',
@@ -185,6 +186,32 @@ console.log('dev-forms-rls-repair static review');
 }
 
 {
+  const m05 = load(M05);
+  assertContains(m05, 'BEGIN;', '05 transactional');
+  assertContains(m05, 'COMMIT;', '05 commit');
+  assertContains(m05, 'CREATE OR REPLACE FUNCTION public.get_organization_users(org_id uuid)', '05 creates org users RPC');
+  assertContains(m05, "up.status = 'active'", '05 filters active profiles (Prod capture)');
+  assertContains(m05, 'SECURITY DEFINER', '05 SECURITY DEFINER');
+  assertContains(m05, 'LANGUAGE sql', '05 LANGUAGE sql');
+  assertContains(m05, 'STABLE', '05 STABLE');
+  // Captured Prod body has no search_path — do not silently harden.
+  const fnBody = extractFn(m05, 'get_organization_users');
+  assert(
+    !/\bSET\s+search_path\b/i.test(fnBody),
+    '05 must not add SET search_path unless separately approved',
+  );
+  for (const role of ['PUBLIC', 'anon', 'authenticated', 'service_role', 'postgres'] as const) {
+    assertContains(
+      m05,
+      `GRANT EXECUTE ON FUNCTION public.get_organization_users(uuid) TO ${role}`,
+      `05 must GRANT EXECUTE to ${role}`,
+    );
+  }
+  assertNoPermissiveTrue(m05);
+  console.log('  ✓ migration 05 get_organization_users matches Prod capture + grants');
+}
+
+{
   // Documented auth scenarios that must be validated live on Dev after apply
   const smoke = [
     'authorized form create',
@@ -193,10 +220,11 @@ console.log('dev-forms-rls-repair static review');
     'audit insert own user_id',
     'unauthorized audit insert other user_id',
     'invitations rpc',
+    'get_organization_users rpc',
     'form delete with fields',
     'form delete with submissions (expect FK until P1)',
   ];
-  assert(smoke.length >= 8, 'smoke matrix present');
+  assert(smoke.length >= 9, 'smoke matrix present');
   console.log('  ✓ live smoke matrix documented for post-apply Dev validation');
 }
 

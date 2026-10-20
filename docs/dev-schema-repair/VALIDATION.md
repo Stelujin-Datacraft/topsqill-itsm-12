@@ -1,8 +1,8 @@
-# Dev validation — after applying repairs 01–04
+# Dev validation — after applying repairs 01–05
 
 **Do not run against Production.**
 
-**Before apply:** run `capture_prod_readonly.sql` on **both** Dev and Prod (read-only) and attach results to the PR. PR #229 review could not execute those queries (no DB credentials in Cursor).
+**Before apply:** run `capture_prod_readonly.sql` on **both** Dev and Prod (read-only) and attach results to the PR. Agents could not execute those queries (no DB credentials in Cursor).
 
 ## Pre-flight (read-only)
 
@@ -19,7 +19,7 @@ WHERE n.nspname = 'public'
   AND c.relname IN ('forms','form_fields','form_submissions','form_audit_logs')
 ORDER BY 1, 2;
 
--- Inventory helpers (expect 0 rows before repair)
+-- Inventory helpers (expect 0 rows / missing org users before repair)
 SELECT proname, pg_get_function_identity_arguments(oid)
 FROM pg_proc
 WHERE pronamespace = 'public'::regnamespace
@@ -28,32 +28,60 @@ WHERE pronamespace = 'public'::regnamespace
     'user_has_form_role_permission','can_act_for','can_act_for_submission',
     'get_user_project_invitations','get_organization_users','can_view_project'
   );
+
+-- 05 preflight: user_profiles columns used by captured get_organization_users
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'user_profiles'
+  AND column_name IN ('organization_id','status','first_name','last_name','email','role')
+ORDER BY 1;
 ```
 
 ## Apply order (Dev only, after explicit approval)
 
 ```bash
-# Example — use Dev DB URL only
+# Example — use Dev DB URL only. Do NOT supabase db push to Prod.
 psql "$DEV_DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/migrations/20261019120000_dev_repair_01_form_access_helpers.sql \
   -f supabase/migrations/20261019120100_dev_repair_02_form_table_rls.sql \
   -f supabase/migrations/20261019120200_dev_repair_03_invitations_rpc.sql \
-  -f supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql
+  -f supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql \
+  -f supabase/migrations/20261019120400_dev_repair_05_get_organization_users.sql
 ```
 
 ## Post-flight SQL
 
 ```sql
--- Helpers present
-SELECT proname, prosecdef, prosecdef, pg_get_function_identity_arguments(oid)
+-- Helpers present (incl. get_organization_users)
+SELECT proname, prosecdef, pg_get_function_identity_arguments(oid)
 FROM pg_proc
 WHERE pronamespace = 'public'::regnamespace
   AND proname IN (
     'can_modify_form','can_access_form','can_modify_forms_row','can_access_forms_row',
     'user_has_form_role_permission','user_has_project_form_role_permissions',
-    'can_act_for','can_act_for_submission','get_user_project_invitations','can_view_project'
+    'can_act_for','can_act_for_submission','get_user_project_invitations',
+    'get_organization_users','can_view_project'
   )
 ORDER BY 1;
+
+-- get_organization_users: definition must match Prod capture (no search_path)
+SELECT pg_get_functiondef(p.oid) AS def
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.proname = 'get_organization_users';
+
+-- Expect: SECURITY DEFINER, STABLE, body filters organization_id + status = 'active'
+-- Expect: NO `SET search_path` unless team later approves hardening separately
+
+-- get_organization_users: execute grants must include Prod set
+SELECT grantee, privilege_type
+FROM information_schema.routine_privileges
+WHERE routine_schema = 'public'
+  AND routine_name = 'get_organization_users'
+ORDER BY 1;
+
+-- Expect grantees (at least): PUBLIC, anon, authenticated, service_role, postgres
 
 -- No USING (true) policies on core tables
 SELECT c.relname, pol.polname, pg_get_expr(pol.polqual, pol.polrelid) AS using_expr,
@@ -89,11 +117,12 @@ WHERE conrelid = 'public.form_submissions'::regclass AND contype = 'f';
 5. **Delete empty form** (fields only, no submissions) — succeeds after FK CASCADE.
 6. **Delete form with submissions** — if still FK error, record `form_submissions` `confdeltype` for follow-up (expected until P1 decision).
 7. **Invitations** — `rpc('get_user_project_invitations')` no longer PGRST202.
-8. **Org users / AI** — still fails until Prod definition for `get_organization_users` is captured (expected).
+8. **Org users / AI** — `rpc('get_organization_users', { org_id })` returns active org members (no PGRST202) after migration 05.
 9. **Negative** — user A cannot INSERT `form_audit_logs` with user B’s `user_id`.
 
 ## Automated tests to add (follow-up PR)
 
 - Nest/integration: form create → audit insert → delete form with fields.
 - RPC smoke: `get_user_project_invitations` returns 200/empty array for user with no invites.
+- RPC smoke: `get_organization_users` returns active profiles for caller’s org.
 - Regression: deny cross-user audit insert.
