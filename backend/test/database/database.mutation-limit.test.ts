@@ -268,6 +268,47 @@ async function main() {
     console.log(`  ✓ update with exactly ${MAX_MUTATION_ROWS} rows allowed`);
   }
 
+  // ── Zero-row mutation must not look like success (RLS / missing id) ─────
+  {
+    const { client } = makeCapturingClient({
+      count: 0,
+      mutateData: [],
+    });
+    const svc = makeService(client);
+    let blocked = false;
+    try {
+      await svc.delete({
+        table: 'forms',
+        filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: 'missing' }],
+      });
+    } catch (e) {
+      blocked =
+        e instanceof BadRequestException && /No rows were deleted/i.test(e.message);
+    }
+    assert.equal(blocked, true);
+    console.log('  ✓ delete with zero returned rows rejected');
+  }
+  {
+    const { client } = makeCapturingClient({
+      count: 0,
+      mutateData: [],
+    });
+    const svc = makeService(client);
+    let blocked = false;
+    try {
+      await svc.update({
+        table: 'forms',
+        data: { name: 'x' },
+        filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: 'missing' }],
+      });
+    } catch (e) {
+      blocked =
+        e instanceof BadRequestException && /No rows were updated/i.test(e.message);
+    }
+    assert.equal(blocked, true);
+    console.log('  ✓ update with zero returned rows rejected');
+  }
+
   console.log('All database.mutation-limit tests passed.');
 }
 

@@ -5,6 +5,10 @@ import { backend as supabase } from '@/services/api';
 import { useProject } from './ProjectContext';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
 import { ensureSystemStatusField } from '@/lib/systemStatusField';
+import {
+  deleteFormChildRows,
+  formatFormDeleteError,
+} from '@/lib/formDeleteCleanup';
 
 interface FormContextType {
   forms: Form[];
@@ -325,19 +329,28 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await supabase
+      await deleteFormChildRows(supabase as any, formId);
+
+      const { data, error } = await supabase
         .from('forms')
         .delete()
         .eq('id', formId);
 
       if (error) {
-        setError(error.message);
-      } else {
-        setForms(forms.filter(form => form.id !== formId));
-        setCurrentForm(prevForm => prevForm?.id === formId ? null : prevForm);
+        setError(formatFormDeleteError(error));
+        return;
       }
+
+      const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
+      if (deletedRows.length === 0) {
+        setError(formatFormDeleteError({ message: 'No rows were deleted' }));
+        return;
+      }
+
+      setForms(forms.filter(form => form.id !== formId));
+      setCurrentForm(prevForm => prevForm?.id === formId ? null : prevForm);
     } catch (err: any) {
-      setError(err.message);
+      setError(formatFormDeleteError(err));
     } finally {
       setLoading(false);
     }

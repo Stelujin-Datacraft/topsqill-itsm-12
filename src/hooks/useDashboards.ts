@@ -94,13 +94,19 @@ export function useDashboards() {
 
   const deleteDashboard = async (dashboardId: string) => {
     // Reports will be cascade deleted due to FK constraint
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('dashboards')
       .delete()
       .eq('id', dashboardId);
 
     if (error) throw error;
-    
+    const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
+    if (deletedRows.length === 0) {
+      throw new Error(
+        'No rows were deleted. The dashboard may be missing or blocked by security policy.',
+      );
+    }
+
     await queryClient.invalidateQueries({ queryKey: ['dashboards'] });
   };
 

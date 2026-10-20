@@ -110,9 +110,15 @@ export function useWorkflowData() {
       const { data, error } = await supabase
         .from('workflows')
         .delete()
-        .eq('id', workflowId)
+        .eq('id', workflowId);
 
       if (error) throw error;
+      const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
+      if (deletedRows.length === 0) {
+        throw new Error(
+          'No rows were deleted. The workflow may be missing or blocked by security policy.',
+        );
+      }
       return data;
     },
     onSuccess: () => {

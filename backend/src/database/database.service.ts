@@ -177,6 +177,31 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * PostgREST + RLS often return HTTP 200 with an empty representation when
+   * the caller is not allowed to see/mutate the row. Treat that as failure so
+   * clients never report success for zero affected rows.
+   */
+  private assertMutationAffectedRows(
+    data: unknown,
+    operation: 'insert' | 'update' | 'delete',
+    table: string,
+    minRows = 1,
+  ) {
+    const rows = Array.isArray(data) ? data : data == null ? [] : [data];
+    if (rows.length < minRows) {
+      const verb =
+        operation === 'insert'
+          ? 'inserted'
+          : operation === 'update'
+            ? 'updated'
+            : 'deleted';
+      throw new BadRequestException(
+        `No rows were ${verb} on ${table}. The record may be missing, already removed, or blocked by row-level security.`,
+      );
+    }
+  }
+
   private resolvePagination(dto: DatabaseQueryDto): {
     rangeFrom?: number;
     rangeTo?: number;
@@ -326,6 +351,7 @@ export class DatabaseService {
 
     const { data, error } = await client.from(dto.table).insert(payload).select(select);
     if (error) throw new BadRequestException(error.message);
+    this.assertMutationAffectedRows(data, 'insert', dto.table, rows.length);
     return { data, error: null };
   }
 
@@ -374,6 +400,8 @@ export class DatabaseService {
     // requires order on a unique column (see assertMutationWithinRowLimit).
     const { data, error } = await query.select(select);
     if (error) throw new BadRequestException(error.message);
+    // RLS can yield success with zero rows — do not report false success to clients.
+    this.assertMutationAffectedRows(data, 'update', dto.table, 1);
     return { data, error: null };
   }
 
@@ -390,6 +418,8 @@ export class DatabaseService {
     // Do not call .limit() on DELETE — same PostgREST Limited Delete constraint.
     const { data, error } = await query.select(returning);
     if (error) throw new BadRequestException(error.message);
+    // RLS deny / wrong id often returns [] with no error — treat as failure.
+    this.assertMutationAffectedRows(data, 'delete', dto.table, 1);
     return { data, error: null };
   }
 
