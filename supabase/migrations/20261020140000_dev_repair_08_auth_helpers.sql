@@ -8,6 +8,9 @@
 --   * Related role-permission helpers may be absent if later migrations never applied
 --
 -- Semantics preserved from repo history — no USING(true) shortcuts.
+-- Privilege: every SECURITY DEFINER helper in this file is intended only for
+-- authenticated + service_role. REVOKE EXECUTE from PUBLIC and from Supabase
+-- role `anon` (anon grants are separate from PUBLIC and survive REVOKE PUBLIC).
 -- Dev-only. Do NOT apply to Production without separate review.
 -- Do NOT run from application startup.
 -- =============================================================================
@@ -29,6 +32,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.get_current_user_org_id() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_current_user_org_id() FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_current_user_org_id() TO authenticated, service_role;
 
 -- Historical long name used by many older policies. Alias body to org_id helper.
@@ -43,6 +47,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.get_current_user_organization_id() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_current_user_organization_id() FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_current_user_organization_id() TO authenticated, service_role;
 
 -- Org admin of a specific org (may already exist from 20260930110000 / 20260519)
@@ -70,6 +75,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.is_org_admin_of(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_org_admin_of(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_org_admin_of(uuid) TO authenticated, service_role;
 
 -- Historical name used by older policies (smtp etc.)
@@ -84,6 +90,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.is_current_user_admin_of_org(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_current_user_admin_of_org(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_current_user_admin_of_org(uuid) TO authenticated, service_role;
 
 -- Project membership (used by report_media and other scoped policies)
@@ -101,6 +108,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.is_project_member(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_project_member(uuid, uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_project_member(uuid, uuid) TO authenticated, service_role;
 
 -- can_view_project — final body from 20260804120000 (Dev already has a variant;
@@ -134,6 +142,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.can_view_project(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.can_view_project(uuid, uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.can_view_project(uuid, uuid) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
@@ -154,6 +163,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.user_has_any_role_assignment(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_any_role_assignment(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.user_has_any_role_assignment(uuid) TO authenticated, service_role;
 
 -- Access-control recursion breakers (source: 20260521062531)
@@ -188,7 +198,9 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.user_has_role_assignment(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_role_assignment(uuid, uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.is_admin_of_role(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin_of_role(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.user_has_role_assignment(uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_admin_of_role(uuid) TO authenticated, service_role;
 
@@ -227,7 +239,9 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.is_admin_of_group(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin_of_group(uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.can_view_group(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.can_view_group(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_admin_of_group(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.can_view_group(uuid) TO authenticated, service_role;
 
@@ -389,12 +403,19 @@ AS $$
 $$;
 
 -- Privilege hardening: SECURITY DEFINER helpers must not remain executable by PUBLIC.
+-- Supabase also grants EXECUTE to role `anon` separately from PUBLIC; revoke both.
 REVOKE ALL ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) FROM anon;
 REVOKE ALL ON FUNCTION public.user_has_dashboard_role_permission(uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_dashboard_role_permission(uuid, uuid, text) FROM anon;
 REVOKE ALL ON FUNCTION public.user_has_project_report_role_permissions(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_project_report_role_permissions(uuid, uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.user_has_project_dashboard_role_permissions(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_project_dashboard_role_permissions(uuid, uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.user_has_policy_role_permission(uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_policy_role_permission(uuid, uuid, text) FROM anon;
 REVOKE ALL ON FUNCTION public.user_has_project_policy_role_permissions(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_project_policy_role_permissions(uuid, uuid) FROM anon;
 
 GRANT EXECUTE ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.user_has_dashboard_role_permission(uuid, uuid, text) TO authenticated, service_role;
@@ -475,8 +496,11 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.user_can_create_analytics_in_project(uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_can_create_analytics_in_project(uuid, uuid, text) FROM anon;
 REVOKE ALL ON FUNCTION public.user_can_create_dashboard_in_project(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_can_create_dashboard_in_project(uuid, uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.user_can_create_report_in_project(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_can_create_report_in_project(uuid, uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.user_can_create_analytics_in_project(uuid, uuid, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.user_can_create_dashboard_in_project(uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.user_can_create_report_in_project(uuid, uuid) TO authenticated, service_role;
