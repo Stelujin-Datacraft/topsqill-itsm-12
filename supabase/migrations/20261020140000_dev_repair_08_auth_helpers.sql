@@ -388,7 +388,14 @@ AS $$
   );
 $$;
 
--- Grant execute on role-permission helpers
+-- Privilege hardening: SECURITY DEFINER helpers must not remain executable by PUBLIC.
+REVOKE ALL ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_dashboard_role_permission(uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_project_report_role_permissions(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_project_dashboard_role_permissions(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_policy_role_permission(uuid, uuid, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.user_has_project_policy_role_permissions(uuid, uuid) FROM PUBLIC;
+
 GRANT EXECUTE ON FUNCTION public.user_has_report_role_permission(uuid, uuid, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.user_has_dashboard_role_permission(uuid, uuid, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.user_has_project_report_role_permissions(uuid, uuid) TO authenticated, service_role;
