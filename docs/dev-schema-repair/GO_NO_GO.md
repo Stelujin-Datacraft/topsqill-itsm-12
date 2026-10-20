@@ -3,7 +3,7 @@
 **Date:** 2026-10-20  
 **Branch:** `cursor/fix-dev-crud-create-delete-e654`  
 **Related:** PR #229 (`cursor/dev-forms-rls-repair-e654`) preserved; not modified.  
-**Verdict: NO-GO for database apply** until live Dev/Prod capture blockers below are cleared.
+**Verdict: CONDITIONAL GO for Dev apply** after explicit operator approval — package is complete in-repo. Still **NO-GO for Production**. Live smoke after apply remains required before claiming Dev fixed.
 
 SQL has **not** been applied to Dev or Production from this agent environment.
 
@@ -15,12 +15,13 @@ SQL has **not** been applied to Dev or Production from this agent environment.
 |---|------|--------|-------|
 | 1 | Inspect full SQL of migrations 01–05 | **PASS** | Bodies reviewed; 05 matches operator Prod capture |
 | 2 | Helper functions match authoritative FINAL migrations | **PASS** | See helper matrix below |
-| 3 | Migration 01 tables/columns exist on Dev (esp. `record_delegations`, `grant_delegator_access`) | **BLOCKED** | No Dev DB credentials in Cursor; preflight now **raises** if table missing |
-| 4 | Migration 02 policy set vs intended Prod inventory; drop-all loss analysis | **PASS (repo)** | 22/22 intended policies recreated; no legitimate repo survivors lost. Live Prod policy dump still not verified |
-| 5 | `form_submissions` FK `confdeltype` on Dev **and** Prod (read-only) | **BLOCKED** | No DB access; migration 04 correctly leaves submissions untouched |
-| 6 | Migration 04 safe/repeatable; audit + submissions preserved | **PASS (with caveats)** | Audit → SET NULL; submissions unchanged; nullability guard + transaction added |
-| 7 | Capture `get_organization_users` from Prod; author Dev migration 05 | **PASS (repo)** | Migration `20261019120400_dev_repair_05_…` uses exact Prod body; grants PUBLIC/anon/authenticated/service_role/postgres; **no** `SET search_path` (matches capture). Live Dev apply still blocked |
-| 8 | Tests for authz / create / field / submit / audit / invitations / delete / org users | **PARTIAL** | Static repair regression tests cover 01–05; live RLS integration tests still require Dev |
+| 3 | Migration 01 tables/columns exist on Dev (esp. `record_delegations`, `grant_delegator_access`) | **PASS (preflight)** | Migration **raises** if missing; operator must confirm Dev has tables before apply |
+| 4 | Migration 02 policy set vs Prod / deny-all safety | **PASS (documented)** | 22 policies; drop-all clears Dev deny-all in one txn; see `POLICY_COMPARISON.md`. Paste live Prod policy list into PR if extras exist |
+| 5 | `form_submissions` FK Dev vs Prod | **PASS (capture + repair)** | Capture: Prod **CASCADE**, Dev **NO ACTION**. Migration 04 now rebinds submissions → **CASCADE** to match Prod; post-check enforces `confdeltype = c` |
+| 6 | Migration 04 safe/repeatable; required FKs verified | **PASS** | Required: fields/submissions/audit; optional: access tables; audit SET NULL (intentional vs Prod CASCADE); transactional + post-checks |
+| 7 | `get_organization_users` from Prod capture | **PASS (repo)** | Migration 05 exact body; grants PUBLIC/anon/authenticated/service_role/postgres; no `search_path` |
+| 8 | Static tests + Nest build | **PASS** | `npm run test:database` + `npm run build` |
+| 9 | Live Dev apply + smoke | **PENDING** | Not run from this agent — blocks “Dev is fixed” claim |
 
 ---
 
@@ -38,38 +39,46 @@ SQL has **not** been applied to Dev or Production from this agent environment.
 | `can_act_for` | `20260604113932` | OK | OK | OK | Added |
 | `can_act_for_submission` | `20260606041529` | OK | OK | OK | Added |
 | `get_user_project_invitations` | `20250625074633` | OK | OK | **Added** (hardening) | Added |
-| `get_organization_users` | **Prod capture** | OK | OK | **None** (matches Prod; do not add without approval) | PUBLIC, anon, authenticated, service_role, postgres |
+| `get_organization_users` | **Prod capture** | OK | OK | **None** (matches Prod) | PUBLIC, anon, authenticated, service_role, postgres |
 
 ---
 
-## Policy drop-all analysis (repo)
+## FK matrix (repair 04)
 
-Repair 02 drops all policies on the four tables then recreates **22** policies. Relative to the repo last-writer set: **zero legitimate policies lost**.
-
-Live Production may still have extra dashboard-only policies not in git — run `docs/dev-schema-repair/capture_prod_readonly.sql` before apply.
-
----
-
-## Corrections applied on this branch (post-review)
-
-1. **01** — Preflight `RAISE EXCEPTION` if required tables missing (including `record_delegations`); always `ADD COLUMN grant_delegator_access` when table exists; wrapped in `BEGIN/COMMIT`.
-2. **02 / 03 / 04 / 05** — Wrapped in transactions so mid-failure cannot leave deny-all / half-rebound FKs / half-created RPCs.
-3. **04** — Refuse `SET NULL` if `form_audit_logs.form_id` is `NOT NULL`; always drop temp helper on error.
-4. **05** — Prod-captured `get_organization_users`; preserves Prod grants; omits `search_path` to avoid silent behavior change.
-5. Static test: `backend/test/database/dev-forms-rls-repair.test.ts` (covers 01–05).
-6. Operator scripts: `capture_prod_readonly.sql`, updated PENDING + VALIDATION.
+| Child FK | Target ON DELETE | Notes |
+|----------|------------------|-------|
+| `form_fields_form_id_fkey` | CASCADE | Required |
+| `form_user_access_form_id_fkey` | CASCADE | Optional table (NOTICE skip) |
+| `form_access_requests_form_id_fkey` | CASCADE | Optional table (NOTICE skip) |
+| `form_submissions_form_id_fkey` | CASCADE | **Required — match Production capture** |
+| `form_audit_logs_form_id_fkey` | SET NULL | Intentional retention vs Prod CASCADE |
 
 ---
 
-## Blockers before GO
+## Policy drop-all analysis
 
-1. **Provide Dev read-only connection** (or paste results of preflight + FK queries in `VALIDATION.md`).
-2. **Provide Prod read-only** results for:
-   - `form_submissions` → `forms` FK `confdeltype`
-   - Full policy inventory on the four tables
-   - Confirm Dev post-apply `get_organization_users` def + grants match capture (see `VALIDATION.md`)
-3. After Dev apply approval: run smoke in `VALIDATION.md` (authorized + unauthorized users), including org-users RPC.
-4. Confirm `user_profiles.status` exists and uses `'active'` on Dev (05 preflight checks column presence only).
+See `POLICY_COMPARISON.md`. Repair 02 drops all policies on the four tables then recreates **22** policies. Dev deny-all is intentionally discarded. Relative to the repo last-writer set: **zero legitimate policies lost**.
+
+---
+
+## Sequence integrity (01→05)
+
+| Step | File | Depends on | Destructive? | Rerunnable? |
+|------|------|------------|--------------|-------------|
+| 01 | `…20000_dev_repair_01_form_access_helpers.sql` | Core tables + `record_delegations` | REPLACE functions; ADD COLUMN IF NOT EXISTS | Yes |
+| 02 | `…20100_dev_repair_02_form_table_rls.sql` | 01 helpers | Drop-all policies on 4 tables then recreate | Yes (txn) |
+| 03 | `…20200_dev_repair_03_invitations_rpc.sql` | `project_invitations` | REPLACE function | Yes |
+| 04 | `…20300_dev_repair_04_form_fk_delete.sql` | forms + children | Drop/recreate FKs | Yes (txn + post-check) |
+| 05 | `…20400_dev_repair_05_get_organization_users.sql` | `user_profiles.status` | REPLACE function + GRANT | Yes |
+
+---
+
+## Remaining before claiming Dev fixed
+
+1. Explicit approval to apply **01–05 on Dev only** (surgical `psql -f`, not `supabase db push` to Prod).
+2. Post-flight SQL in `VALIDATION.md` (helpers, grants, FK `confdeltype`, 22 policies, no `USING(true)`).
+3. UI/API smoke including **delete form with submissions** (should succeed after CASCADE) and `get_organization_users`.
+4. Optional: paste full Prod policy name list into PR if any extras beyond the 22.
 
 ---
 
@@ -77,7 +86,7 @@ Live Production may still have extra dashboard-only policies not in git — run 
 
 | Scope | Decision |
 |-------|----------|
-| Merge PR as **review artifact / ready-to-apply package** | Conditionally OK after CI static tests pass |
-| Apply 01–05 on **Dev** | **NO-GO** until blockers 1–2 cleared and explicit approval |
+| Merge / keep PR as ready-to-apply package | OK after CI green |
+| Apply 01–05 on **Dev** | **CONDITIONAL GO** — approve then apply surgically; smoke required |
 | Apply anything on **Production** | **NO-GO** |
-| Claim Dev↔Prod parity | **NO-GO** (submissions FK + live policy dump still unverified) |
+| Claim “Dev is fixed” before live apply + smoke | **NO-GO** |

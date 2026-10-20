@@ -1,6 +1,6 @@
 # Dev schema repair — Forms RLS / helpers / FK (review package)
 
-**Status:** Reviewed (see `GO_NO_GO.md`). **Verdict: NO-GO for DB apply** until live Dev/Prod capture blockers clear. **Do not apply to Production. Do not apply to Dev until explicitly approved.**
+**Status:** Reviewed (see `GO_NO_GO.md`). **Verdict: CONDITIONAL GO for Dev apply** after explicit approval; **NO-GO for Production**. Live smoke still required before claiming Dev fixed.
 
 **Scope:** Restore verified missing functions and intended RLS for `forms`, `form_fields`, `form_submissions`, `form_audit_logs`; restore `get_user_project_invitations` and Prod-captured `get_organization_users`; safe form-delete FK behavior.
 
@@ -51,8 +51,10 @@ Apply **only on Dev**, surgically (SQL Editor / `psql -f`), **not** bulk `supaba
 1. `supabase/migrations/20261019120000_dev_repair_01_form_access_helpers.sql`
 2. `supabase/migrations/20261019120100_dev_repair_02_form_table_rls.sql`
 3. `supabase/migrations/20261019120200_dev_repair_03_invitations_rpc.sql`
-4. `supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql`
+4. `supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql` (incl. `form_submissions` CASCADE to match Prod)
 5. `supabase/migrations/20261019120400_dev_repair_05_get_organization_users.sql`
+
+Policy comparison: `POLICY_COMPARISON.md`.
 
 After success, optionally insert matching rows into `supabase_migrations.schema_migrations` **only for files actually applied**.
 
@@ -77,7 +79,7 @@ Repair 02 **drops all existing policies** on the four tables then recreates this
 | `form_user_access` | **CASCADE** | ACL for deleted form |
 | `form_access_requests` | **CASCADE** | Requests for deleted form |
 | `form_audit_logs` | **SET NULL** | **Preserve audit history**; `form_name` retained (overrides earlier CASCADE migration intentionally for retention) |
-| `form_submissions` | **Unchanged in this package** | Business records — confirm Prod `confdeltype` before any CASCADE; prefer explicit purge or soft-delete |
+| `form_submissions` | **CASCADE** (match Prod capture) | Operator capture: Prod CASCADE / Dev NO ACTION — repair aligns Dev to Prod |
 | Feeds / workflows / SLA / assignments | Already CASCADE/SET NULL in prior migrations | Leave alone |
 
 **App note:** `cleanupChildFieldsForForm` remains unused; CASCADE makes field cleanup unnecessary for delete. Submission purge still requires a product decision.
@@ -90,7 +92,7 @@ Repair 02 **drops all existing policies** on the four tables then recreates this
 | `record_delegations` missing on Dev | Repair 01 `ALTER … ADD COLUMN` fails if table missing — apply delegation migrations first or skip can_act_* until table exists |
 | `get_organization_users` missing after 01–04 only | Apply repair 05 (Prod capture); verify def + grants |
 | Prod accidentally targeted | Refuse; use Dev-only URI; never paste Prod service role into Dev apply session |
-| Form delete cascades fields but submissions remain | Delete may still fail if `form_submissions_form_id_fkey` is NO ACTION — validate with `pg_constraint` after helpers/RLS, before claiming delete fixed |
+| Form delete cascades fields + submissions | Matches Prod; audit SET NULL retains history — verify `confdeltype` post-flight |
 | Audit INSERT still fails if JWT/`user_id` mismatch | Policy is correct; verify Nest forwards `Authorization`; optionally later force `user_id` from token in Nest |
 
 ## Whole-application remediation sequence (after Forms P0)
@@ -99,7 +101,7 @@ Repair 02 **drops all existing policies** on the four tables then recreates this
 |----------|------|--------|
 | P0 | Forms helpers + RLS + invitations + form_fields FK + org users RPC | This package (01–05) |
 | P0 | Capture remaining Prod-only RPCs/helpers | `is_current_user_admin`, `get_current_user_organization_id`, `*_cached`, `can_access_submission` |
-| P1 | `form_submissions` FK ON DELETE | Diff Dev vs Prod; decide CASCADE vs purge workflow |
+| P1 | ~~`form_submissions` FK ON DELETE~~ | **Done in repair 04** (CASCADE to match Prod) |
 | P1 | ITAM | Surgical apply `20260930110000`→`140000` per `docs/ITAM_DEV_SCHEMA_APPLY.md` |
 | P1 | VIS | `20261010090000`, `20261012062100` |
 | P1 | Promotional transfer | `20261006120000` |

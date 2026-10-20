@@ -1,11 +1,12 @@
 -- =============================================================================
 -- DEV REPAIR 02 — Replace deny-all / broken RLS on core form tables
--- Intended policy set = last-writer definitions from repo migrations.
--- Drops ALL existing policies on the four tables first (Dev currently has
--- deny-all-only authenticated policies per confirmed inventory).
+-- Intended policy set = last-writer definitions from repo migrations (22 policies).
+-- Drops ALL existing policies on the four tables first so Dev deny-all cannot
+-- block the replacement set (same transaction — mid-failure rolls back).
+-- Comparison vs Prod / intentional differences:
+--   docs/dev-schema-repair/POLICY_COMPARISON.md
 -- No USING (true) / WITH CHECK (true). RLS stays enabled.
 -- Depends on: 20261019120000_dev_repair_01_form_access_helpers.sql
--- Review correction: single transaction so drop-all cannot leave deny-all mid-failure.
 -- =============================================================================
 
 BEGIN;

@@ -176,13 +176,21 @@ console.log('dev-forms-rls-repair static review');
   const m04 = load(M04);
   assertContains(m04, 'BEGIN;', '04 transactional');
   assertContains(m04, 'COMMIT;', '04 commit');
-  assertContains(m04, "ON DELETE CASCADE", '04 cascades fields/access');
+  assertContains(m04, "ON DELETE CASCADE", '04 cascades fields/access/submissions');
   assertContains(m04, "ON DELETE SET NULL", '04 preserves audit via SET NULL');
   assertContains(m04, "form_audit_logs.form_id is NOT NULL", '04 nullability guard');
   assertContains(m04, 'DROP FUNCTION IF EXISTS public.__dev_repair_rebind_forms_fk', '04 cleans helper');
-  assert(!/form_submissions.*ON DELETE CASCADE/i.test(m04), '04 must not cascade submissions');
-  assertContains(m04, 'intentionally NOT altered', '04 documents submissions hold');
-  console.log('  ✓ migration 04 FK strategy preserves audit + submissions');
+  // Operator capture: Prod CASCADE / Dev NO ACTION — repair must match Prod.
+  assertContains(
+    m04,
+    "__dev_repair_rebind_forms_fk('form_submissions', 'form_submissions_form_id_fkey', 'CASCADE', true)",
+    '04 must CASCADE form_submissions to match Production',
+  );
+  assertContains(m04, 'form_submissions_form_id_fkey missing after rebind', '04 post-checks submissions FK');
+  assertContains(m04, "confdeltype=% (expected c/CASCADE)", '04 asserts submissions CASCADE');
+  assertContains(m04, "expected n/SET NULL", '04 asserts audit SET NULL');
+  assertContains(m04, 'preflight failed — missing required objects', '04 fails clearly if required tables/columns missing');
+  console.log('  ✓ migration 04 FK strategy: submissions CASCADE (Prod parity), audit SET NULL');
 }
 
 {
@@ -212,6 +220,21 @@ console.log('dev-forms-rls-repair static review');
 }
 
 {
+  const m02 = load(M02);
+  assertContains(m02, 'POLICY_COMPARISON.md', '02 references policy comparison doc');
+  assertContains(m02, 'DROP POLICY IF EXISTS', '02 drops existing (deny-all) policies');
+  assertContains(m02, 'ENABLE ROW LEVEL SECURITY', '02 keeps RLS enabled');
+  assertNoPermissiveTrue(m02);
+  const comparison = load('docs/dev-schema-repair/POLICY_COMPARISON.md');
+  assertContains(comparison, '22', 'comparison documents 22 policies');
+  assertContains(comparison, 'deny-all', 'comparison documents deny-all discard');
+  for (const name of EXPECTED_POLICIES) {
+    assertContains(comparison, name, `comparison lists policy ${name}`);
+  }
+  console.log('  ✓ migration 02 policy safety documented vs Prod / deny-all');
+}
+
+{
   // Documented auth scenarios that must be validated live on Dev after apply
   const smoke = [
     'authorized form create',
@@ -222,7 +245,7 @@ console.log('dev-forms-rls-repair static review');
     'invitations rpc',
     'get_organization_users rpc',
     'form delete with fields',
-    'form delete with submissions (expect FK until P1)',
+    'form delete with submissions (CASCADE matches Prod)',
   ];
   assert(smoke.length >= 9, 'smoke matrix present');
   console.log('  ✓ live smoke matrix documented for post-apply Dev validation');

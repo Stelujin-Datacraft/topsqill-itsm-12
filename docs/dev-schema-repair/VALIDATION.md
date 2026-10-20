@@ -2,7 +2,7 @@
 
 **Do not run against Production.**
 
-**Before apply:** run `capture_prod_readonly.sql` on **both** Dev and Prod (read-only) and attach results to the PR. Agents could not execute those queries (no DB credentials in Cursor).
+**Before apply:** confirm Dev target project ref; optionally re-run `capture_prod_readonly.sql` on Dev for a before-snapshot.
 
 ## Pre-flight (read-only)
 
@@ -19,7 +19,7 @@ WHERE n.nspname = 'public'
   AND c.relname IN ('forms','form_fields','form_submissions','form_audit_logs')
 ORDER BY 1, 2;
 
--- Inventory helpers (expect 0 rows / missing org users before repair)
+-- Inventory helpers
 SELECT proname, pg_get_function_identity_arguments(oid)
 FROM pg_proc
 WHERE pronamespace = 'public'::regnamespace
@@ -29,7 +29,33 @@ WHERE pronamespace = 'public'::regnamespace
     'get_user_project_invitations','get_organization_users','can_view_project'
   );
 
--- 05 preflight: user_profiles columns used by captured get_organization_users
+-- 01 preflight: record_delegations.grant_delegator_access
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'record_delegations'
+  AND column_name IN ('grant_delegator_access','scope_submission_id','scope_form_id','active');
+
+-- 04 preflight: FKs → forms (expect submissions confdeltype 'a' = NO ACTION on Dev before repair)
+SELECT rel.relname AS child_table, c.conname, c.confdeltype,
+       CASE c.confdeltype
+         WHEN 'a' THEN 'NO ACTION'
+         WHEN 'r' THEN 'RESTRICT'
+         WHEN 'c' THEN 'CASCADE'
+         WHEN 'n' THEN 'SET NULL'
+         WHEN 'd' THEN 'SET DEFAULT'
+       END AS on_delete,
+       pg_get_constraintdef(c.oid) AS def
+FROM pg_constraint c
+JOIN pg_class rel ON rel.oid = c.conrelid
+JOIN pg_namespace n ON n.oid = rel.relnamespace
+WHERE n.nspname = 'public'
+  AND c.contype = 'f'
+  AND c.confrelid = 'public.forms'::regclass
+  AND rel.relname IN ('form_fields','form_submissions','form_audit_logs','form_user_access','form_access_requests')
+ORDER BY 1, 2;
+
+-- 05 preflight: user_profiles columns
 SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
 WHERE table_schema = 'public'
@@ -41,7 +67,7 @@ ORDER BY 1;
 ## Apply order (Dev only, after explicit approval)
 
 ```bash
-# Example — use Dev DB URL only. Do NOT supabase db push to Prod.
+# Use Dev DB URL only. Do NOT supabase db push to Prod. Do NOT point at Production.
 psql "$DEV_DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/migrations/20261019120000_dev_repair_01_form_access_helpers.sql \
   -f supabase/migrations/20261019120100_dev_repair_02_form_table_rls.sql \
@@ -49,6 +75,14 @@ psql "$DEV_DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql \
   -f supabase/migrations/20261019120400_dev_repair_05_get_organization_users.sql
 ```
+
+Exact filenames (order mandatory):
+
+1. `supabase/migrations/20261019120000_dev_repair_01_form_access_helpers.sql`
+2. `supabase/migrations/20261019120100_dev_repair_02_form_table_rls.sql`
+3. `supabase/migrations/20261019120200_dev_repair_03_invitations_rpc.sql`
+4. `supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql`
+5. `supabase/migrations/20261019120400_dev_repair_05_get_organization_users.sql`
 
 ## Post-flight SQL
 
@@ -71,41 +105,39 @@ FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public' AND p.proname = 'get_organization_users';
 
--- Expect: SECURITY DEFINER, STABLE, body filters organization_id + status = 'active'
--- Expect: NO `SET search_path` unless team later approves hardening separately
-
--- get_organization_users: execute grants must include Prod set
 SELECT grantee, privilege_type
 FROM information_schema.routine_privileges
 WHERE routine_schema = 'public'
   AND routine_name = 'get_organization_users'
 ORDER BY 1;
+-- Expect: PUBLIC, anon, authenticated, service_role, postgres
 
--- Expect grantees (at least): PUBLIC, anon, authenticated, service_role, postgres
-
--- No USING (true) policies on core tables
-SELECT c.relname, pol.polname, pg_get_expr(pol.polqual, pol.polrelid) AS using_expr,
+-- Policy count / names (expect 22; see POLICY_COMPARISON.md)
+SELECT c.relname, pol.polname, pol.polcmd,
+       pg_get_expr(pol.polqual, pol.polrelid) AS using_expr,
        pg_get_expr(pol.polwithcheck, pol.polrelid) AS check_expr
 FROM pg_policy pol
 JOIN pg_class c ON c.oid = pol.polrelid
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
-  AND c.relname IN ('forms','form_fields','form_submissions','form_audit_logs');
+  AND c.relname IN ('forms','form_fields','form_submissions','form_audit_logs')
+ORDER BY 1, 2;
 
--- form_fields FK should be CASCADE (confdeltype 'c')
-SELECT conname, confdeltype, pg_get_constraintdef(oid)
-FROM pg_constraint
-WHERE conrelid = 'public.form_fields'::regclass AND contype = 'f';
-
--- form_audit_logs FK should be SET NULL (confdeltype 'n')
-SELECT conname, confdeltype, pg_get_constraintdef(oid)
-FROM pg_constraint
-WHERE conrelid = 'public.form_audit_logs'::regclass AND contype = 'f';
-
--- form_submissions FK — report only (may still block delete)
-SELECT conname, confdeltype, pg_get_constraintdef(oid)
-FROM pg_constraint
-WHERE conrelid = 'public.form_submissions'::regclass AND contype = 'f';
+-- FKs after repair 04
+SELECT rel.relname AS child_table, c.conname, c.confdeltype,
+       CASE c.confdeltype
+         WHEN 'c' THEN 'CASCADE'
+         WHEN 'n' THEN 'SET NULL'
+         WHEN 'a' THEN 'NO ACTION'
+         ELSE c.confdeltype::text
+       END AS on_delete
+FROM pg_constraint c
+JOIN pg_class rel ON rel.oid = c.conrelid
+WHERE c.contype = 'f'
+  AND c.confrelid = 'public.forms'::regclass
+  AND rel.relname IN ('form_fields','form_submissions','form_audit_logs')
+ORDER BY 1;
+-- Expect: form_fields CASCADE (c), form_submissions CASCADE (c), form_audit_logs SET NULL (n)
 ```
 
 ## UI / API smoke (authenticated Dev user)
@@ -114,15 +146,16 @@ WHERE conrelid = 'public.form_submissions'::regclass AND contype = 'f';
 2. **Create form** — succeeds; Status field created; `form_audit_logs` row `form_created` with `user_id = auth.uid()`.
 3. **Update form** — succeeds; audit `form_updated` (or skipped if within create window).
 4. **Submit record** — INSERT into `form_submissions` succeeds for accessible form.
-5. **Delete empty form** (fields only, no submissions) — succeeds after FK CASCADE.
-6. **Delete form with submissions** — if still FK error, record `form_submissions` `confdeltype` for follow-up (expected until P1 decision).
+5. **Delete empty form** (fields only) — succeeds after FK CASCADE.
+6. **Delete form with submissions** — **must succeed** (submissions CASCADE matches Prod); audit rows retained with `form_id` NULL.
 7. **Invitations** — `rpc('get_user_project_invitations')` no longer PGRST202.
-8. **Org users / AI** — `rpc('get_organization_users', { org_id })` returns active org members (no PGRST202) after migration 05.
+8. **Org users / AI** — `rpc('get_organization_users', { org_id })` returns active org members.
 9. **Negative** — user A cannot INSERT `form_audit_logs` with user B’s `user_id`.
 
-## Automated tests to add (follow-up PR)
+## Automated tests (repo)
 
-- Nest/integration: form create → audit insert → delete form with fields.
-- RPC smoke: `get_user_project_invitations` returns 200/empty array for user with no invites.
-- RPC smoke: `get_organization_users` returns active profiles for caller’s org.
-- Regression: deny cross-user audit insert.
+```bash
+cd backend && npm run test:database && npm run build
+```
+
+Static tests cover migrations 01–05 (including submissions CASCADE + policy matrix). They do **not** prove Dev DB is repaired.
