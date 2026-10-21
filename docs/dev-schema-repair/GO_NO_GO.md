@@ -117,7 +117,11 @@ psql "$DEV_DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f supabase/migrations/20261019120300_dev_repair_04_form_fk_delete.sql \
   -f supabase/migrations/20261019120400_dev_repair_05_get_organization_users.sql \
   -f supabase/migrations/20261020080000_dev_repair_06_sla_canonical_columns.sql \
-  -f supabase/migrations/20261020080100_dev_repair_07_workflow_queue_additive.sql
+  -f supabase/migrations/20261020080100_dev_repair_07_workflow_queue_additive.sql \
+  -f supabase/migrations/20261020140000_dev_repair_08_auth_helpers.sql \
+  -f supabase/migrations/20261020140100_dev_repair_09_reports_dashboards_rls.sql \
+  -f supabase/migrations/20261020140200_dev_repair_10_access_control_rls.sql
 ```
 
-Skip 01–05 if already applied. **Never** point at Production. **Never** `supabase db push` to Prod.
+Skip steps already applied. Full operator checklist: `APPLY_DEV_AND_VM_CHECKLIST.md`.
+**Never** point at Production. **Never** `supabase db push` to Prod.
