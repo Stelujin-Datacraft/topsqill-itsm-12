@@ -1,3 +1,5 @@
+import { ItamDiscoveryMisconfiguredError } from './schema-missing.error';
+
 /**
  * ITAM Discovery persistence configuration contract.
  *
@@ -143,12 +145,14 @@ export function assertPostgresUrlForPersistence(
   const url = getItamDiscoveryDatabaseUrl(env);
   if (url) return url;
   const deployment = resolveDeploymentEnvironment(env);
-  throw new Error(
+  // Soft failure type: ItamModule catches this so Nest (Forms/CRUD) keeps running.
+  throw new ItamDiscoveryMisconfiguredError(
     'ITAM_DISCOVERY_DATABASE_URL is required for PostgreSQL discovery persistence '
       + `(deployment=${deployment}, NODE_ENV=${env.NODE_ENV || 'unset'}). `
       + 'Use the Supabase Postgres connection string for this environment only '
       + '(Dev credentials on Dev, Prod credentials on Prod). '
-      + 'In-memory store is forbidden outside ITAM_DISCOVERY_UNIT_TEST=1.',
+      + 'In-memory store is forbidden outside ITAM_DISCOVERY_UNIT_TEST=1. '
+      + 'Other Nest modules continue; set the URI and restart to enable ITAM Discovery.',
   );
 }
 
