@@ -207,7 +207,8 @@ export function useFormMutations() {
       const { data, error } = await supabase
         .from('forms')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) {
         console.error('useFormMutations: Error deleting form:', error);
@@ -216,7 +217,9 @@ export function useFormMutations() {
 
       const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
       if (deletedRows.length === 0) {
-        throw new Error('No rows were deleted');
+        throw new Error(
+          'No rows were deleted. The record may be missing, already removed, or blocked by row-level security.',
+        );
       }
     } catch (error) {
       console.error('useFormMutations: Error deleting form:', error);

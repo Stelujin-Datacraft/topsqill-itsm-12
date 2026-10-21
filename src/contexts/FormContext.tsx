@@ -334,7 +334,8 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       const { data, error } = await supabase
         .from('forms')
         .delete()
-        .eq('id', formId);
+        .eq('id', formId)
+        .select('id');
 
       if (error) {
         setError(formatFormDeleteError(error));
@@ -343,7 +344,12 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
 
       const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
       if (deletedRows.length === 0) {
-        setError(formatFormDeleteError({ message: 'No rows were deleted' }));
+        setError(
+          formatFormDeleteError({
+            message:
+              'No rows were deleted. The record may be missing, already removed, or blocked by row-level security.',
+          }),
+        );
         return;
       }
 
