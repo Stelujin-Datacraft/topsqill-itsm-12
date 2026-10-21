@@ -22,7 +22,10 @@ import { DiscoveryEngine } from './engine';
 import { MockNetworkDiscoveryProvider } from './providers';
 import { buildAuthorizedTargets, cidrHostCount, parseCidr } from './scope';
 import type { DiscoveryEnvironment, DiscoveryJob, DiscoveryMode, NetworkScope } from './types';
-import type { ItamDiscoverySchemaMissingError } from './schema-missing.error';
+import type {
+  ItamDiscoveryMisconfiguredError,
+  ItamDiscoverySchemaMissingError,
+} from './schema-missing.error';
 
 const ADMIN_ROLES = new Set(['admin', 'org_admin', 'itam_admin', 'owner', 'super_admin', 'ITAM_ADMIN', 'ORG_ADMIN']);
 
@@ -39,8 +42,11 @@ export class ItamDiscoveryService {
   /** Optional lab mock provider shared for demo/tests via Nest */
   readonly mockProvider = new MockNetworkDiscoveryProvider();
   private ready: Promise<void>;
-  /** Set when required Dev SQL migrations are missing — fail-closed for ITAM APIs. */
-  private schemaUnavailable: ItamDiscoverySchemaMissingError | null = null;
+  /** Set when schema/env blocks Discovery — fail-closed for ITAM APIs only. */
+  private schemaUnavailable:
+    | ItamDiscoverySchemaMissingError
+    | ItamDiscoveryMisconfiguredError
+    | null = null;
 
   constructor() {
     // Placeholder until async init; deployed boots must await onModuleInit postgres path
@@ -58,10 +64,12 @@ export class ItamDiscoveryService {
   }
 
   /**
-   * Record a schema-missing failure without memory fallback.
-   * Used by ItamModule so Nest can keep serving non-ITAM routes.
+   * Record a Discovery boot soft-failure without memory fallback.
+   * Used by ItamModule so Nest can keep serving non-ITAM routes (Forms/CRUD).
    */
-  markSchemaUnavailable(err: ItamDiscoverySchemaMissingError) {
+  markSchemaUnavailable(
+    err: ItamDiscoverySchemaMissingError | ItamDiscoveryMisconfiguredError,
+  ) {
     this.schemaUnavailable = err;
     this.engines.clear();
     this.ready = Promise.resolve();
@@ -86,10 +94,12 @@ export class ItamDiscoveryService {
 
   private assertSchemaAvailable() {
     if (this.schemaUnavailable) {
+      const err = this.schemaUnavailable;
       throw new ServiceUnavailableException({
-        code: this.schemaUnavailable.code,
-        message: this.schemaUnavailable.message,
-        missingRelations: this.schemaUnavailable.missingRelations,
+        code: err.code,
+        message: err.message,
+        missingRelations:
+          'missingRelations' in err ? err.missingRelations : undefined,
       });
     }
   }

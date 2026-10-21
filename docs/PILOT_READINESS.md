@@ -68,7 +68,7 @@ Evidence:
 ## Secret hygiene
 
 - Removed embedded `vis_dev_password` defaults from source/scripts/docs examples.
-- Require `VIS_DATABASE_URL` / `VIS_MOCK_PG_BASE` from environment.
+- Require shared `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (VIS no longer uses a separate Prisma DB). Optional `VIS_MOCK_PG_BASE` only for PG mock E2E apps.
 - `scripts/security/scan.sh` + `npm run test:vis:secrets` / `test:vis:pilot` secret scan.
 - `SupabaseService` warns when JWT role ≠ `service_role` (does not bypass RLS).
 - AI sanitizer + queue payload checks assert no secret leakage.
@@ -87,8 +87,9 @@ Evidence:
 ## Exact commands to re-run
 
 ```bash
-export VIS_DATABASE_URL   # from secret manager / local env — never commit
-export VIS_PERSISTENCE=prisma
+export SUPABASE_URL
+export SUPABASE_SERVICE_ROLE_KEY   # from secret manager / local env — never commit
+export VIS_PERSISTENCE=supabase
 export VIS_PILOT_ENV=TEST
 export REDIS_URL=redis://127.0.0.1:6379
 # After unlocking writable tenant + sandbox:

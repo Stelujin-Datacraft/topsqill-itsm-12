@@ -34,7 +34,11 @@ export class SupabaseAuthGuard implements CanActivate {
 
     const user = await this.supabaseService.getUserFromToken(authHeader);
     if (!user) {
-      throw new UnauthorizedException('Invalid user token');
+      // Common VM misconfig: frontend VITE_SUPABASE_URL project ≠ Nest SUPABASE_URL.
+      // That 401s every /database mutation and looks like “all modules cannot create/delete”.
+      throw new UnauthorizedException(
+        'Invalid user token (JWT not accepted by Nest SUPABASE_URL — check frontend and backend use the same Supabase project)',
+      );
     }
 
     request.user = user;

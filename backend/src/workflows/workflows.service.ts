@@ -12,6 +12,8 @@ interface QueueItem {
   workflow_id: string;
   submission_id?: string;
   trigger_data?: unknown;
+  retry_count?: number;
+  max_retries?: number;
 }
 
 @Injectable()
@@ -164,25 +166,81 @@ export class WorkflowsService {
         job.submissionId,
         job.triggerData,
       );
-      await supabase
-        .from('workflow_queue')
-        .update({
-          status: result.success ? 'completed' : 'failed',
-          completed_at: new Date().toISOString(),
-          error_message: result.error,
-        })
-        .eq('id', job.queueId);
+      if (result.success) {
+        await supabase
+          .from('workflow_queue')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            last_error: null,
+            next_retry_at: null,
+          })
+          .eq('id', job.queueId);
+        return;
+      }
+
+      await this.markQueueItemFailure(
+        supabase,
+        job.queueId,
+        result.error || 'Workflow execution failed',
+      );
     } catch (err) {
+      await this.markQueueItemFailure(
+        supabase,
+        job.queueId,
+        err instanceof Error ? err.message : String(err),
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Persist queue failures to `last_error` (schema column). Retries when under max_retries.
+   * Do not write `error_message` — that column does not exist on workflow_queue.
+   */
+  private async markQueueItemFailure(
+    supabase: ReturnType<SupabaseService['getServiceClient']>,
+    queueId: string,
+    errorMessage: string,
+  ) {
+    const { data: row } = await supabase
+      .from('workflow_queue')
+      .select('retry_count, max_retries')
+      .eq('id', queueId)
+      .maybeSingle();
+
+    const retryCount = Number(row?.retry_count ?? 0) + 1;
+    const maxRetries = Number(row?.max_retries ?? 3);
+    const truncated = String(errorMessage || 'Workflow execution failed').slice(0, 2000);
+
+    if (retryCount < maxRetries) {
+      const backoffMinutes = Math.min(60, Math.pow(2, Math.max(0, retryCount - 1)));
+      const nextRetryAt = new Date(Date.now() + backoffMinutes * 60_000).toISOString();
       await supabase
         .from('workflow_queue')
         .update({
           status: 'failed',
-          error_message: err instanceof Error ? err.message : String(err),
-          completed_at: new Date().toISOString(),
+          retry_count: retryCount,
+          last_error: truncated,
+          next_retry_at: nextRetryAt,
+          started_at: null,
+          completed_at: null,
         })
-        .eq('id', job.queueId);
-      throw err;
+        .eq('id', queueId);
+      return;
     }
+
+    await supabase
+      .from('workflow_queue')
+      .update({
+        status: 'failed',
+        retry_count: retryCount,
+        last_error: `Max retries exceeded: ${truncated}`,
+        next_retry_at: null,
+        completed_at: new Date().toISOString(),
+        started_at: null,
+      })
+      .eq('id', queueId);
   }
 
   async processQueue() {
@@ -244,7 +302,7 @@ export class WorkflowsService {
 
     const { data: pending } = await supabase
       .from('workflow_queue')
-      .select('id, workflow_id, submission_id, trigger_data')
+      .select('id, workflow_id, submission_id, trigger_data, retry_count, max_retries')
       .eq('status', 'pending')
       .order('priority', { ascending: true })
       .order('created_at', { ascending: true })
@@ -258,7 +316,7 @@ export class WorkflowsService {
         .update({ status: 'processing', started_at: new Date().toISOString() })
         .eq('id', item.id)
         .eq('status', 'pending')
-        .select('id, workflow_id, submission_id, trigger_data')
+        .select('id, workflow_id, submission_id, trigger_data, retry_count, max_retries')
         .maybeSingle();
 
       if (updated) claimed.push(updated as QueueItem);
@@ -321,5 +379,97 @@ export class WorkflowsService {
 
   async notifyFailure(body: { entity_type: string; entity_id: string; error: string; context?: unknown }) {
     return this.engineHost.notifyFailure(body);
+  }
+
+  /**
+   * Authenticated manual retry for a failed/cancelled queue item.
+   * Uses service_role for the write (RLS is SELECT-only for authenticated on workflow_queue)
+   * after verifying the caller is an org admin or project member for the item.
+   */
+  async retryQueueItem(userId: string, queueId: string) {
+    if (!userId || !queueId) {
+      return { success: false, error: 'userId and queueId are required' };
+    }
+
+    const supabase = this.supabaseService.getServiceClient();
+    const { data: item, error } = await supabase
+      .from('workflow_queue')
+      .select('id, status, organization_id, project_id, retry_count, max_retries')
+      .eq('id', queueId)
+      .maybeSingle();
+
+    if (error) {
+      this.logger.error(`retryQueueItem load failed: ${error.message}`);
+      return { success: false, error: 'Failed to load queue item' };
+    }
+    if (!item) {
+      return { success: false, error: 'Queue item not found' };
+    }
+
+    const allowed = await this.userCanManageQueueItem(supabase, userId, item);
+    if (!allowed) {
+      return { success: false, error: 'Forbidden' };
+    }
+
+    if (!['failed', 'cancelled'].includes(String(item.status))) {
+      return {
+        success: false,
+        error: `Only failed or cancelled items can be retried (current status: ${item.status})`,
+      };
+    }
+
+    const { error: updateError } = await supabase
+      .from('workflow_queue')
+      .update({
+        status: 'pending',
+        retry_count: 0,
+        last_error: null,
+        next_retry_at: null,
+        started_at: null,
+        completed_at: null,
+      })
+      .eq('id', queueId)
+      .in('status', ['failed', 'cancelled']);
+
+    if (updateError) {
+      this.logger.error(`retryQueueItem update failed: ${updateError.message}`);
+      return { success: false, error: 'Failed to reset queue item' };
+    }
+
+    return { success: true, queue_id: queueId, status: 'pending' };
+  }
+
+  private async userCanManageQueueItem(
+    supabase: ReturnType<SupabaseService['getServiceClient']>,
+    userId: string,
+    item: { organization_id?: string | null; project_id?: string | null },
+  ): Promise<boolean> {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('organization_id, role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profile) return false;
+
+    if (
+      profile.role === 'admin' &&
+      item.organization_id &&
+      profile.organization_id === item.organization_id
+    ) {
+      return true;
+    }
+
+    if (item.project_id) {
+      const { data: membership } = await supabase
+        .from('project_users')
+        .select('id, role')
+        .eq('project_id', item.project_id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (membership) return true;
+    }
+
+    return false;
   }
 }

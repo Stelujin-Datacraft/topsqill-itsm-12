@@ -6,10 +6,11 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useFormsLoader } from './useFormsLoader';
 import { useFormMutations } from './useFormMutations';
 import { useFieldMutations } from './useFieldMutations';
+import { shouldKeepFormsLoading } from '@/utils/authProjectLoadGate';
 
 export function useFormsData() {
-  const { userProfile, session } = useAuth();
-  const { currentProject } = useProject();
+  const { userProfile, session, isLoading: authLoading } = useAuth();
+  const { currentProject, loading: projectsLoading } = useProject();
   const { forms, setForms, loading, loadForms } = useFormsLoader();
   const { createForm: createFormMutation, updateForm: updateFormMutation, deleteForm: deleteFormMutation } = useFormMutations();
   const { 
@@ -143,14 +144,19 @@ export function useFormsData() {
     );
   };
 
-  // Load forms when project changes
+  // Load forms when project changes. While auth/profile/projects are still
+  // resolving, keep the initial loader — do not clear loading with an empty list.
   useEffect(() => {
+    if (shouldKeepFormsLoading({ authLoading, projectsLoading })) {
+      return;
+    }
     if (currentProject?.id && userProfile?.organization_id && session) {
       loadForms(userProfile.organization_id, currentProject.id);
     } else {
-      setForms([]);
+      // Settled without a project: clear forms and release loading (via loadForms finally).
+      void loadForms(userProfile?.organization_id || '', undefined);
     }
-  }, [currentProject?.id, userProfile?.organization_id, session]);
+  }, [currentProject?.id, userProfile?.organization_id, session, authLoading, projectsLoading, loadForms]);
 
   return {
     forms,

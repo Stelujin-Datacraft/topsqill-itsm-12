@@ -60,3 +60,28 @@ export function isItamDiscoverySchemaMissingError(err: unknown): err is ItamDisc
     || (Boolean(err) && typeof err === 'object' && (err as any).code === 'ITAM_DISCOVERY_SCHEMA_MISSING')
   );
 }
+
+/**
+ * Thrown when ITAM Discovery is configured for postgres but the VM .env is incomplete
+ * (e.g. missing ITAM_DISCOVERY_DATABASE_URL). Nest must keep serving Forms/Workflows/etc.
+ */
+export class ItamDiscoveryMisconfiguredError extends Error {
+  readonly code = 'ITAM_DISCOVERY_MISCONFIGURED';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ItamDiscoveryMisconfiguredError';
+  }
+}
+
+export function isItamDiscoveryMisconfiguredError(err: unknown): err is ItamDiscoveryMisconfiguredError {
+  return (
+    err instanceof ItamDiscoveryMisconfiguredError
+    || (Boolean(err) && typeof err === 'object' && (err as any).code === 'ITAM_DISCOVERY_MISCONFIGURED')
+  );
+}
+
+/** Schema-missing or env-misconfigured — both keep Nest up, ITAM APIs fail-closed. */
+export function isItamDiscoveryBootSoftFailure(err: unknown): boolean {
+  return isItamDiscoverySchemaMissingError(err) || isItamDiscoveryMisconfiguredError(err);
+}

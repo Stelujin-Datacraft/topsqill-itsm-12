@@ -2,6 +2,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EngineContext } from './shared/engine-context';
 import { SMTPClient } from './shared/smtp-client';
+import {
+  chatCompletions,
+  parseAiJsonContent,
+  resolveAiGatewayConfig,
+} from './shared/ai-gateway';
 
 
 const corsHeaders = {
@@ -76,10 +81,7 @@ export async function aiAssistant(
   
 
   try {
-    const LOVABLE_API_KEY = ctx.getEnv('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
+    const aiGateway = resolveAiGatewayConfig((key) => ctx.getEnv(key));
 
     const { action, context }: AIRequest = body;
 
@@ -785,54 +787,34 @@ Rules:
           content: msg.content
         })) || [];
 
-        const copilotResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-3-flash-preview',
-            messages: [
-              { role: 'system', content: copilotSystemPrompt },
-              ...copilotChatMessages,
-              { role: 'user', content: context.userInput || '' }
-            ],
-            temperature,
-            max_tokens: maxTokens,
-            tools: copilotTools,
-          }),
+        const copilotResult = await chatCompletions(aiGateway, {
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: copilotSystemPrompt },
+            ...copilotChatMessages,
+            { role: 'user', content: context.userInput || '' }
+          ],
+          temperature,
+          max_tokens: maxTokens,
+          tools: copilotTools,
         });
 
-        if (!copilotResponse.ok) {
-          const errorText = await copilotResponse.text();
-          console.error('AI Gateway error:', copilotResponse.status, errorText);
-          
-          if (copilotResponse.status === 429) {
-            return new Response(JSON.stringify({ 
-              success: false, 
-              error: 'AI rate limit exceeded. Please try again in a few moments.' 
+        if (!copilotResult.ok) {
+          console.error('AI Gateway error:', copilotResult.status, copilotResult.bodyText || copilotResult.error);
+          if (copilotResult.status === 429 || copilotResult.status === 402) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: copilotResult.error,
             }), {
-              status: 429,
+              status: copilotResult.status,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
-          
-          if (copilotResponse.status === 402) {
-            return new Response(JSON.stringify({ 
-              success: false, 
-              error: 'AI credits exhausted. Please add credits to your Lovable workspace.' 
-            }), {
-              status: 402,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-          
-          throw new Error(`AI Gateway error: ${copilotResponse.status}`);
+          throw new Error(copilotResult.error);
         }
 
-        const copilotData = await copilotResponse.json();
-        const copilotChoice = copilotData.choices[0];
+        const copilotData = copilotResult.data;
+        const copilotChoice = copilotData.choices?.[0];
         const copilotMessage = copilotChoice?.message;
 
         // Check if the AI wants to call a tool (return all tool calls, not just the first)
@@ -1967,66 +1949,33 @@ Return JSON only:
 
     console.log(`Processing AI request: ${action}`);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature,
-        max_tokens: maxTokens,
-      }),
+    const completion = await chatCompletions(aiGateway, {
+      model: 'google/gemini-3-flash-preview',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature,
+      max_tokens: maxTokens,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'AI rate limit exceeded. Please try again in a few moments.' 
+    if (!completion.ok) {
+      console.error('AI Gateway error:', completion.status, completion.bodyText || completion.error);
+      if (completion.status === 429 || completion.status === 402) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: completion.error,
         }), {
-          status: 429,
+          status: completion.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'AI credits exhausted. Please add credits to your Lovable workspace.' 
-        }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      throw new Error(`AI Gateway error: ${response.status}`);
+      throw new Error(completion.error);
     }
 
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
-
+    const content = completion.data.choices?.[0]?.message?.content;
     console.log('AI response received successfully');
-
-    // Try to parse JSON from the response
-    let result;
-    try {
-      // Extract JSON from markdown code blocks if present
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
-      result = JSON.parse(jsonStr);
-    } catch {
-      // If not valid JSON, return as text
-      result = { text: content };
-    }
+    const result = parseAiJsonContent(content);
 
     return new Response(JSON.stringify({ success: true, result }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

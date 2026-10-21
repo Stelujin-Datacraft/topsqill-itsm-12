@@ -5,6 +5,7 @@ import { backend as supabase } from '@/services/api';
 import { useProject } from './ProjectContext';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
 import { ensureSystemStatusField } from '@/lib/systemStatusField';
+import { formatFormDeleteError } from '@/lib/formDeleteCleanup';
 
 interface FormContextType {
   forms: Form[];
@@ -325,19 +326,29 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await supabase
-        .from('forms')
-        .delete()
-        .eq('id', formId);
+      const { data, error } = await supabase.rpc('delete_form_authorized', {
+        _form_id: formId,
+      });
 
       if (error) {
-        setError(error.message);
-      } else {
-        setForms(forms.filter(form => form.id !== formId));
-        setCurrentForm(prevForm => prevForm?.id === formId ? null : prevForm);
+        setError(formatFormDeleteError(error));
+        return;
       }
+
+      if (!data) {
+        setError(
+          formatFormDeleteError({
+            message:
+              'No rows were deleted. The record may be missing, already removed, or blocked by row-level security.',
+          }),
+        );
+        return;
+      }
+
+      setForms(forms.filter(form => form.id !== formId));
+      setCurrentForm(prevForm => prevForm?.id === formId ? null : prevForm);
     } catch (err: any) {
-      setError(err.message);
+      setError(formatFormDeleteError(err));
     } finally {
       setLoading(false);
     }

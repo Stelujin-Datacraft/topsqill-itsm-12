@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { backend as supabase, clearAuthTokenCache } from '@/services/api';
+import { backend as supabase, clearAuthTokenCache, seedAuthTokenCache } from '@/services/api';
 import { rawSupabase } from '@/integrations/supabase/rawClient';
 import { User, Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,6 +17,7 @@ import {
   createSession,
   invalidateSession,
 } from '@/utils/securityEnforcement';
+import { normalizeUserSessionRow } from '@/utils/userSessionRow';
 
 interface UserProfile {
   id: string;
@@ -121,6 +122,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return loadUserProfile(userId, retryCount + 1, activeRequestId);
         }
         if (isStaleRequest()) return;
+        setUserProfile(null);
+        setOrganization(null);
         setProfileError(error.message);
         return;
       }
@@ -289,6 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isStaleRequest()) return;
       setUserProfile(null);
       setOrganization(null);
+      setProfileError(error instanceof Error ? error.message : 'Failed to load user profile');
     }
   };
 
@@ -296,15 +300,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const validateSessionInDb = async (userId: string, accessToken: string) => {
     try {
       // First try to find by exact token match
-      let { data: sessionData, error } = await supabase
+      const { data: sessionData, error } = await supabase
         .from('user_sessions')
         .select('id, is_active, session_token')
         .eq('session_token', accessToken)
         .maybeSingle();
 
+      if (error) {
+        // Transport/API errors must not send a bad UUID update. Preserve prior behavior:
+        // do not block profile load / force logout on session-table reachability issues.
+        console.error('Error loading user session by token:', error.message || error);
+        return true;
+      }
+
+      let row = normalizeUserSessionRow(sessionData);
+
       // If no exact match, find the most recent active session for this user
-      if (!sessionData) {
-        const { data: userSession } = await supabase
+      if (!row) {
+        const { data: userSession, error: userSessionError } = await supabase
           .from('user_sessions')
           .select('id, is_active, session_token')
           .eq('user_id', userId)
@@ -312,19 +325,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        
-        if (userSession) {
-          // Update the session with the new token (token was refreshed)
-          await supabase
-            .from('user_sessions')
-            .update({ 
-              session_token: accessToken,
-              last_activity: new Date().toISOString()
-            })
-            .eq('id', userSession.id);
+
+        if (userSessionError) {
+          console.error('Error loading active user session:', userSessionError.message || userSessionError);
           return true;
         }
-        
+
+        row = normalizeUserSessionRow(userSession);
+
+        if (row) {
+          // Update the session with the new token (token was refreshed).
+          // Never call .eq('id', undefined) — JSON.stringify drops it and Nest/Postgres
+          // see uuid "undefined".
+          await supabase
+            .from('user_sessions')
+            .update({
+              session_token: accessToken,
+              last_activity: new Date().toISOString(),
+            })
+            .eq('id', row.id);
+          return true;
+        }
+
         // No active session found for this user - create a new session record
         // This handles cases where user is logged in via Supabase but has no tracked session
         console.log('No active session found, creating new session record');
@@ -332,25 +354,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
 
-      // If session exists and is inactive, sign out the user
-      if (sessionData && sessionData.is_active === false) {
+      // If session exists and is inactive, sign out the user (do not treat as valid)
+      if (row.is_active === false) {
         console.log('Session terminated by admin, logging out');
         await supabase.auth.signOut();
         return false;
       }
-      
-      // Update last activity
-      if (sessionData) {
-        await supabase
-          .from('user_sessions')
-          .update({ last_activity: new Date().toISOString() })
-          .eq('id', sessionData.id);
-      }
-      
+
+      // Update last activity only with a verified UUID primary key
+      await supabase
+        .from('user_sessions')
+        .update({ last_activity: new Date().toISOString() })
+        .eq('id', row.id);
+
       return true;
     } catch (error) {
       console.error('Error validating session:', error);
-      return true; // Don't log out on validation errors
+      // Don't log out on unexpected validation errors; updates are already UUID-guarded.
+      return true;
     }
   };
 
@@ -374,22 +395,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         previousUserIdRef.current = nextUserId;
 
+        if (event === 'SIGNED_OUT') {
+          clearAuthTokenCache();
+        } else if (session?.access_token) {
+          // Seed Nest bearer from the live session so profile/project queries never
+          // race ahead with a missing Authorization header.
+          seedAuthTokenCache(session.access_token, session.expires_at);
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          clearAuthTokenCache();
+        }
+
         if (session?.user) {
           if (isSameUserSessionRefresh) {
-            setIsLoading(false);
+            // Same-user TOKEN_REFRESHED / duplicate SIGNED_IN: do not re-fetch profile
+            // and do not force isLoading false — getSession / in-flight load owns that flag.
             return;
           }
 
+          // Keep auth loading true until profile settles. Do not call setIsLoading(false)
+          // before loadUserProfile finishes (that left ProjectContext with a null profile).
+          setIsLoading(true);
+          // Defer Supabase calls out of the auth callback to avoid auth deadlocks.
           setTimeout(async () => {
-            const isValid = await validateSessionInDb(session.user.id, session.access_token);
-            if (isValid) {
-              await loadUserProfile(session.user.id);
+            try {
+              seedAuthTokenCache(session.access_token, session.expires_at);
+              const isValid = await validateSessionInDb(session.user.id, session.access_token);
+              if (isValid) {
+                await loadUserProfile(session.user.id);
+              }
+            } finally {
+              setIsLoading(false);
             }
-          }, 100);
-        } else {
-          setUserProfile(null);
-          setOrganization(null);
+          }, 0);
+          return;
         }
+
+        setUserProfile(null);
+        setOrganization(null);
+        setProfileError(null);
         setIsLoading(false);
       }
     );
@@ -403,10 +446,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       previousUserIdRef.current = session?.user?.id ?? null;
       if (session?.user) {
+        seedAuthTokenCache(session.access_token, session.expires_at);
         const isValid = await validateSessionInDb(session.user.id, session.access_token);
         if (isValid) {
           await loadUserProfile(session.user.id);
         }
+      } else {
+        clearAuthTokenCache();
       }
       setIsLoading(false);
     });
@@ -551,6 +597,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Create session record
         if (data.session) {
+          seedAuthTokenCache(data.session.access_token, data.session.expires_at);
           await createSession(data.user.id, data.session.access_token);
         }
 
@@ -736,6 +783,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (otpData.session) {
+        seedAuthTokenCache(otpData.session.access_token, otpData.session.expires_at);
         await createSession(otpData.user.id, otpData.session.access_token);
       }
       await recordSuccessfulLogin(otpData.user.id);

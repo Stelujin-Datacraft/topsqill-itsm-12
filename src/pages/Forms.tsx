@@ -55,13 +55,15 @@ const Forms = () => {
   const canCreateForm = hasPermission('forms', 'create');
 
   const handleAIFormApply = async (generatedForm: AiGeneratedFormSchema) => {
-    if (!currentProject?.id || !userProfile?.id || !userProfile?.organization_id) return;
+    if (!currentProject?.id || !currentProject?.organization_id) return;
 
     try {
+      // Use project org + auth user (resolved inside createFormFromAiGeneration).
+      // Do not use a stale profile org that can diverge from the selected project.
       const created = await createFormFromAiGeneration(generatedForm, {
         projectId: currentProject.id,
-        organizationId: userProfile.organization_id,
-        userId: userProfile.id,
+        organizationId: currentProject.organization_id,
+        userId: userProfile?.id || '',
       });
       navigate(`/form-builder/${created.formId}?tab=builder`);
     } catch (error) {

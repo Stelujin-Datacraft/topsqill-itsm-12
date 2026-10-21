@@ -28,9 +28,9 @@ Evidence:
 
 | Item | Result |
 |------|--------|
-| Supabase migration | `supabase/migrations/20260930120000_itam_network_discovery.sql` (present) |
-| Nest dedicated schema | `backend/src/itam/discovery/sql/itam_discovery_pg.sql` |
-| Applied to | Local PostgreSQL DB `itam_discovery` via `ITAM_DISCOVERY_DATABASE_URL` |
+| Supabase migrations (manual) | `20260930120000_itam_network_discovery.sql`, `20260930130000_itam_phases_b_d.sql`, `20260930140000_itam_form_sync.sql` (verified present; extends core `it_assets` / `asset_software`) |
+| Nest dedicated schema | `backend/src/itam/discovery/sql/*.sql` (local/lab DB only; not auto-applied on deployed boots) |
+| Applied to | Operator-chosen DB via `ITAM_DISCOVERY_DATABASE_URL` (Dev or Prod Supabase; never auto from this agent) |
 | Tables verified | `itam_network_scopes`, `itam_discovery_jobs`, `itam_discovery_runs`, `itam_discovered_hosts`, `itam_asset_identities`, `itam_asset_services`, `itam_software_catalog`, `itam_software_aliases`, `itam_discovery_diffs`, `itam_discovery_audit`, `itam_field_provenance`, `it_assets`, `asset_software` |
 
 **PASS** — schema applied; row counts written and re-read after hydrate.
@@ -47,10 +47,10 @@ Evidence:
 
 | Check | Result |
 |-------|--------|
-| Production in-memory store | **Forbidden** (`NODE_ENV=production` without `ITAM_ALLOW_MEMORY_STORE=1` throws) |
-| Boot path | `ItamModule.onModuleInit` → `initializePersistence({ mode: 'postgres' })` when `ITAM_DISCOVERY_DATABASE_URL` or production |
+| Deployed in-memory store | **Forbidden** on Dev/Prod even if `ITAM_ALLOW_MEMORY_STORE=1` |
+| Boot path | `ItamModule.onModuleInit` → postgres when deployed; requires `ITAM_DISCOVERY_DATABASE_URL` |
 | Write-through | Serialized `flushDiscoveryStore` after mutations |
-| Memory store allowed | Unit tests / explicit `ITAM_DISCOVERY_PERSISTENCE=memory` only |
+| Memory store allowed | Only with `ITAM_DISCOVERY_UNIT_TEST=1` outside deployed environments |
 
 After discovery run, DB contained (example from suite): scopes≥1, jobs≥1, runs≥1, hosts≥1, assets≥1, software≥1, identities, services, audits, diffs, provenance.
 
@@ -268,8 +268,54 @@ Do **not** cite mock throughput as production performance.
 1. No Windows / Linux / SNMP lab hosts or credential refs in this environment.
 2. Cloud / topology / DHCP / ARP / DNS passive discovery — deferred (by design).
 3. Flush is full-snapshot (LAB/TEST volumes); high-churn incremental upsert not yet optimized.
-4. Supabase-hosted multi-tenant RLS still requires deploying `20260930120000_…` to the shared Supabase project; Nest production path uses `ITAM_DISCOVERY_DATABASE_URL`.
+4. Shared Supabase schema must be applied manually (never auto from Nest boot):
+   `20260930120000_itam_network_discovery.sql`,
+   `20260930130000_itam_phases_b_d.sql`,
+   `20260930140000_itam_form_sync.sql`
+   (extends existing `it_assets` / `asset_software`). Nest uses `ITAM_DISCOVERY_DATABASE_URL`.
 5. Real-world performance and credentialed inventory accuracy remain unproven.
+
+### Deployed Dev / Prod env contract
+
+| Variable | Dev VM | Prod |
+|----------|--------|------|
+| `NODE_ENV` | `production` (container) | `production` |
+| `ENVIRONMENT` | `development` | `production` |
+| `ITAM_DISCOVERY_DATABASE_URL` | **Dev** Supabase Postgres URI | **Prod** Supabase Postgres URI |
+| `ITAM_DISCOVERY_PERSISTENCE` | `postgres` | `postgres` |
+| `ITAM_DISCOVERY_APPLY_SCHEMA` | `0` (default) | `0` (default) |
+| `ITAM_DISCOVERY_UNIT_TEST` | unset | unset |
+
+Set the URI from Supabase → Project Settings → Database → Connection string. Never commit secrets; never put Prod credentials on Dev (or the reverse).
+
+### Authorization model (RLS vs Nest)
+
+| Layer | Admin meaning |
+|-------|----------------|
+| PostgreSQL RLS | `user_profiles.role = 'admin'` via `is_org_admin_of(organization_id)` (same as Promotional Transfer System Admin / org admin) |
+| Nest ITAM API | Also accepts header/JWT role strings such as `ITAM_ADMIN` — **API only**, not DB RLS |
+
+Ordinary authenticated users: org-scoped **SELECT**. Org admins: **INSERT/UPDATE/DELETE**. Audit/history tables: no authenticated UPDATE/DELETE. `itam_sync_schema_cache` has no `organization_id` → RLS on, no authenticated access (Nest/`service_role` only).
+
+### Dev-only migration procedure (manual — agents must not auto-apply)
+
+Full surgical checklist: **`docs/ITAM_DEV_SCHEMA_APPLY.md`**.
+
+Symptom if missing: Nest stays up; ITAM Discovery APIs return **503** with `ITAM_DISCOVERY_SCHEMA_MISSING` naming missing relations (e.g. `itam_network_scopes`) and the ordered migration file list. No memory fallback; no Docker restart loop.
+
+1. Confirm core tables already exist on **Dev**: `public.it_assets`, `public.asset_software`, `public.organizations`, and `public.user_profiles`.
+2. In Supabase Dashboard (**Dev** project only) → **SQL Editor**, or `psql -f` against the Dev URI — apply surgically in order (do **not** bulk `supabase db push` / history repair against a drifted Lovable history):
+   1. `supabase/migrations/20260930110000_get_current_user_org_id.sql`
+   2. `supabase/migrations/20260930120000_itam_network_discovery.sql`
+   3. `supabase/migrations/20260930130000_itam_phases_b_d.sql`
+   4. `supabase/migrations/20260930140000_itam_form_sync.sql`
+3. Record versions in `supabase_migrations.schema_migrations` **only after** each file succeeds. Do not bulk-insert history for unapplied SQL.
+4. Before `uq_asset_software_asset_name_ver` is created, ensure no duplicate `(asset_id, software_name, version)` rows exist (unique index creation will fail otherwise — inspect and dedupe on Dev first).
+5. Verify: `\dt public.itam_network_scopes` (or Dashboard table list) shows the new ITAM tables. Host inventory is `itam_discovered_hosts` (there is no `itam_discovered_assets`).
+6. Restart the Nest backend with `ITAM_DISCOVERY_DATABASE_URL` pointing at Dev. Keep `ITAM_DISCOVERY_APPLY_SCHEMA=0`.
+7. Do **not** apply these to Prod from this change set until Dev validation succeeds.
+
+**Known non-blocker / do-not-guess:** core `it_assets.tags` is `TEXT[]`. Migrations must not convert it to `JSONB` without inspecting live values. Nest hydrate coerces `TEXT[]`/`object`; flush skips writing `tags` unless the column is actually `jsonb` (lab schema).
 
 ### Enable real lab later
 
@@ -290,7 +336,8 @@ cd backend && npm run test:itam:discovery:persist
 ## How to run
 
 ```bash
-# Unit (memory)
+# Unit (memory — ITAM_DISCOVERY_UNIT_TEST=1)
+cd backend && npm run test:itam:discovery:config
 cd backend && npm run test:itam:discovery
 
 # Persistence + loopback ICMP/TCP

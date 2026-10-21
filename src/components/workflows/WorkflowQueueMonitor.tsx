@@ -108,30 +108,28 @@
    const handleRetry = async (itemId: string) => {
      setRetrying(itemId);
      try {
-       // Reset the queue item for retry
-       const { error } = await supabase
-         .from('workflow_queue')
-         .update({
-           status: 'pending',
-           retry_count: 0,
-           last_error: null,
-           next_retry_at: null
-         })
-         .eq('id', itemId);
- 
+       // Authenticated Nest endpoint (service-role write after org/project check).
+       // Direct PostgREST update fails under SELECT-only RLS for authenticated.
+       const { data, error } = await supabase.functions.invoke('retry-workflow-queue-item', {
+         body: { queue_id: itemId },
+       });
+
        if (error) throw error;
- 
+       if (data && (data as { success?: boolean }).success === false) {
+         throw new Error((data as { error?: string }).error || 'Retry rejected');
+       }
+
        toast({
          title: "Retry Queued",
          description: "Item has been reset and will be processed shortly.",
        });
- 
+
        loadQueueData();
      } catch (error) {
        console.error('Error retrying item:', error);
        toast({
          title: "Retry Failed",
-         description: "Could not retry the queue item.",
+         description: error instanceof Error ? error.message : "Could not retry the queue item.",
          variant: "destructive",
        });
      } finally {

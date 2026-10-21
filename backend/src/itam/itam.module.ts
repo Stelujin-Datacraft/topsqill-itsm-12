@@ -12,7 +12,11 @@ import {
   resolveDiscoveryPersistenceMode,
   shouldApplyDiscoverySchema,
 } from './discovery/persistence-config';
-import { isItamDiscoverySchemaMissingError } from './discovery/schema-missing.error';
+import {
+  isItamDiscoveryBootSoftFailure,
+  isItamDiscoveryMisconfiguredError,
+  isItamDiscoverySchemaMissingError,
+} from './discovery/schema-missing.error';
 
 @Module({
   providers: [ItamService, ItamDiscoveryService, ItamCloudService, ItamFormSyncService],
@@ -44,15 +48,23 @@ export class ItamModule implements OnModuleInit {
           + `applySchema=${shouldApplyDiscoverySchema()})`,
       );
     } catch (e: any) {
-      if (isItamDiscoverySchemaMissingError(e)) {
-        // Do not crash Nest / Docker-restart-loop: keep other modules up.
-        // ITAM APIs stay fail-closed (ServiceUnavailable) until Dev SQL is applied.
+      if (isItamDiscoveryBootSoftFailure(e)) {
+        // Do not crash Nest / Docker-restart-loop: keep Forms/CRUD and other modules up.
+        // ITAM Discovery APIs stay fail-closed until schema/env is fixed.
         this.discovery.markSchemaUnavailable(e);
-        this.logger.error(
-          `ITAM Discovery unavailable — required Supabase schema missing `
-            + `(deployment=${deployment}). Keep ITAM_DISCOVERY_APPLY_SCHEMA=0. `
-            + `Apply Dev-only migrations listed in the error, then restart.\n${e.message}`,
-        );
+        if (isItamDiscoveryMisconfiguredError(e)) {
+          this.logger.error(
+            `ITAM Discovery unavailable — misconfigured env `
+              + `(deployment=${deployment}). Set ITAM_DISCOVERY_DATABASE_URL `
+              + `(or leave ITAM unused). Nest continues for other modules.\n${e.message}`,
+          );
+        } else if (isItamDiscoverySchemaMissingError(e)) {
+          this.logger.error(
+            `ITAM Discovery unavailable — required Supabase schema missing `
+              + `(deployment=${deployment}). Keep ITAM_DISCOVERY_APPLY_SCHEMA=0. `
+              + `Apply Dev-only migrations listed in the error, then restart.\n${e.message}`,
+          );
+        }
         return;
       }
       throw e;

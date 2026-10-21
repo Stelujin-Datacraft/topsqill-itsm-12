@@ -5,13 +5,22 @@
  * Mirrors the Supabase query builder API so existing hooks work unchanged.
  */
 
-import { request } from './apiClient';
+import { request, clearAuthTokenCache, seedAuthTokenCache } from './apiClient';
 import { rawSupabase } from '@/integrations/supabase/rawClient';
+import {
+  assertFiltersHaveValues,
+  unwrapNestQueryPayload,
+  type GuardFilterClause,
+} from '@/utils/databaseQueryGuards';
+import {
+  isNestAuthRejectionMessage,
+  shouldSkipNestWithoutAccessToken,
+  shouldUseSupabaseAuthFallback,
+} from '@/utils/authProjectLoadGate';
 
-export type FilterClause =
-  | { kind: 'filter'; column: string; operator: string; value: unknown }
-  | { kind: 'not'; column: string; operator: string; value: unknown }
-  | { kind: 'or'; expression: string };
+export type FilterClause = GuardFilterClause;
+export { assertFiltersHaveValues, unwrapNestQueryPayload } from '@/utils/databaseQueryGuards';
+export { shouldUseSupabaseAuthFallback, isNestAuthRejectionMessage } from '@/utils/authProjectLoadGate';
 
 export interface SelectOptions {
   count?: 'exact' | 'planned' | 'estimated';
@@ -63,11 +72,43 @@ async function withFallback(
   viaSupabase: () => Promise<QueryResult>,
 ): Promise<QueryResult> {
   if (backendUnavailable) return viaSupabase();
+
+  let accessToken: string | null = null;
+  try {
+    const { data: { session } } = await rawSupabase.auth.getSession();
+    accessToken = session?.access_token ?? null;
+    if (accessToken) {
+      seedAuthTokenCache(accessToken, session?.expires_at);
+    }
+  } catch {
+    accessToken = null;
+  }
+
+  // Pre-session / signed-out: never hit Nest without Authorization (guard 401).
+  // Use PostgREST + RLS with the anon key instead.
+  if (shouldSkipNestWithoutAccessToken(accessToken)) {
+    return viaSupabase();
+  }
+
   const result = await viaApi();
   if (isNetworkError(result.error)) {
     backendUnavailable = true;
     return viaSupabase();
   }
+
+  // Nest 401 with a live Supabase session: Dev JWT/config mismatch or stale cached
+  // bearer. Use PostgREST + RLS for this call only — do not permanently disable Nest
+  // or bypass auth when there is no client session.
+  if (result.error && isNestAuthRejectionMessage(result.error.message)) {
+    if (shouldUseSupabaseAuthFallback({
+      errorMessage: result.error.message,
+      hasSupabaseSession: !!accessToken,
+    })) {
+      clearAuthTokenCache();
+      return viaSupabase();
+    }
+  }
+
   return result;
 }
 
@@ -160,6 +201,12 @@ class QueryBuilder extends FilterMixin {
   }
 
   private async executeViaApi(): Promise<QueryResult> {
+    try {
+      assertFiltersHaveValues(this.filters);
+    } catch (e: any) {
+      return { data: null, error: { message: e?.message || String(e) } };
+    }
+
     const result = await request<QueryResult['data']>('/database/query', {
       method: 'POST',
       body: JSON.stringify({
@@ -180,15 +227,26 @@ class QueryBuilder extends FilterMixin {
       return { data: null, error: result.error };
     }
 
-    const payload = result.data as QueryResult;
+    const payload = result.data as QueryResult & { count?: number | null };
+    const count = payload && typeof payload === 'object' && 'count' in payload
+      ? (payload as QueryResult).count
+      : undefined;
     return {
-      data: payload?.data ?? payload,
+      data: unwrapNestQueryPayload(payload, {
+        maybeSingle: this.maybeSingleResult,
+        single: this.singleResult,
+      }),
       error: null,
-      count: payload?.count ?? undefined,
+      count: count ?? undefined,
     };
   }
 
   private async executeViaSupabase(): Promise<QueryResult> {
+    try {
+      assertFiltersHaveValues(this.filters);
+    } catch (e: any) {
+      return { data: null, error: { message: e?.message || String(e) } };
+    }
     let query: any = (rawSupabase as any).from(this.table).select(this.selectCols, this.selectOptions);
     query = applyFilters(query, this.filters);
     for (const o of this.orderBy) {
@@ -234,7 +292,7 @@ class InsertBuilder {
             .select(columns);
           return { data: data ?? null, error: error ? { message: error.message } : null };
         },
-      ),
+      ).then((result) => requireAffectedRows(result, 'inserted')),
     );
   }
 
@@ -320,8 +378,13 @@ class UpdateBuilder extends FilterMixin {
 
   select(columns = '*') {
     return new ReturningResult(() => withFallback(
-      () =>
-        request('/database/update', {
+      async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
+        return request('/database/update', {
           method: 'POST',
           body: JSON.stringify({
             table: this.table,
@@ -329,14 +392,20 @@ class UpdateBuilder extends FilterMixin {
             filters: this.filters,
             returning: columns,
           }),
-        }).then(normalizeResult),
+        }).then(normalizeResult);
+      },
       async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
         let query: any = (rawSupabase as any).from(this.table).update(this.data as never);
         query = applyFilters(query, this.filters);
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    ));
+    ).then((result) => requireAffectedRows(result, 'updated')));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -351,18 +420,29 @@ class DeleteBuilder extends FilterMixin {
 
   select(columns = '*') {
     return new ReturningResult(() => withFallback(
-      () =>
-        request('/database/delete', {
+      async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
+        return request('/database/delete', {
           method: 'POST',
           body: JSON.stringify({ table: this.table, filters: this.filters, returning: columns }),
-        }).then(normalizeResult),
+        }).then(normalizeResult);
+      },
       async () => {
+        try {
+          assertFiltersHaveValues(this.filters);
+        } catch (e: any) {
+          return { data: null, error: { message: e?.message || String(e) } };
+        }
         let query: any = (rawSupabase as any).from(this.table).delete();
         query = applyFilters(query, this.filters);
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    ));
+    ).then((result) => requireAffectedRows(result, 'deleted')));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -374,6 +454,23 @@ function normalizeResult(result: { data: unknown; error: { message: string } | n
   if (result.error) return { data: null, error: result.error };
   const payload = result.data as QueryResult;
   return { data: payload?.data ?? payload, error: null, count: payload?.count };
+}
+
+/**
+ * RLS-denied mutations often return HTTP 200 with []. Never treat that as success.
+ */
+function requireAffectedRows(result: QueryResult, verb: 'inserted' | 'updated' | 'deleted'): QueryResult {
+  if (result.error) return result;
+  const rows = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+  if (rows.length === 0) {
+    return {
+      data: null,
+      error: {
+        message: `No rows were ${verb}. The record may be missing, already removed, or blocked by row-level security.`,
+      },
+    };
+  }
+  return result;
 }
 
 export function paginatedRange(page = 1, pageSize = 100) {

@@ -230,10 +230,10 @@ function notFoundHtml() {
 const DEFAULT_OG_IMAGE =
   `https://${APEX_DOMAIN}/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png`;
 
-/** Public anon key — same as the SPA; used only to read published blog meta for share previews. */
-const SUPABASE_URL = 'https://fnmkczsvwpzpxyklztkt.supabase.co';
-const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubWtjenN2d3B6cHh5a2x6dGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNzU1OTUsImV4cCI6MjA2NDg1MTU5NX0.bSLI8JUAIry3mC6cxBt5sF7r-gyelR63Emdoe7siNjQ';
+/**
+ * Blog OG meta fetches use env-specific Supabase credentials from Cloudflare Worker bindings.
+ * Set SUPABASE_URL + SUPABASE_ANON_KEY per environment (never hardcode Dev/Prod projects).
+ */
 const BLOG_BUCKETS = ['report-media', 'form-attachments', 'organization-logos', 'blog-media'];
 
 function escapeHtml(s) {
@@ -256,18 +256,26 @@ function blogSlugFromPath(pathname) {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-async function fetchBlogPostMeta(slug) {
+async function fetchBlogPostMeta(slug, env) {
+  const supabaseUrl = env && (env.SUPABASE_URL || env.VITE_SUPABASE_URL);
+  const anonKey =
+    env && (env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY);
+  if (!supabaseUrl || !anonKey) {
+    // Fail closed: do not fall back to another environment's project.
+    return null;
+  }
+
   try {
     const restUrl =
-      `${SUPABASE_URL}/rest/v1/blog_posts`
+      `${supabaseUrl}/rest/v1/blog_posts`
       + `?slug=eq.${encodeURIComponent(slug)}`
       + '&published=eq.true'
       + '&select=slug,title,description,cover_image_url,faqs'
       + '&limit=1';
     const res = await fetch(restUrl, {
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
       },
     });
     if (res.ok) {
@@ -280,7 +288,7 @@ async function fetchBlogPostMeta(slug) {
 
   for (const bucket of BLOG_BUCKETS) {
     try {
-      const url = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/blog/cms-posts.json`;
+      const url = `${supabaseUrl}/storage/v1/object/public/${bucket}/blog/cms-posts.json`;
       const res = await fetch(url);
       if (!res.ok) continue;
       const posts = await res.json();
@@ -433,7 +441,7 @@ function injectFaqJsonLd(html, faqs) {
 }
 
 async function serveBlogShareHtml(request, env, pathname, slug) {
-  const post = await fetchBlogPostMeta(slug);
+  const post = await fetchBlogPostMeta(slug, env);
   const key = pathToPrerenderKey(pathname);
   let base = await serveAsset(env, key, 'text/html; charset=utf-8');
   if (!base) {

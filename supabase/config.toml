@@ -1,4 +1,7 @@
-project_id = "fnmkczsvwpzpxyklztkt"
+# Local Supabase CLI project identifier. Link per environment — do not hardcode
+# a shared Dev/Prod remote project id in source control:
+#   supabase link --project-ref <DEVELOPMENT_OR_PRODUCTION_REF>
+project_id = "YOUR_SUPABASE_PROJECT_REF"
 
 [functions.send-invitation-email]
 verify_jwt = false

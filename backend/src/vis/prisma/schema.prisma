@@ -564,15 +564,19 @@ model VisPolicyRule {
   @@map("vis_policy_rules")
 }
 
-/// Generic JSON document fallback for collections not yet fully normalized
+/// Generic JSON document fallback for collections not yet fully normalized.
+/// `id` is the DB UUID PK; `logicalId` is the application id (e.g. form-vulnerability).
 model VisDocument {
   id         String   @id @default(uuid())
   collection String
+  logicalId  String   @map("logical_id")
   payload    Json
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   deletedAt  DateTime? @map("deleted_at")
 
+  @@unique([collection, logicalId])
   @@index([collection])
+  @@index([logicalId])
   @@map("vis_documents")
 }

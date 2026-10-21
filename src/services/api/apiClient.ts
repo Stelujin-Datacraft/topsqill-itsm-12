@@ -1,6 +1,7 @@
 /**
  * NestJS API client — replaces direct Supabase Edge Function invocations.
  */
+import { isNestOnlyAiFunction, mapNestAiInvokeResult } from './aiNestInvoke';
 
 function resolveNestApiBase(): string {
   const configured = String(import.meta.env?.VITE_API_URL || '').replace(/\/$/, '');
@@ -30,13 +31,36 @@ async function getAuthToken(): Promise<string | null> {
   try {
     const { rawSupabase } = await import('@/integrations/supabase/rawClient');
     const { data: { session } } = await rawSupabase.auth.getSession();
-    cachedAuthToken = session?.access_token || null;
-    authTokenExpiresAt = Date.now() + AUTH_TOKEN_CACHE_MS;
-    return cachedAuthToken;
+    if (session?.access_token) {
+      seedAuthTokenCache(session.access_token, session.expires_at);
+      return cachedAuthToken;
+    }
+    cachedAuthToken = null;
+    authTokenExpiresAt = 0;
+    return null;
   } catch {
     cachedAuthToken = null;
     authTokenExpiresAt = 0;
     return null;
+  }
+}
+
+/**
+ * Seed the Nest bearer cache from a known Supabase session (sign-in / TOKEN_REFRESHED).
+ * Prevents protected `/api/database/*` calls from racing ahead of getSession persistence.
+ */
+export function seedAuthTokenCache(accessToken: string, expiresAtSeconds?: number | null): void {
+  const token = String(accessToken || '').trim();
+  if (!token) {
+    clearAuthTokenCache();
+    return;
+  }
+  cachedAuthToken = token;
+  if (expiresAtSeconds && Number.isFinite(expiresAtSeconds)) {
+    // expires_at is unix seconds; keep a small safety margin
+    authTokenExpiresAt = Math.max(Date.now(), expiresAtSeconds * 1000 - 5_000);
+  } else {
+    authTokenExpiresAt = Date.now() + AUTH_TOKEN_CACHE_MS;
   }
 }
 
@@ -63,9 +87,12 @@ async function request<T = unknown>(
 
   if (requireAuth) {
     const token = await getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (!token) {
+      // Never call Nest protected routes without a bearer — matches SupabaseAuthGuard
+      // and avoids the Dev "No authorization header" 401 loop.
+      return { data: null, error: { message: 'No authorization header' } };
     }
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   try {
@@ -95,10 +122,16 @@ async function request<T = unknown>(
     }
 
     if (!response.ok) {
-      const errBody = data as { message?: string; error?: string };
+      const errBody = data as { message?: string | string[]; error?: string };
+      const rawMessage = errBody.message ?? errBody.error;
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.filter(Boolean).join('; ')
+        : typeof rawMessage === 'string'
+          ? rawMessage
+          : `Request failed (${response.status})`;
       return {
         data: null,
-        error: { message: errBody.message || errBody.error || `Request failed (${response.status})` },
+        error: { message: message || `Request failed (${response.status})` },
       };
     }
 
@@ -259,6 +292,7 @@ export const api = {
       'execute-workflow': { path: '/workflows/execute', auth: false },
       'process-workflow-queue': { path: '/workflows/process-queue', auth: false },
       'resume-waiting-workflows': { path: '/workflows/resume-waiting' },
+      'retry-workflow-queue-item': { path: '/workflows/queue/retry', auth: true },
       'notify-failure': { path: '/workflows/notify-failure', auth: false },
       'calculate-field': { path: '/ai/assistant' },
     };
@@ -280,6 +314,11 @@ export const api = {
       method: route.method || 'POST',
       body: options?.body ? JSON.stringify(options.body) : undefined,
     }, route.auth !== false);
+
+    // AI assistant / copilot: Nest + OpenRouter only — never fall back to Edge/Lovable.
+    if (isNestOnlyAiFunction(functionName)) {
+      return mapNestAiInvokeResult<T>(result);
+    }
 
     const payload =
       result.data && typeof result.data === 'object'
