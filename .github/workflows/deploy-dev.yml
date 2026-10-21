@@ -5,9 +5,8 @@ name: Deploy Dev
 
 on:
   workflow_dispatch:
-  # Enable after secrets are configured and first manual deploy succeeds:
-  # push:
-  #   branches: [develop]
+  push:
+    branches: [develop]
 
 concurrency:
   group: deploy-dev
