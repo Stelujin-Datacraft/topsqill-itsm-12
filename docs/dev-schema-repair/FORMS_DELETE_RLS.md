@@ -2,31 +2,33 @@
 
 ## Cause
 
-`forms_delete` used `can_modify_forms_row(organization_id, created_by, auth.uid())`,
-which only allowed:
+Direct `DELETE` on `forms` often returned `[]` under RLS (narrow helpers / overlapping
+policies), so the UI showed “Delete blocked by security policy”.
 
-- `user_profiles.role = 'admin'` for the org, or
-- `created_by = auth.uid()::text`
+## Fix (two SQL files + app rebuild)
 
-It did **not** allow:
+1. `20261021120000_forms_delete_align_can_modify_form.sql` — broaden helpers/policies  
+2. `20261021123000_forms_delete_authorized_rpc.sql` — `delete_form_authorized(uuid)` RPC  
+3. Frontend/Nest on `develop` call `rpc('delete_form_authorized')` instead of table delete  
 
-- Creator when `created_by` stores **email**
-- Project **admin/editor** (unless the separate project-admin policy applied and role was exactly `admin`)
+## Apply
 
-PostgREST then returned `[]` (no error) → UI: “Delete blocked by security policy”.
+### A. Supabase SQL Editor (Dev project, then Prod project)
 
-## Fix
+Run both migration files in order (paste → Run).
 
-Migration: `supabase/migrations/20261021120000_forms_delete_align_can_modify_form.sql`
+### B. Each VM (required for UI path)
 
-- Broadens `can_modify_forms_row` (email + uuid creator)
-- Points `forms_update` / `forms_delete` at `can_modify_form(id, auth.uid())`
-- Extends project policies to `admin` **and** `editor`
+```bash
+cd /opt/topsqill/topsqill-itsm-12
+git fetch origin && git reset --hard origin/develop
+docker compose build --no-cache frontend backend
+docker compose up -d
+# hard-refresh browser (Ctrl+Shift+R)
+```
 
-## Apply (SQL Editor — Dev and Prod)
+Then delete a form as creator / org admin / project admin|editor.
 
-1. Open the correct Supabase project (Dev vs Prod).
-2. Paste the migration file contents → Run.
-3. Retry form delete as creator, org admin, or project admin/editor.
+## Diagnostics
 
-No Nest rebuild required for this SQL-only fix.
+If it still fails: `docs/dev-schema-repair/FORMS_DELETE_DIAGNOSTIC.sql`
