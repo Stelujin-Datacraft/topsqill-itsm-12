@@ -122,10 +122,16 @@ async function request<T = unknown>(
     }
 
     if (!response.ok) {
-      const errBody = data as { message?: string; error?: string };
+      const errBody = data as { message?: string | string[]; error?: string };
+      const rawMessage = errBody.message ?? errBody.error;
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.filter(Boolean).join('; ')
+        : typeof rawMessage === 'string'
+          ? rawMessage
+          : `Request failed (${response.status})`;
       return {
         data: null,
-        error: { message: errBody.message || errBody.error || `Request failed (${response.status})` },
+        error: { message: message || `Request failed (${response.status})` },
       };
     }
 
@@ -286,6 +292,7 @@ export const api = {
       'execute-workflow': { path: '/workflows/execute', auth: false },
       'process-workflow-queue': { path: '/workflows/process-queue', auth: false },
       'resume-waiting-workflows': { path: '/workflows/resume-waiting' },
+      'retry-workflow-queue-item': { path: '/workflows/queue/retry', auth: true },
       'notify-failure': { path: '/workflows/notify-failure', auth: false },
       'calculate-field': { path: '/ai/assistant' },
     };

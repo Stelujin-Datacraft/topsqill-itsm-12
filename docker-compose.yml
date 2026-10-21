@@ -34,12 +34,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        # Vite inlines these at build time (public values only — never service role).
+        # Use same-origin /api so the nginx proxy reaches Nest on both Dev and Prod VMs.
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_USE_BACKEND_API: ${VITE_USE_BACKEND_API:-true}
+        VITE_SUPABASE_URL: ${SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
     ports:
       - "8080:8080"
-    environment:
-      - VITE_API_URL=http://localhost:3001/api
-      - VITE_USE_BACKEND_API=true
-      - VITE_SUPABASE_URL=${SUPABASE_URL}
-      - VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
     depends_on:
       - backend
+    restart: unless-stopped

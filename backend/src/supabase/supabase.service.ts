@@ -44,17 +44,10 @@ export class SupabaseService {
 
     if (isMisconfiguredServiceRoleKey(serviceKey)) {
       const msg = misconfiguredServiceRoleMessage(parsed.role || 'unknown');
+      // Warn loudly but do NOT abort Nest boot. Interactive CRUD uses the user JWT;
+      // aborting the whole API made every module look broken when only the
+      // service_role env var was wrong. Background jobs still fail via getServiceClient().
       console.error(`[SupabaseService] ${msg}`);
-      // Deployed Dev/Prod VMs: fail closed so operators fix credentials instead of
-      // silently running with anon. Local placeholders (non-JWT) skip this throw.
-      const environment = (
-        this.configService.get<string>('ENVIRONMENT')
-        || this.configService.get<string>('NODE_ENV')
-        || ''
-      ).toLowerCase();
-      if (environment === 'development' || environment === 'production') {
-        throw new Error(`[SupabaseService] ${msg}`);
-      }
     } else if (!configuredAnon?.trim()) {
       console.warn(
         '[SupabaseService] SUPABASE_ANON_KEY is unset; user-scoped clients fall back to SUPABASE_SERVICE_ROLE_KEY. '
@@ -131,6 +124,19 @@ export class SupabaseService {
     return client;
   }
 
+  /** Extract raw JWT from `Bearer <token>` (or bare token). */
+  private extractAccessToken(authHeader: string): string | null {
+    const raw = String(authHeader || '').trim();
+    if (!raw) return null;
+    const match = /^Bearer\s+(.+)$/i.exec(raw);
+    if (match) {
+      const token = match[1].trim();
+      return token || null;
+    }
+    if (/^Bearer$/i.test(raw)) return null;
+    return raw;
+  }
+
   async getUserFromToken(authHeader?: string): Promise<User | null> {
     if (!authHeader) return null;
 
@@ -139,8 +145,17 @@ export class SupabaseService {
       return cached.value;
     }
 
-    const client = this.getClientForUser(authHeader);
-    const { data: { user }, error } = await client.auth.getUser();
+    const accessToken = this.extractAccessToken(authHeader);
+    if (!accessToken) return null;
+
+    // Pass the JWT explicitly — server clients have no persisted session, so
+    // getUser() without an argument often returns null and 401s every /database call.
+    const client = this.getClientForUser(
+      authHeader.startsWith('Bearer ') || authHeader.startsWith('bearer ')
+        ? authHeader
+        : `Bearer ${accessToken}`,
+    );
+    const { data: { user }, error } = await client.auth.getUser(accessToken);
     if (error || !user) return null;
 
     this.setCacheEntry(

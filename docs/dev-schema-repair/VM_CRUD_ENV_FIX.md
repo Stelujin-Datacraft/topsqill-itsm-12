@@ -74,11 +74,28 @@ when the configured service key JWT role is not `service_role`.
 
 ## Deploy steps
 
+### Critical: Vite env is build-time only
+
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` must be passed as
+**docker-compose build args** (see `Dockerfile.frontend`). Setting them only as
+container `environment:` does **nothing** for a Vite SPA — the browser then has
+no Supabase project and **every module** fails create/delete on that VM.
+
+Rebuild frontend after changing keys:
+
+```bash
+docker compose build --no-cache frontend backend && docker compose up -d
+curl -sS http://127.0.0.1:3001/api/health/crud
+```
+
+Frontend nginx proxies `/api/` → Nest `backend:3001` so GCP hosts must use
+`VITE_API_URL=/api` (default in compose).
+
 ### Dev
 
-1. Confirm Dev Supabase repair `01–10` applied (SQL Editor / migration history).
+1. Confirm Dev Supabase matches Prod (or repairs `01–10` applied).
 2. Set Dev `.env` with Dev URL + Dev anon + Dev **service_role**.
-3. Deploy Nest + frontend from `develop` (or this PR).
+3. Rebuild Nest + frontend from `develop` with build-args above.
 4. Sign in as a project member / org admin and smoke-test create + delete on Forms,
    Reports, Dashboards, Access Control.
 
@@ -86,7 +103,7 @@ when the configured service key JWT role is not `service_role`.
 
 1. **No** Dev repair SQL on Prod.
 2. Set Prod `.env` with Prod URL + Prod anon + Prod **service_role**.
-3. Deploy the same Nest + frontend build as Dev (or merge → Prod release).
+3. Rebuild Nest + frontend the same way (Prod keys in build-args).
 4. Smoke-test create + delete as a Prod org admin.
 
 ## What this code change does
