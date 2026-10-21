@@ -3,6 +3,30 @@
 Production Supabase already has tables, policies, and helpers. Create/delete failures
 on the **VM** are an application and environment problem, not a missing Prod migration.
 
+## Symptom: every module fails create/delete on both VMs
+
+Forms, Workflows, Reports, Dashboards, Access Control, IT Assets, Policies, etc.
+all go through the **same** Nest path:
+
+`POST /api/database/{insert|update|delete|upsert}` → user JWT → Supabase RLS
+
+So “all modules broken” means a **shared** failure, not a per-module bug:
+
+| Layer | Dev VM | Prod VM |
+|-------|--------|---------|
+| App / env | Wrong or stale Nest+frontend deploy; `SUPABASE_SERVICE_ROLE_KEY` = anon; frontend `VITE_SUPABASE_*` host ≠ Nest `SUPABASE_URL` | Same |
+| Database | Restrictive `*_migration_deny` + missing helpers until repairs **01–10** | Schema already OK — do **not** run Dev repairs |
+
+First check on each VM (no secrets returned):
+
+```bash
+curl -sS http://127.0.0.1:3001/api/health/crud | jq .
+```
+
+Expect `status: "ok"`, `serviceRoleJwtRole: "service_role"`, and `supabaseHost` matching
+that environment’s Supabase project. Frontend build-time `VITE_SUPABASE_URL` must use
+the **same** host.
+
 ## Root causes (both Dev and Prod VMs)
 
 1. **`SUPABASE_SERVICE_ROLE_KEY` set to the anon/publishable JWT**  
@@ -19,7 +43,11 @@ on the **VM** are an application and environment problem, not a missing Prod mig
    Deploy the Nest + frontend build that includes user-scoped mutations and
    zero-row mutation checks.
 
-4. **Dev-only DB drift** (Dev Supabase only)  
+4. **Frontend ↔ Nest Supabase project mismatch**  
+   If the browser session JWT is issued by project A but Nest `SUPABASE_URL` is
+   project B, every guarded call returns 401 → all modules fail create/delete.
+
+5. **Dev-only DB drift** (Dev Supabase only)  
    Apply repair migrations `01–10` on **Dev** (see `GO_NO_GO.md`). Do **not** run
    those Dev-only repairs on Production.
 
