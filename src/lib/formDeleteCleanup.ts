@@ -50,8 +50,11 @@ export function formatFormDeleteError(error: unknown): string {
   if (/form_fields_form_id_fkey|foreign key/i.test(message)) {
     return 'Cannot delete this form while related records still reference it. Remove fields (and submissions, if present) first, or apply the Dev FK repair migration.';
   }
-  if (/row-level security|permission denied|violates row-level|blocked by row-level/i.test(message)) {
-    return 'Delete blocked by security policy. You must be the form creator, an org admin, or a project admin/editor. Apply migration 20261021120000_forms_delete_align_can_modify_form.sql on Dev and Prod if not yet applied.';
+  if (/not authorized to delete|Authentication required to delete/i.test(message)) {
+    return 'You are not allowed to delete this form. Sign in as the creator, an org admin, or a project admin/editor.';
+  }
+  if (/row-level security|permission denied|violates row-level|blocked by row-level|42501/i.test(message)) {
+    return 'Delete blocked by security policy. Apply SQL 20261021123000_forms_delete_authorized_rpc.sql on Dev and Prod, then rebuild the frontend.';
   }
   if (/No rows (were )?deleted|zero rows/i.test(message)) {
     return 'Delete did not remove any form. You may lack permission (creator / org admin / project admin|editor), or the form was already deleted.';

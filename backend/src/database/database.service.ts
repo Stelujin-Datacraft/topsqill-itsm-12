@@ -431,7 +431,8 @@ export class DatabaseService {
 
   async rpc(dto: DatabaseRpcDto, authHeader?: string) {
     this.validateRpcName(dto.function);
-    const client = this.getClient(authHeader);
+    // User JWT required — RPCs like delete_form_authorized need auth.uid().
+    const client = this.getClient(authHeader, { requireUser: true });
     const { data, error } = await client.rpc(dto.function, dto.params || {});
     if (error) throw new BadRequestException(error.message);
     return { data, error: null };

@@ -3,10 +3,7 @@ import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { logFormAuditEvent, describeFormChanges } from '@/utils/formAuditLogger';
 import { ensureSystemStatusField } from '@/lib/systemStatusField';
-import {
-  deleteFormChildRows,
-  formatFormDeleteError,
-} from '@/lib/formDeleteCleanup';
+import { formatFormDeleteError } from '@/lib/formDeleteCleanup';
 
 export function useFormMutations() {
   const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>, userProfile: any) => {
@@ -201,22 +198,18 @@ export function useFormMutations() {
     }
 
     try {
-      // Remove FK children first (Dev often lacks ON DELETE CASCADE on form_fields).
-      await deleteFormChildRows(supabase as any, id);
-
-      const { data, error } = await supabase
-        .from('forms')
-        .delete()
-        .eq('id', id)
-        .select('id');
+      // Authorized SECURITY DEFINER RPC (checks can_modify_form, deletes children + form).
+      // Avoids empty DELETE...RETURNING under overlapping RLS.
+      const { data, error } = await supabase.rpc('delete_form_authorized', {
+        _form_id: id,
+      });
 
       if (error) {
         console.error('useFormMutations: Error deleting form:', error);
         throw error;
       }
 
-      const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
-      if (deletedRows.length === 0) {
+      if (!data) {
         throw new Error(
           'No rows were deleted. The record may be missing, already removed, or blocked by row-level security.',
         );

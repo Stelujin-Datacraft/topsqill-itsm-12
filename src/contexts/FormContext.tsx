@@ -5,10 +5,7 @@ import { backend as supabase } from '@/services/api';
 import { useProject } from './ProjectContext';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
 import { ensureSystemStatusField } from '@/lib/systemStatusField';
-import {
-  deleteFormChildRows,
-  formatFormDeleteError,
-} from '@/lib/formDeleteCleanup';
+import { formatFormDeleteError } from '@/lib/formDeleteCleanup';
 
 interface FormContextType {
   forms: Form[];
@@ -329,21 +326,16 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      await deleteFormChildRows(supabase as any, formId);
-
-      const { data, error } = await supabase
-        .from('forms')
-        .delete()
-        .eq('id', formId)
-        .select('id');
+      const { data, error } = await supabase.rpc('delete_form_authorized', {
+        _form_id: formId,
+      });
 
       if (error) {
         setError(formatFormDeleteError(error));
         return;
       }
 
-      const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
-      if (deletedRows.length === 0) {
+      if (!data) {
         setError(
           formatFormDeleteError({
             message:
