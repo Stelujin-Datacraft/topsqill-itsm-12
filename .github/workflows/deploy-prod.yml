@@ -13,7 +13,6 @@ jobs:
   deploy:
     name: SSH deploy to Prod VM
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - name: Check required secrets
         env:
@@ -31,43 +30,79 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare SSH key
+        env:
+          KEY: ${{ secrets.PROD_VM_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          python3 <<'PY'
+          import os
+          from pathlib import Path
+
+          raw = os.environ.get("KEY", "")
+          if not raw.strip():
+              raise SystemExit("PROD_VM_SSH_KEY is empty")
+
+          if "\\n" in raw and "-----BEGIN" in raw and "\n-----" not in raw.replace("\r", ""):
+              raw = raw.replace("\\n", "\n")
+
+          text = raw.replace("\r\n", "\n").replace("\r", "\n").strip() + "\n"
+          if "BEGIN" not in text or "PRIVATE KEY" not in text or "END" not in text:
+              raise SystemExit(
+                  "PROD_VM_SSH_KEY does not look like a private key "
+                  "(need -----BEGIN … PRIVATE KEY-----)."
+              )
+
+          path = Path.home() / ".ssh" / "deploy_key"
+          path.write_text(text)
+          path.chmod(0o600)
+          print(f"key_ok lines={text.count(chr(10))} bytes={len(text)}")
+          PY
+
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.PROD_VM_HOST }}
-          username: ${{ secrets.PROD_VM_USER }}
-          key: ${{ secrets.PROD_VM_SSH_KEY }}
-          port: ${{ secrets.PROD_VM_SSH_PORT || 22 }}
-          script_stop: true
-          command_timeout: 30m
-          script: |
-            set -euo pipefail
-            cd /opt/topsqill/topsqill-itsm-12
-            test -f .env || { echo "ERROR: .env missing on Prod VM"; exit 1; }
-            git remote set-branches origin '*' || true
-            git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' || true
-            git fetch origin --prune
-            # Prefer main for Prod; fall back to develop only if main missing (temporary)
-            if git rev-parse --verify origin/main >/dev/null 2>&1; then
-              git checkout -B main origin/main
-              git reset --hard origin/main
-            else
-              echo "WARN: origin/main missing — deploying origin/develop"
-              git checkout -B develop origin/develop
-              git reset --hard origin/develop
+        env:
+          HOST: ${{ secrets.PROD_VM_HOST }}
+          USER: ${{ secrets.PROD_VM_USER }}
+          PORT: ${{ secrets.PROD_VM_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/deploy_key \
+            -p "$PORT" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o BatchMode=yes \
+            "${USER}@${HOST}" \
+            'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd /opt/topsqill/topsqill-itsm-12
+          test -f .env || { echo "ERROR: .env missing on Prod VM"; exit 1; }
+          git remote set-branches origin '*' || true
+          git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' || true
+          git fetch origin --prune
+          if git rev-parse --verify origin/main >/dev/null 2>&1; then
+            git checkout -B main origin/main
+            git reset --hard origin/main
+          else
+            echo "WARN: origin/main missing — deploying origin/develop"
+            git checkout -B develop origin/develop
+            git reset --hard origin/develop
+          fi
+          git clean -fd -e .env -e '.env.*'
+          docker compose build --no-cache frontend backend
+          docker compose up -d
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3001/api/health/crud >/tmp/health-crud.json; then
+              cat /tmp/health-crud.json
+              grep -q '"status":"ok"' /tmp/health-crud.json
+              exit 0
             fi
-            git clean -fd -e .env -e '.env.*'
-            docker compose build --no-cache frontend backend
-            docker compose up -d
-            for i in $(seq 1 30); do
-              if curl -sf http://127.0.0.1:3001/api/health/crud >/tmp/health-crud.json; then
-                cat /tmp/health-crud.json
-                grep -q '"status":"ok"' /tmp/health-crud.json
-                exit 0
-              fi
-              sleep 3
-            done
-            echo "Health check failed"
-            docker compose ps
-            docker compose logs backend --tail 80
-            exit 1
+            sleep 3
+          done
+          echo "Health check failed"
+          docker compose ps
+          docker compose logs backend --tail 80
+          exit 1
+          REMOTE
