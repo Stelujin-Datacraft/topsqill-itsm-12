@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { WorkflowsService } from './workflows.service';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
@@ -11,6 +11,24 @@ export class WorkflowsController {
   @Post('enqueue')
   enqueue(@Body() body: Record<string, unknown>) {
     return this.workflowsService.enqueue(body);
+  }
+
+  /** Manual retry — authenticated; service-role write after org/project authz check. */
+  @UseGuards(SupabaseAuthGuard)
+  @Post('queue/retry')
+  retryQueueItem(
+    @Body() body: { queue_id?: string; id?: string },
+    @Req() req: { user?: { id?: string } },
+  ) {
+    const userId = req.user?.id;
+    const queueId = body?.queue_id || body?.id;
+    if (!userId) {
+      return { success: false, error: 'Unauthorized' };
+    }
+    if (!queueId) {
+      return { success: false, error: 'queue_id is required' };
+    }
+    return this.workflowsService.retryQueueItem(userId, queueId);
   }
 
   @Public()
