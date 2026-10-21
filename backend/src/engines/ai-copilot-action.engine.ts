@@ -693,12 +693,14 @@ export async function aiCopilotAction(
                organization_id: organizationId,
                project_id: projectId,
                created_by: userId,
-               warning_threshold_hours: newSlaConfig.warningThresholdHours || 4,
-               breach_threshold_hours: newSlaConfig.breachThresholdHours || 8,
-               business_hours_start: newSlaConfig.businessHoursStart || '09:00',
-               business_hours_end: newSlaConfig.businessHoursEnd || '17:00',
+               // Canonical schema columns (20260205052304) — not warning_threshold_hours / business_hours_start
+               warning_hours: newSlaConfig.warningThresholdHours || newSlaConfig.warning_hours || 4,
+               breach_hours: newSlaConfig.breachThresholdHours || newSlaConfig.breach_hours || 8,
+               use_business_hours: Boolean(newSlaConfig.useBusinessHours ?? newSlaConfig.businessHoursStart),
+               business_start_time: newSlaConfig.businessHoursStart || newSlaConfig.business_start_time || '09:00:00',
+               business_end_time: newSlaConfig.businessHoursEnd || newSlaConfig.business_end_time || '17:00:00',
                business_days: newSlaConfig.businessDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-               priority_multipliers: newSlaConfig.priorityMultipliers || { low: 1.5, normal: 1.0, high: 0.5, urgent: 0.25 },
+               priority_multipliers: newSlaConfig.priorityMultipliers || { low: 1.5, medium: 1.0, high: 0.5 },
                is_active: true
              })
              .select()

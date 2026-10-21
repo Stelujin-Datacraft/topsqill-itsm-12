@@ -1,0 +1,70 @@
+# Step 2 — Deploy develop → Dev VM (manual or on push to develop).
+# Requires GitHub Actions secrets (see docs/cicd/README.md).
+# Does NOT touch Production. .env stays on the VM (never uploaded from CI).
+name: Deploy Dev
+
+on:
+  workflow_dispatch:
+  # Enable after secrets are configured and first manual deploy succeeds:
+  # push:
+  #   branches: [develop]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy to Dev VM
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Check required secrets
+        env:
+          HOST: ${{ secrets.DEV_VM_HOST }}
+          USER: ${{ secrets.DEV_VM_USER }}
+          KEY: ${{ secrets.DEV_VM_SSH_KEY }}
+        run: |
+          missing=0
+          [ -n "$HOST" ] || { echo "Missing secret DEV_VM_HOST"; missing=1; }
+          [ -n "$USER" ] || { echo "Missing secret DEV_VM_USER"; missing=1; }
+          [ -n "$KEY" ] || { echo "Missing secret DEV_VM_SSH_KEY"; missing=1; }
+          if [ "$missing" -ne 0 ]; then
+            echo "Add secrets in GitHub → Settings → Secrets and variables → Actions"
+            echo "See docs/cicd/README.md"
+            exit 1
+          fi
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEV_VM_HOST }}
+          username: ${{ secrets.DEV_VM_USER }}
+          key: ${{ secrets.DEV_VM_SSH_KEY }}
+          port: ${{ secrets.DEV_VM_SSH_PORT || 22 }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            cd /opt/topsqill/topsqill-itsm-12
+            test -f .env || { echo "ERROR: .env missing on Dev VM"; exit 1; }
+            git remote set-branches origin '*' || true
+            git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' || true
+            git fetch origin --prune
+            git checkout -B develop origin/develop
+            git reset --hard origin/develop
+            git clean -fd -e .env -e '.env.*'
+            docker compose build --no-cache frontend backend
+            docker compose up -d
+            for i in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:3001/api/health/crud >/tmp/health-crud.json; then
+                cat /tmp/health-crud.json
+                grep -q '"status":"ok"' /tmp/health-crud.json
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "Health check failed"
+            docker compose ps
+            docker compose logs backend --tail 80
+            exit 1
