@@ -17,7 +17,6 @@ jobs:
   deploy:
     name: SSH deploy to Dev VM
     runs-on: ubuntu-latest
-    environment: development
     steps:
       - name: Check required secrets
         env:
@@ -35,36 +34,79 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare SSH key
+        env:
+          KEY: ${{ secrets.DEV_VM_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          python3 <<'PY'
+          import os
+          from pathlib import Path
+
+          raw = os.environ.get("KEY", "")
+          if not raw.strip():
+              raise SystemExit("DEV_VM_SSH_KEY is empty")
+
+          # Common paste issue: secret stored as one line with literal \n
+          if "\\n" in raw and "-----BEGIN" in raw and "\n-----" not in raw.replace("\r", ""):
+              raw = raw.replace("\\n", "\n")
+
+          text = raw.replace("\r\n", "\n").replace("\r", "\n").strip() + "\n"
+          if "BEGIN" not in text or "PRIVATE KEY" not in text or "END" not in text:
+              raise SystemExit(
+                  "DEV_VM_SSH_KEY does not look like a private key "
+                  "(need -----BEGIN … PRIVATE KEY-----). "
+                  "Paste output of: cat ~/.ssh/topsqill_dev_deploy"
+              )
+          if "BEGIN OPENSSH PRIVATE KEY" not in text and "BEGIN RSA PRIVATE KEY" not in text:
+              # Still allow other PEM private key types
+              if "PRIVATE KEY" not in text:
+                  raise SystemExit("DEV_VM_SSH_KEY missing PRIVATE KEY marker")
+
+          path = Path.home() / ".ssh" / "deploy_key"
+          path.write_text(text)
+          path.chmod(0o600)
+          print(f"key_ok lines={text.count(chr(10))} bytes={len(text)}")
+          PY
+
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEV_VM_HOST }}
-          username: ${{ secrets.DEV_VM_USER }}
-          key: ${{ secrets.DEV_VM_SSH_KEY }}
-          port: ${{ secrets.DEV_VM_SSH_PORT || 22 }}
-          script_stop: true
-          command_timeout: 30m
-          script: |
-            set -euo pipefail
-            cd /opt/topsqill/topsqill-itsm-12
-            test -f .env || { echo "ERROR: .env missing on Dev VM"; exit 1; }
-            git remote set-branches origin '*' || true
-            git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' || true
-            git fetch origin --prune
-            git checkout -B develop origin/develop
-            git reset --hard origin/develop
-            git clean -fd -e .env -e '.env.*'
-            docker compose build --no-cache frontend backend
-            docker compose up -d
-            for i in $(seq 1 30); do
-              if curl -sf http://127.0.0.1:3001/api/health/crud >/tmp/health-crud.json; then
-                cat /tmp/health-crud.json
-                grep -q '"status":"ok"' /tmp/health-crud.json
-                exit 0
-              fi
-              sleep 3
-            done
-            echo "Health check failed"
-            docker compose ps
-            docker compose logs backend --tail 80
-            exit 1
+        env:
+          HOST: ${{ secrets.DEV_VM_HOST }}
+          USER: ${{ secrets.DEV_VM_USER }}
+          PORT: ${{ secrets.DEV_VM_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/deploy_key \
+            -p "$PORT" \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            -o BatchMode=yes \
+            "${USER}@${HOST}" \
+            'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd /opt/topsqill/topsqill-itsm-12
+          test -f .env || { echo "ERROR: .env missing on Dev VM"; exit 1; }
+          git remote set-branches origin '*' || true
+          git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' || true
+          git fetch origin --prune
+          git checkout -B develop origin/develop
+          git reset --hard origin/develop
+          git clean -fd -e .env -e '.env.*'
+          docker compose build --no-cache frontend backend
+          docker compose up -d
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3001/api/health/crud >/tmp/health-crud.json; then
+              cat /tmp/health-crud.json
+              grep -q '"status":"ok"' /tmp/health-crud.json
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Health check failed"
+          docker compose ps
+          docker compose logs backend --tail 80
+          exit 1
+          REMOTE
