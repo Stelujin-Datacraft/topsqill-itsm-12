@@ -63,9 +63,10 @@ Environment: **`production`**.
 
 Deploys `origin/main` (falls back to `develop` only if main missing).
 
-### Step 4 — Auto-deploy (optional later)
+### Step 4 — Auto-deploy Dev (enabled)
 
-Uncomment `push: branches: [develop]` in `deploy-dev.yml` after manual deploys are reliable.
+`deploy-dev.yml` runs on every push to `develop` and via **Run workflow**.  
+Prod stays manual (`workflow_dispatch` only).
 
 ## Rules we keep
 
