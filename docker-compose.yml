@@ -1,32 +1,49 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # Loads /opt/topsqill/topsqill-itsm-12/.env for ${VAR} substitution and container env.
+    env_file:
+      - .env
     ports:
       - "3001:3001"
     environment:
       - PORT=3001
+      # Runtime packaging (keep production for container realism).
       - NODE_ENV=production
-      - CORS_ORIGIN=http://localhost:8080
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_ANON_KEY=${SUPABASE_PUBLISHABLE_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # Deployment identity: development (Dev) | production (Prod). Required for ITAM/VIS gates.
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:8080}
+      - SUPABASE_URL=${SUPABASE_URL:?Set SUPABASE_URL in .env}
+      - SUPABASE_ANON_KEY=${SUPABASE_PUBLISHABLE_KEY:?Set SUPABASE_PUBLISHABLE_KEY (anon) in .env}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:?Set SUPABASE_SERVICE_ROLE_KEY in .env}
+      - VIS_PERSISTENCE=supabase
+      # Optional — blank is OK if ITAM discovery DB URI is unused on this VM.
+      - ITAM_DISCOVERY_DATABASE_URL=${ITAM_DISCOVERY_DATABASE_URL:-}
+      - ITAM_DISCOVERY_PERSISTENCE=${ITAM_DISCOVERY_PERSISTENCE:-postgres}
+      # Default off: apply supabase/migrations/2026093012* manually; do not auto-DDL.
+      - ITAM_DISCOVERY_APPLY_SCHEMA=${ITAM_DISCOVERY_APPLY_SCHEMA:-0}
+      - AI_PROVIDER=${AI_PROVIDER:-lovable}
       - LOVABLE_API_KEY=${LOVABLE_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-}
     restart: unless-stopped
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        # Vite inlines these at build time (public values only — never service role).
+        # Use same-origin /api so the nginx proxy reaches Nest on both Dev and Prod VMs.
+        # MUST rebuild frontend after changing SUPABASE_URL / PUBLISHABLE_KEY in .env.
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_USE_BACKEND_API: ${VITE_USE_BACKEND_API:-true}
+        VITE_SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in .env before building frontend}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Set SUPABASE_PUBLISHABLE_KEY in .env before building frontend}
     ports:
       - "8080:8080"
-    environment:
-      - VITE_API_URL=http://localhost:3001/api
-      - VITE_USE_BACKEND_API=true
-      - VITE_SUPABASE_URL=${SUPABASE_URL}
-      - VITE_SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY}
     depends_on:
       - backend
+    restart: unless-stopped

@@ -3,6 +3,7 @@ import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { logFormAuditEvent, describeFormChanges } from '@/utils/formAuditLogger';
 import { ensureSystemStatusField } from '@/lib/systemStatusField';
+import { formatFormDeleteError } from '@/lib/formDeleteCleanup';
 
 export function useFormMutations() {
   const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>, userProfile: any) => {
@@ -48,10 +49,10 @@ export function useFormMutations() {
             description: "You don't have permission to create forms.",
             variant: "destructive",
           });
-        } else if (error.message?.includes('row-level security')) {
+        } else if (error.message?.includes('row-level security') || error.message?.includes('No rows were inserted')) {
           toast({
             title: "Security policy violation",
-            description: "Form creation blocked by security policy.",
+            description: "Form creation blocked by security policy. On Dev, confirm RLS helpers/policies from docs/dev-schema-repair are applied.",
             variant: "destructive",
           });
         } else {
@@ -197,20 +198,27 @@ export function useFormMutations() {
     }
 
     try {
-      const { error } = await supabase
-        .from('forms')
-        .delete()
-        .eq('id', id);
+      // Authorized SECURITY DEFINER RPC (checks can_modify_form, deletes children + form).
+      // Avoids empty DELETE...RETURNING under overlapping RLS.
+      const { data, error } = await supabase.rpc('delete_form_authorized', {
+        _form_id: id,
+      });
 
       if (error) {
         console.error('useFormMutations: Error deleting form:', error);
         throw error;
       }
+
+      if (!data) {
+        throw new Error(
+          'No rows were deleted. The record may be missing, already removed, or blocked by row-level security.',
+        );
+      }
     } catch (error) {
       console.error('useFormMutations: Error deleting form:', error);
       toast({
         title: "Error deleting form",
-        description: "Failed to delete the form. Please try again.",
+        description: formatFormDeleteError(error),
         variant: "destructive",
       });
       throw error;

@@ -191,6 +191,7 @@ export function useFormAI() {
     setError(null);
 
     try {
+      // Nest `/api/ai/assistant` via apiClient (OpenRouter). No Edge/Lovable fallback.
       const { data, error: fnError } = await supabase.functions.invoke('ai-assistant', {
         body: { action, context }
       });

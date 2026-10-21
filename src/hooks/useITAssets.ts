@@ -165,8 +165,14 @@ export function useITAssets() {
 
   const deleteAsset = async (id: string) => {
     try {
-      const { error } = await supabase.from('it_assets').delete().eq('id', id);
+      const { data, error } = await supabase.from('it_assets').delete().eq('id', id);
       if (error) throw error;
+      const deletedRows = Array.isArray(data) ? data : data ? [data] : [];
+      if (deletedRows.length === 0) {
+        throw new Error(
+          'No rows were deleted. The asset may be missing or blocked by security policy.',
+        );
+      }
       toast({ title: 'Asset deleted' });
       await loadAssets();
     } catch (e: any) {

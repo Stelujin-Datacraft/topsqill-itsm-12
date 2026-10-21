@@ -2,7 +2,21 @@
  * Unified backend client — use this for all database and API operations.
  * Auth, Realtime, and Storage still use Supabase directly via rawClient.
  */
-export { api, getApiBaseUrl, getPublicApiUrl, getFormApiUrl, getPolicyPreviewUrl, request, clearAuthTokenCache } from './apiClient';
+export {
+  api,
+  getApiBaseUrl,
+  getPublicApiUrl,
+  getFormApiUrl,
+  getPolicyPreviewUrl,
+  request,
+  clearAuthTokenCache,
+  seedAuthTokenCache,
+} from './apiClient';
+export {
+  isNestOnlyAiFunction,
+  mapNestAiInvokeResult,
+  NEST_ONLY_AI_FUNCTIONS,
+} from './aiNestInvoke';
 export { db, paginatedRange } from './databaseClient';
 
 import { rawSupabase } from '@/integrations/supabase/rawClient';

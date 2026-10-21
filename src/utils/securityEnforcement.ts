@@ -1,6 +1,8 @@
 // Security enforcement utilities
 
 import { backend as supabase } from '@/services/api';
+import { rawSupabase } from '@/integrations/supabase/rawClient';
+import { mustUseRawSupabaseForPreAuthProfileLookup } from '@/utils/authProjectLoadGate';
 
 export interface SecurityCheckResult {
   allowed: boolean;
@@ -12,12 +14,23 @@ export interface SecurityCheckResult {
 }
 
 /**
+ * Pre-login DB access must use raw Supabase (anon + RLS), never Nest `/api/database/*`.
+ * Nest requires Authorization; there is no session yet during lockout checks.
+ */
+function preAuthDb() {
+  return rawSupabase;
+}
+
+/**
  * Check if user account is locked
  */
 export async function checkAccountLockout(email: string): Promise<SecurityCheckResult> {
   try {
+    // Pre-auth: no session → Nest would return "No authorization header".
+    const db = mustUseRawSupabaseForPreAuthProfileLookup(false) ? preAuthDb() : supabase;
+
     // First get the user ID from email
-    const { data: profile } = await supabase
+    const { data: profile } = await db
       .from('user_profiles')
       .select('id')
       .eq('email', email)
@@ -28,7 +41,7 @@ export async function checkAccountLockout(email: string): Promise<SecurityCheckR
     }
 
     // Get security parameters
-    const { data: securityParams } = await supabase
+    const { data: securityParams } = await db
       .from('user_security_parameters')
       .select('account_locked_until, failed_login_count, max_failed_login_attempts')
       .eq('user_id', profile.id)
@@ -67,7 +80,10 @@ export async function checkAccountLockout(email: string): Promise<SecurityCheckR
  */
 export async function recordFailedLogin(email: string): Promise<void> {
   try {
-    const { data: profile } = await supabase
+    // Still pre-auth (failed password) — do not call Nest without a bearer.
+    const db = mustUseRawSupabaseForPreAuthProfileLookup(false) ? preAuthDb() : supabase;
+
+    const { data: profile } = await db
       .from('user_profiles')
       .select('id, organization_id')
       .eq('email', email)
@@ -76,7 +92,7 @@ export async function recordFailedLogin(email: string): Promise<void> {
     if (!profile) return;
 
     // Get or create security parameters
-    let { data: securityParams } = await supabase
+    let { data: securityParams } = await db
       .from('user_security_parameters')
       .select('id, failed_login_count, max_failed_login_attempts, lockout_duration_minutes')
       .eq('user_id', profile.id)
@@ -84,7 +100,7 @@ export async function recordFailedLogin(email: string): Promise<void> {
 
     if (!securityParams) {
       // Create default security parameters
-      const { data: newParams } = await supabase
+      const { data: newParams } = await db
         .from('user_security_parameters')
         .insert({
           user_id: profile.id,
@@ -108,7 +124,7 @@ export async function recordFailedLogin(email: string): Promise<void> {
       accountLockedUntil = new Date(Date.now() + lockoutDuration * 60 * 1000).toISOString();
     }
 
-    await supabase
+    await db
       .from('user_security_parameters')
       .update({
         failed_login_count: newFailedCount,
