@@ -87,10 +87,12 @@ function makeCapturingClient(opts: {
   };
 }
 
+const AUTH = 'Bearer test-user-jwt';
+
 function makeService(client: unknown) {
   const supabaseService = {
     getServiceClient: () => client,
-    getClientForUser: () => client,
+    getClientForUser: (_auth?: string) => client,
   };
   return new DatabaseService(supabaseService as any);
 }
@@ -120,7 +122,7 @@ async function main() {
       data: { name: 'updated' },
       filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: 'row-1' }],
       returning: 'id,name',
-    });
+    }, AUTH);
     assert.deepEqual(result, { data: [{ id: 'row-1', name: 'updated' }], error: null });
     const patch = calls.find((c) => c.method === 'PATCH');
     assert.ok(patch, 'PATCH issued');
@@ -139,12 +141,45 @@ async function main() {
     const result = await svc.delete({
       table: 'forms',
       filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: 'row-2' }],
-    });
+    }, AUTH);
     assert.deepEqual(result, { data: [{ id: 'row-2' }], error: null });
     const del = calls.find((c) => c.method === 'DELETE');
     assert.ok(del, 'DELETE issued');
     assert.doesNotMatch(del!.url, /[?&]limit=/, 'DELETE must not include limit');
     console.log('  ✓ delete success with filters; no limit on DELETE');
+  }
+
+  // ── Reject missing user JWT on mutations ────────────────────────────────
+  {
+    const { UnauthorizedException } = await import('@nestjs/common');
+    const { client } = makeCapturingClient({ count: 0 });
+    const svc = makeService(client);
+    for (const label of ['insert', 'update', 'delete', 'upsert'] as const) {
+      let blocked = false;
+      try {
+        if (label === 'insert') {
+          await svc.insert({ table: 'forms', data: { name: 'x' } });
+        } else if (label === 'update') {
+          await svc.update({
+            table: 'forms',
+            data: { name: 'x' },
+            filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: '1' }],
+          });
+        } else if (label === 'delete') {
+          await svc.delete({
+            table: 'forms',
+            filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: '1' }],
+          });
+        } else {
+          await svc.upsert({ table: 'forms', data: { name: 'x' } });
+        }
+      } catch (e) {
+        blocked =
+          e instanceof UnauthorizedException && /No authorization header/i.test(e.message);
+      }
+      assert.equal(blocked, true, `${label} without Authorization must 401`);
+    }
+    console.log('  ✓ insert/update/delete/upsert require user JWT');
   }
 
   // ── Reject missing filters ──────────────────────────────────────────────
@@ -153,7 +188,7 @@ async function main() {
     const svc = makeService(client);
     let blocked = false;
     try {
-      await svc.update({ table: 'forms', data: { name: 'x' }, filters: [] });
+      await svc.update({ table: 'forms', data: { name: 'x' }, filters: [] }, AUTH);
     } catch (e) {
       blocked = e instanceof BadRequestException && /Filters are required/i.test(e.message);
     }
@@ -165,7 +200,7 @@ async function main() {
     const svc = makeService(client);
     let blocked = false;
     try {
-      await svc.delete({ table: 'forms', filters: [] });
+      await svc.delete({ table: 'forms', filters: [] }, AUTH);
     } catch (e) {
       blocked = e instanceof BadRequestException && /Filters are required/i.test(e.message);
     }
@@ -183,7 +218,7 @@ async function main() {
         table: 'forms',
         data: { status: 'x' },
         filters: [{ kind: 'filter', column: 'organization_id', operator: 'eq', value: 'org-1' }],
-      });
+      }, AUTH);
     } catch (e) {
       blocked =
         e instanceof BadRequestException &&
@@ -201,7 +236,7 @@ async function main() {
       await svc.delete({
         table: 'forms',
         filters: [{ kind: 'filter', column: 'organization_id', operator: 'eq', value: 'org-1' }],
-      });
+      }, AUTH);
     } catch (e) {
       blocked =
         e instanceof BadRequestException &&
@@ -225,7 +260,7 @@ async function main() {
         table: 'forms',
         data: { name: 'x' },
         filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: '1' }],
-      });
+      }, AUTH);
     } catch (e) {
       blocked = e instanceof BadRequestException && /RLS blocked/i.test(e.message);
     }
@@ -243,7 +278,7 @@ async function main() {
       await svc.delete({
         table: 'forms',
         filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: '1' }],
-      });
+      }, AUTH);
     } catch (e) {
       blocked = e instanceof BadRequestException && /permission denied/i.test(e.message);
     }
@@ -262,7 +297,7 @@ async function main() {
       table: 'forms',
       data: { name: 'bulk' },
       filters: [{ kind: 'filter', column: 'organization_id', operator: 'eq', value: 'org-1' }],
-    });
+    }, AUTH);
     assert.equal(result.error, null);
     assert.equal(calls.some((c) => c.method === 'PATCH'), true);
     console.log(`  ✓ update with exactly ${MAX_MUTATION_ROWS} rows allowed`);
@@ -280,7 +315,7 @@ async function main() {
       await svc.delete({
         table: 'forms',
         filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: 'missing' }],
-      });
+      }, AUTH);
     } catch (e) {
       blocked =
         e instanceof BadRequestException && /No rows were deleted/i.test(e.message);
@@ -300,7 +335,7 @@ async function main() {
         table: 'forms',
         data: { name: 'x' },
         filters: [{ kind: 'filter', column: 'id', operator: 'eq', value: 'missing' }],
-      });
+      }, AUTH);
     } catch (e) {
       blocked =
         e instanceof BadRequestException && /No rows were updated/i.test(e.message);

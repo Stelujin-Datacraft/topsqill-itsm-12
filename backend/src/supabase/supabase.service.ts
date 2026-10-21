@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
+import {
+  isMisconfiguredServiceRoleKey,
+  misconfiguredServiceRoleMessage,
+  parseSupabaseApiKeyRole,
+} from './supabase-key-role';
 
 interface CacheEntry<T> {
   value: T;
@@ -14,6 +19,9 @@ export class SupabaseService {
   private readonly anonClient: SupabaseClient;
   private readonly supabaseUrl: string;
   private readonly anonKey: string;
+  /** False when SUPABASE_SERVICE_ROLE_KEY JWT role is not service_role. */
+  private readonly serviceRoleKeyValid: boolean;
+  private readonly serviceRoleKeyRole: string | null;
 
   private readonly userClientCache = new Map<string, CacheEntry<SupabaseClient>>();
   private readonly userTokenCache = new Map<string, CacheEntry<User>>();
@@ -26,20 +34,32 @@ export class SupabaseService {
   constructor(private readonly configService: ConfigService) {
     this.supabaseUrl = this.configService.getOrThrow<string>('SUPABASE_URL');
     const serviceKey = this.configService.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
-    this.anonKey = this.configService.get<string>('SUPABASE_ANON_KEY', serviceKey);
+    const configuredAnon = this.configService.get<string>('SUPABASE_ANON_KEY');
+    // Never fall back to a mislabeled service key for the anon/apikey slot used with user JWTs.
+    this.anonKey = configuredAnon?.trim() || serviceKey;
 
-    // Fail-closed warning: Form API writes require a true service_role JWT.
-    // Do not bypass RLS; operators must supply the correct key.
-    try {
-      const payload = JSON.parse(Buffer.from(serviceKey.split('.')[1], 'base64url').toString('utf8'));
-      if (payload?.role && payload.role !== 'service_role') {
-        console.warn(
-          `[SupabaseService] SUPABASE_SERVICE_ROLE_KEY JWT role is "${payload.role}" (expected service_role). `
-            + 'TopSqill Form API writes will be subject to RLS and likely fail. Environment is READ_ONLY_TEST until corrected.',
-        );
+    const parsed = parseSupabaseApiKeyRole(serviceKey);
+    this.serviceRoleKeyRole = parsed.role;
+    this.serviceRoleKeyValid = !isMisconfiguredServiceRoleKey(serviceKey);
+
+    if (isMisconfiguredServiceRoleKey(serviceKey)) {
+      const msg = misconfiguredServiceRoleMessage(parsed.role || 'unknown');
+      console.error(`[SupabaseService] ${msg}`);
+      // Deployed Dev/Prod VMs: fail closed so operators fix credentials instead of
+      // silently running with anon. Local placeholders (non-JWT) skip this throw.
+      const environment = (
+        this.configService.get<string>('ENVIRONMENT')
+        || this.configService.get<string>('NODE_ENV')
+        || ''
+      ).toLowerCase();
+      if (environment === 'development' || environment === 'production') {
+        throw new Error(`[SupabaseService] ${msg}`);
       }
-    } catch {
-      /* non-JWT keys left as-is */
+    } else if (!configuredAnon?.trim()) {
+      console.warn(
+        '[SupabaseService] SUPABASE_ANON_KEY is unset; user-scoped clients fall back to SUPABASE_SERVICE_ROLE_KEY. '
+          + 'Set SUPABASE_ANON_KEY (publishable) on Dev and Prod VMs.',
+      );
     }
 
     this.serviceClient = createClient(this.supabaseUrl, serviceKey, {
@@ -51,7 +71,21 @@ export class SupabaseService {
     });
   }
 
+  /** Whether SUPABASE_SERVICE_ROLE_KEY decoded as role=service_role (or was non-JWT). */
+  isServiceRoleKeyValid(): boolean {
+    return this.serviceRoleKeyValid;
+  }
+
+  getServiceRoleKeyRole(): string | null {
+    return this.serviceRoleKeyRole;
+  }
+
   getServiceClient(): SupabaseClient {
+    if (!this.serviceRoleKeyValid) {
+      throw new Error(
+        misconfiguredServiceRoleMessage(this.serviceRoleKeyRole || 'unknown'),
+      );
+    }
     return this.serviceClient;
   }
 
@@ -64,14 +98,15 @@ export class SupabaseService {
   }
 
   /**
-   * User-scoped PostgREST client. Callers that must enforce RLS (e.g. database inserts)
-   * must pass a Bearer access token — do not call this without auth and expect service role.
+   * User-scoped PostgREST client. Interactive CRUD must pass a Bearer access token
+   * so RLS sees auth.uid(). Do not call without auth and expect service role.
    */
   getClientForUser(authHeader?: string): SupabaseClient {
     if (!authHeader) {
-      // Prefer failing closed for RLS-sensitive paths; DatabaseService.insert requires auth.
-      // Legacy callers without a header still receive the service client.
-      return this.serviceClient;
+      throw new Error(
+        'getClientForUser requires an Authorization bearer (user JWT). '
+          + 'Interactive CRUD must not fall back to the service-role client.',
+      );
     }
 
     const cacheKey = this.hashKey(authHeader);

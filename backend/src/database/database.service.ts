@@ -241,9 +241,11 @@ export class DatabaseService {
       // Never fall back to service-role for user mutations (would bypass or mis-apply RLS).
       return this.supabaseService.getClientForUser(authHeader);
     }
-    return authHeader
-      ? this.supabaseService.getClientForUser(authHeader)
-      : this.supabaseService.getServiceClient();
+    if (authHeader) {
+      return this.supabaseService.getClientForUser(authHeader);
+    }
+    // Reads/RPCs without a user token: service client (background / health only).
+    return this.supabaseService.getServiceClient();
   }
 
   private async chunkInsert(
@@ -357,7 +359,8 @@ export class DatabaseService {
 
   async upsert(dto: DatabaseUpsertDto, authHeader?: string) {
     this.validateTable(dto.table);
-    const client = this.getClient(authHeader);
+    // User JWT required — same RLS identity rules as insert/update/delete.
+    const client = this.getClient(authHeader, { requireUser: true });
     const select = dto.returning || '*';
     const rows = Array.isArray(dto.data) ? dto.data : [dto.data];
 
@@ -383,13 +386,15 @@ export class DatabaseService {
       .select(select);
 
     if (error) throw new BadRequestException(error.message);
+    this.assertMutationAffectedRows(data, 'insert', dto.table, rows.length);
     return { data, error: null };
   }
 
   async update(dto: DatabaseUpdateDto, authHeader?: string) {
     this.validateTable(dto.table);
     this.requireFilters(dto.filters, 'update');
-    const client = this.getClient(authHeader);
+    // User JWT required on Dev and Prod VMs so RLS sees auth.uid().
+    const client = this.getClient(authHeader, { requireUser: true });
     await this.assertMutationWithinRowLimit(client, dto.table, dto.filters, 'Update');
 
     let query = client.from(dto.table).update(dto.data);
@@ -408,7 +413,8 @@ export class DatabaseService {
   async delete(dto: DatabaseDeleteDto, authHeader?: string) {
     this.validateTable(dto.table);
     this.requireFilters(dto.filters, 'delete');
-    const client = this.getClient(authHeader);
+    // User JWT required on Dev and Prod VMs so RLS sees auth.uid().
+    const client = this.getClient(authHeader, { requireUser: true });
     await this.assertMutationWithinRowLimit(client, dto.table, dto.filters, 'Delete');
 
     let query = client.from(dto.table).delete();

@@ -3,6 +3,9 @@
 **Branch:** `cursor/fix-dev-crud-create-delete-e654` (off `develop`)  
 **Prod:** untouched. **Live SQL apply:** not run from this agent.
 
+**VM / app-path fix (Dev + Prod):** see `VM_CRUD_ENV_FIX.md` — user JWT required on Nest
+mutations; Nest refuses boot when `SUPABASE_SERVICE_ROLE_KEY` is the anon JWT.
+
 ## Root causes (verified from code + prior Dev inventory)
 
 | # | Cause | Evidence | Fix type |
