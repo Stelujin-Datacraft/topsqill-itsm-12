@@ -14,9 +14,25 @@ be changed from the agent without your access.
 
 ---
 
-## A. Dev Supabase (SQL Editor) — apply in order
+## A. Dev Supabase — choose one path
 
-Paste and run **one file at a time** from `origin/develop` (or this repo):
+### Path A1 (recommended if you are rebuilding Dev like Prod)
+
+Bring **Dev schema + RLS + functions** in line with **Prod** (schema only — do not
+copy Prod tenant data unless you intend to). After that:
+
+1. Run the verification SQL below — expect **no** module `*_migration_deny` rows
+   (except intentional `projects_migration_deny` if you keep it).
+2. Confirm helpers exist (`get_current_user_organization_id`,
+   `user_has_any_role_assignment`, `get_organization_users`, …).
+3. You can **skip** Dev repairs `01–10` if verification is clean.
+4. Still do **section B** (VM env + PR #234 deploy) — schema parity alone does not
+   fix a mis-set `SUPABASE_SERVICE_ROLE_KEY` or stale Nest build.
+
+### Path A2 — apply repair migrations in order
+
+Use this if you are **not** doing a full Prod→Dev schema align. Paste and run
+**one file at a time** from `origin/develop` (or this repo):
 
 | # | File |
 |---|------|
