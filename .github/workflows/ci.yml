@@ -1,0 +1,73 @@
+# Step 1 — CI only (no deploy, no secrets required).
+# Runs on PRs and pushes to develop/main.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend build + unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests (database / auth / ITAM guards)
+        run: |
+          npm run test:database
+          npx tsx test/database/forms-delete-rls-align.test.ts
+          npx tsx test/database/forms-delete-rpc.test.ts
+          npx tsx test/supabase/supabase-key-role.test.ts
+          npx tsx test/supabase/get-user-from-token.test.ts
+          npx tsx test/health/health-crud.test.ts
+          ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-persistence-config.test.ts
+          ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-schema-guard.test.ts
+          ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.rls-policy-security.test.ts
+          npm run test:promotion
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        env:
+          # Placeholder public values — CI only validates the Vite build compiles.
+          # Real Dev/Prod keys are baked on the VMs at docker compose build time.
+          VITE_API_URL: /api
+          VITE_USE_BACKEND_API: 'true'
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder
+        run: npm run build

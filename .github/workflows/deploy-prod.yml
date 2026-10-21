@@ -1,0 +1,73 @@
+# Step 3 — Deploy main → Prod VM (manual only).
+# Requires PROD_* secrets. Never auto-deploy on push until you explicitly enable it.
+name: Deploy Prod
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy to Prod VM
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check required secrets
+        env:
+          HOST: ${{ secrets.PROD_VM_HOST }}
+          USER: ${{ secrets.PROD_VM_USER }}
+          KEY: ${{ secrets.PROD_VM_SSH_KEY }}
+        run: |
+          missing=0
+          [ -n "$HOST" ] || { echo "Missing secret PROD_VM_HOST"; missing=1; }
+          [ -n "$USER" ] || { echo "Missing secret PROD_VM_USER"; missing=1; }
+          [ -n "$KEY" ] || { echo "Missing secret PROD_VM_SSH_KEY"; missing=1; }
+          if [ "$missing" -ne 0 ]; then
+            echo "Add secrets in GitHub → Settings → Secrets and variables → Actions"
+            echo "See docs/cicd/README.md"
+            exit 1
+          fi
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_VM_HOST }}
+          username: ${{ secrets.PROD_VM_USER }}
+          key: ${{ secrets.PROD_VM_SSH_KEY }}
+          port: ${{ secrets.PROD_VM_SSH_PORT || 22 }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            cd /opt/topsqill/topsqill-itsm-12
+            test -f .env || { echo "ERROR: .env missing on Prod VM"; exit 1; }
+            git remote set-branches origin '*' || true
+            git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' || true
+            git fetch origin --prune
+            # Prefer main for Prod; fall back to develop only if main missing (temporary)
+            if git rev-parse --verify origin/main >/dev/null 2>&1; then
+              git checkout -B main origin/main
+              git reset --hard origin/main
+            else
+              echo "WARN: origin/main missing — deploying origin/develop"
+              git checkout -B develop origin/develop
+              git reset --hard origin/develop
+            fi
+            git clean -fd -e .env -e '.env.*'
+            docker compose build --no-cache frontend backend
+            docker compose up -d
+            for i in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:3001/api/health/crud >/tmp/health-crud.json; then
+                cat /tmp/health-crud.json
+                grep -q '"status":"ok"' /tmp/health-crud.json
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "Health check failed"
+            docker compose ps
+            docker compose logs backend --tail 80
+            exit 1
