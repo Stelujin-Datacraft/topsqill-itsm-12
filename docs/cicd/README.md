@@ -32,10 +32,16 @@ Add GitHub secrets:
 |--------|---------|
 | `DEV_VM_HOST` | Dev VM public IP or DNS |
 | `DEV_VM_USER` | `contact` |
-| `DEV_VM_SSH_KEY` | Private key PEM (full file) |
+| `DEV_VM_SSH_KEY` | Private key file (full `BEGIN`…`END` block) |
 | `DEV_VM_SSH_PORT` | optional, default `22` |
 
-Also create GitHub Environment **`development`** (Settings → Environments) if prompted.
+**Paste tip (Mac):** copy the private key without corrupting newlines:
+
+```bash
+pbcopy < ~/.ssh/topsqill_dev_deploy
+```
+
+Then in GitHub → update secret `DEV_VM_SSH_KEY` → paste (Cmd+V). Do not wrap in quotes.
 
 On the Dev VM, ensure `contact` (or your user) can:
 
@@ -46,7 +52,7 @@ cd /opt/topsqill/topsqill-itsm-12 && docker compose ps
 
 SSH key: generate a deploy key, add **public** key to `~/.ssh/authorized_keys` on the VM, put **private** key in `DEV_VM_SSH_KEY`.
 
-After secrets exist: Actions → **Deploy Dev** → Run workflow.
+After secrets exist: Actions → **Deploy Dev** → Run workflow (branch `main`).
 
 ### Step 3 — Deploy Prod (manual only)
 
