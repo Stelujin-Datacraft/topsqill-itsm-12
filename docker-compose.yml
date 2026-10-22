@@ -28,6 +28,14 @@ services:
       - LOVABLE_API_KEY=${LOVABLE_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-}
+      # Promotional Transfer (Dev deployment only — dual-DB target is Prod Supabase)
+      - PROMOTIONAL_TRANSFER_ENABLED=${PROMOTIONAL_TRANSFER_ENABLED:-}
+      - PROMOTION_SOURCE_KEY=${PROMOTION_SOURCE_KEY:-TopsqillITSM_Dev}
+      - PROMOTION_TARGET_KEY=${PROMOTION_TARGET_KEY:-TopsqillITSM_Prod}
+      - PROMOTION_PROD_SUPABASE_URL=${PROMOTION_PROD_SUPABASE_URL:-}
+      - PROMOTION_PROD_SUPABASE_SERVICE_ROLE_KEY=${PROMOTION_PROD_SUPABASE_SERVICE_ROLE_KEY:-}
+      - PROMOTION_PROD_ORG_ID=${PROMOTION_PROD_ORG_ID:-}
+      - PROMOTION_PROD_PROJECT_MAP=${PROMOTION_PROD_PROJECT_MAP:-{}}
     restart: unless-stopped
 
   frontend:
@@ -42,6 +50,9 @@ services:
         VITE_USE_BACKEND_API: ${VITE_USE_BACKEND_API:-true}
         VITE_SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in .env before building frontend}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Set SUPABASE_PUBLISHABLE_KEY in .env before building frontend}
+        # Bake deployment identity so Dev shows Promotional Transfer; Prod hides it.
+        VITE_ENVIRONMENT: ${ENVIRONMENT:-production}
+        VITE_PROMOTIONAL_TRANSFER_ENABLED: ${VITE_PROMOTIONAL_TRANSFER_ENABLED:-}
     ports:
       - "8080:8080"
     depends_on:

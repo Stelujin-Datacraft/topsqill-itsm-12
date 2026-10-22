@@ -70,4 +70,5 @@ jobs:
           VITE_USE_BACKEND_API: 'true'
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder
+          VITE_ENVIRONMENT: development
         run: npm run build
