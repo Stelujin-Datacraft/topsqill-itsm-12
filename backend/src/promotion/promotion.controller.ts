@@ -84,12 +84,14 @@ export class PromotionController {
   objects(
     @Req() req: AuthedRequest,
     @Query('module') module?: string,
+    @Query('modules') modules?: string,
     @Query('objectType') objectType?: string,
     @Query('projectId') projectId?: string,
     @Query('organizationId') organizationId?: string,
   ) {
     return this.promotionService.listObjects(this.userId(req), {
       module,
+      modules,
       objectType,
       projectId,
       organizationId,
@@ -109,7 +111,8 @@ export class PromotionController {
     @Body()
     body: {
       name: string;
-      module: string;
+      module?: string;
+      modules?: string[];
       projectId?: string;
       organizationId?: string;
       notes?: string;

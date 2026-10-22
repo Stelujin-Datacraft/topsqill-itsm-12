@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.promotion_packages (
   source_environment TEXT NOT NULL DEFAULT 'TopsqillITSM_Dev',
   target_environment TEXT NOT NULL DEFAULT 'TopsqillITSM_Prod',
   module TEXT NOT NULL,
+  modules JSONB NOT NULL DEFAULT '[]'::jsonb,
   status TEXT NOT NULL DEFAULT 'Draft',
   organization_id UUID,
   project_id UUID,
