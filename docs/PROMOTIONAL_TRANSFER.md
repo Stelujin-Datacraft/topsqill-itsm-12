@@ -221,3 +221,5 @@ PROMOTION_PROD_PROJECT_MAP={"dev-uuid":"prod-uuid"}
 ```
 
 When Prod URL is unset, transfer writes to `promotion_target_snapshots` (logical Prod) so the module is fully exercisable in single-DB Dev deployments.
+
+**Ops (Step 1 dual-DB):** see [`docs/PROMOTIONAL_TRANSFER_STEP1_DUAL_DB.md`](./PROMOTIONAL_TRANSFER_STEP1_DUAL_DB.md).

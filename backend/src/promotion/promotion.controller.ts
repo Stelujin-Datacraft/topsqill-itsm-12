@@ -39,6 +39,10 @@ export class PromotionController {
   @Get('availability')
   availability() {
     const state = getPromotionAccessState(process.env);
+    const dualDbConfigured = !!(
+      process.env.PROMOTION_PROD_SUPABASE_URL?.trim() &&
+      process.env.PROMOTION_PROD_SUPABASE_SERVICE_ROLE_KEY?.trim()
+    );
     return {
       enabled: state.enabled && state.environment === 'development',
       environment: state.environment,
@@ -46,6 +50,8 @@ export class PromotionController {
       source: state.sourceKey,
       target: state.targetKey,
       direction: 'Dev → Prod',
+      dualDbConfigured,
+      transferMode: dualDbConfigured ? 'dual_supabase' : 'logical_snapshot',
     };
   }
 
