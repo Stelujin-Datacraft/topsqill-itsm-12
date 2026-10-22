@@ -23,6 +23,7 @@ import type {
 import { getHandler, listHandlers } from './handlers';
 import { PROMOTION_SCHEMA_SQL } from './schema.sql';
 import { assertPromotionalTransferAllowed } from './promotion-access';
+import { normalizePackageModules, parseModulesQuery } from './package-modules';
 
 function makePromotionId(): string {
   const d = new Date();
@@ -178,7 +179,13 @@ export class PromotionService {
 
   async listObjects(
     userId: string,
-    query: { module?: string; objectType?: string; projectId?: string; organizationId?: string },
+    query: {
+      module?: string;
+      modules?: string;
+      objectType?: string;
+      projectId?: string;
+      organizationId?: string;
+    },
   ) {
     await this.assertAdmin(userId);
     const source = this.environments.getSourceClient();
@@ -192,8 +199,17 @@ export class PromotionService {
         throw new BadRequestException(`Object type "${query.objectType}" is not promotable`);
       }
       types = [query.objectType as PromotableObjectType];
-    } else if (query.module) {
-      types = PROMOTABLE_REGISTRY.filter((e) => e.module === query.module).map((e) => e.objectType);
+    } else {
+      let moduleFilter: ReturnType<typeof parseModulesQuery> = null;
+      try {
+        moduleFilter = parseModulesQuery(query.module, query.modules);
+      } catch (e: any) {
+        throw new BadRequestException(e?.message || 'Invalid module filter');
+      }
+      if (moduleFilter?.length) {
+        const allowed = new Set(moduleFilter);
+        types = PROMOTABLE_REGISTRY.filter((e) => allowed.has(e.module)).map((e) => e.objectType);
+      }
     }
 
     const results = [];
@@ -315,17 +331,26 @@ export class PromotionService {
 
   async createPackage(
     userId: string,
-    body: { name: string; module: string; projectId?: string; organizationId?: string; notes?: string },
+    body: {
+      name: string;
+      module?: string;
+      modules?: string[];
+      projectId?: string;
+      organizationId?: string;
+      notes?: string;
+    },
   ) {
     const profile = await this.assertAdmin(userId);
     const schema = await this.ensureSchema();
     if (!schema.ok) throw new BadRequestException(schema.message);
     if (!body.name?.trim()) throw new BadRequestException('Promotion name is required');
-    if (!body.module?.trim()) throw new BadRequestException('Module is required');
 
-    const modules = listModules().map((m) => m.module);
-    if (!modules.includes(body.module as any)) {
-      throw new BadRequestException(`Module "${body.module}" has no promotable objects`);
+    let modules: string[];
+    let moduleLabel: string;
+    try {
+      ({ modules, moduleLabel } = normalizePackageModules(body));
+    } catch (e: any) {
+      throw new BadRequestException(e?.message || 'Module is required');
     }
 
     const promotionId = makePromotionId();
@@ -334,7 +359,8 @@ export class PromotionService {
       name: body.name.trim(),
       source_environment: this.environments.getSourceKey(),
       target_environment: this.environments.getTargetKey(),
-      module: body.module,
+      module: moduleLabel,
+      modules,
       status: 'Draft',
       organization_id: body.organizationId || profile.organization_id || null,
       project_id: body.projectId || null,
@@ -346,7 +372,8 @@ export class PromotionService {
     if (error) throw new BadRequestException(error.message);
 
     await this.audit(data.id, 'created', userId, `Created promotion package ${promotionId}`, {
-      module: body.module,
+      module: moduleLabel,
+      modules,
       name: body.name,
     });
 

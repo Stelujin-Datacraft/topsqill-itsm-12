@@ -29,7 +29,7 @@
     "test:itam:form-sync": "ITAM_DISCOVERY_UNIT_TEST=1 ITAM_DISCOVERY_PERSISTENCE=memory npx tsx test/itam/itam.form-sync.test.ts",
     "test:itam:form-sync:real": "ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.form-sync.real.test.ts",
     "test:itam:all": "npm run test:itam:discovery:config && npm run test:itam:discovery:schema-guard && npm run test:itam:rls && npm run test:itam:discovery && npm run test:itam:phases-bd && npm run test:itam:form-sync && npm run test:itam:form-sync:real",
-    "test:promotion": "npx tsx test/promotion/promotion.registry.test.ts && npx tsx test/promotion/promotion.access.test.ts",
+    "test:promotion": "npx tsx test/promotion/promotion.registry.test.ts && npx tsx test/promotion/promotion.access.test.ts && npx tsx test/promotion/promotion.multi-module.test.ts",
     "test:forms-rls-repair": "npx tsx test/database/dev-forms-rls-repair.test.ts",
     "test:form-delete-cleanup": "npx tsx ../src/lib/formDeleteCleanup.test.ts",
     "test:database": "npx tsx test/database/forms-insert-auth.test.ts && npx tsx test/database/database.mutation-limit.test.ts && npx tsx test/database/user-sessions-uuid-guard.test.ts && npx tsx test/database/dev-forms-rls-repair.test.ts && npx tsx test/database/dev-sla-workflow-repair.test.ts && npx tsx test/database/dev-crud-rls-modules-repair.test.ts && npx tsx ../src/lib/formDeleteCleanup.test.ts",

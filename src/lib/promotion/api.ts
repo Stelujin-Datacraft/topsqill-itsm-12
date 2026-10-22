@@ -38,9 +38,16 @@ export const promotionApi = {
   environments: () => promoRequest<any>('/environments'),
   registry: () => promoRequest<any>('/registry'),
   modules: () => promoRequest<any>('/modules'),
-  objects: (params: { module?: string; objectType?: string; projectId?: string; organizationId?: string }) => {
+  objects: (params: {
+    module?: string;
+    modules?: string[];
+    objectType?: string;
+    projectId?: string;
+    organizationId?: string;
+  }) => {
     const q = new URLSearchParams();
-    if (params.module) q.set('module', params.module);
+    if (params.modules?.length) q.set('modules', params.modules.join(','));
+    else if (params.module) q.set('module', params.module);
     if (params.objectType) q.set('objectType', params.objectType);
     if (params.projectId) q.set('projectId', params.projectId);
     if (params.organizationId) q.set('organizationId', params.organizationId);
@@ -48,8 +55,14 @@ export const promotionApi = {
     return promoRequest<any>(`/objects${qs ? `?${qs}` : ''}`);
   },
   listPackages: () => promoRequest<any>('/packages'),
-  createPackage: (body: { name: string; module: string; projectId?: string; organizationId?: string; notes?: string }) =>
-    promoRequest<any>('/packages', { method: 'POST', body }),
+  createPackage: (body: {
+    name: string;
+    module?: string;
+    modules?: string[];
+    projectId?: string;
+    organizationId?: string;
+    notes?: string;
+  }) => promoRequest<any>('/packages', { method: 'POST', body }),
   getPackage: (id: string) => promoRequest<any>(`/packages/${id}`),
   setSelection: (
     id: string,

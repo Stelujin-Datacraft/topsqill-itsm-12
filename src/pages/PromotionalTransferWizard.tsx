@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 
 const STEPS = [
   'Source & Target',
-  'Module',
+  'Modules',
   'Select Objects',
   'Dependencies',
   'Validation',
@@ -40,7 +40,8 @@ export default function PromotionalTransferWizard() {
 
   const [step, setStep] = useState<Step>('Source & Target');
   const [name, setName] = useState('');
-  const [module, setModule] = useState('');
+  /** Selected modules for this package (Archer-style multi-module). */
+  const [selectedModules, setSelectedModules] = useState<string[]>([]);
   // Always seed from the static registry so the dropdown is never blank if Nest is down.
   const [modules, setModules] = useState(PROMOTION_MODULES);
   const [envs, setEnvs] = useState<any>(DEFAULT_PROMOTION_ENVIRONMENTS);
@@ -85,11 +86,11 @@ export default function PromotionalTransferWizard() {
     [objects, selected],
   );
 
-  const loadObjects = useCallback(async (mod: string) => {
+  const loadObjects = useCallback(async (mods: string[]) => {
     setLoadingObjects(true);
     try {
       const res = await promotionApi.objects({
-        module: mod,
+        modules: mods,
         projectId: currentProject?.id,
       });
       setObjects(res.objects || []);
@@ -100,6 +101,12 @@ export default function PromotionalTransferWizard() {
       setLoadingObjects(false);
     }
   }, [currentProject?.id]);
+
+  function toggleModule(mod: string) {
+    setSelectedModules((prev) =>
+      prev.includes(mod) ? prev.filter((m) => m !== mod) : [...prev, mod],
+    );
+  }
 
   if (userProfile && userProfile.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
@@ -112,20 +119,20 @@ export default function PromotionalTransferWizard() {
       toast.error('Enter a promotion name');
       return;
     }
-    if (!module) {
-      toast.error('Select a module');
+    if (!selectedModules.length) {
+      toast.error('Select at least one module');
       return;
     }
     setBusy(true);
     try {
       const created = await promotionApi.createPackage({
         name: name.trim(),
-        module,
+        modules: selectedModules,
         projectId: currentProject?.id,
         organizationId: userProfile?.organization_id || undefined,
       });
       setPackageId(created.package.id);
-      await loadObjects(module);
+      await loadObjects(selectedModules);
       setStep('Select Objects');
     } catch (e: any) {
       toast.error(e?.message || 'Failed to create promotion package');
@@ -269,18 +276,21 @@ export default function PromotionalTransferWizard() {
                 <div className="font-medium mt-1">{envs?.target || 'TopsqillITSM_Prod'}</div>
               </div>
             </div>
-            <Button onClick={() => setStep('Module')}>
+            <Button onClick={() => setStep('Modules')}>
               Continue <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {step === 'Module' && (
+      {step === 'Modules' && (
         <Card className="max-w-2xl">
           <CardHeader>
-            <CardTitle>Select module</CardTitle>
-            <CardDescription>Only modules that contain registered promotable objects are listed.</CardDescription>
+            <CardTitle>Select modules</CardTitle>
+            <CardDescription>
+              Choose one or more modules for this package (Archer-style). Objects from all selected
+              modules appear on the next step.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {apiWarning && (
@@ -290,21 +300,30 @@ export default function PromotionalTransferWizard() {
             )}
             <div className="grid gap-2">
               {modules.map((m) => {
-                const selectedMod = module === m.module;
+                const selectedMod = selectedModules.includes(m.module);
                 return (
                   <button
                     key={m.module}
                     type="button"
-                    onClick={() => setModule(m.module)}
+                    onClick={() => toggleModule(m.module)}
                     className={`text-left rounded-md border px-4 py-3 transition-colors ${
                       selectedMod
                         ? 'border-primary bg-primary/5 ring-1 ring-primary'
                         : 'hover:bg-muted/40'
                     }`}
                   >
-                    <div className="font-medium">{m.module}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {(m as any).description || `Promotable: ${m.objectTypes.join(', ')}`}
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedMod}
+                        onCheckedChange={() => toggleModule(m.module)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div>
+                        <div className="font-medium">{m.module}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {(m as any).description || `Promotable: ${m.objectTypes.join(', ')}`}
+                        </div>
+                      </div>
                     </div>
                   </button>
                 );
@@ -315,9 +334,14 @@ export default function PromotionalTransferWizard() {
                 No promotable modules available. Check that the promotion registry is configured.
               </p>
             )}
+            {selectedModules.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {selectedModules.join(', ')}
+              </p>
+            )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep('Source & Target')}>Back</Button>
-              <Button disabled={busy || !module} onClick={goSelectObjects}>
+              <Button disabled={busy || !selectedModules.length} onClick={goSelectObjects}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Continue
               </Button>
@@ -331,7 +355,8 @@ export default function PromotionalTransferWizard() {
           <CardHeader>
             <CardTitle>Select promotable objects</CardTitle>
             <CardDescription>
-              Only registered promotable objects appear. Unselected objects will not be transferred.
+              Only registered promotable objects appear from: {selectedModules.join(', ') || 'selected modules'}.
+              Unselected objects will not be transferred.
               {currentProject ? ` Scoped to project: ${currentProject.name}` : ''}
             </CardDescription>
           </CardHeader>
@@ -341,7 +366,7 @@ export default function PromotionalTransferWizard() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading objects…
               </div>
             ) : !objects.length ? (
-              <p className="text-sm text-muted-foreground">No promotable objects found for this module/project.</p>
+              <p className="text-sm text-muted-foreground">No promotable objects found for these modules/project.</p>
             ) : (
               <div className="rounded-md border divide-y max-h-[480px] overflow-auto">
                 {objects.map((o) => {
@@ -355,6 +380,7 @@ export default function PromotionalTransferWizard() {
                       <div className="min-w-0 flex-1">
                         <div className="font-medium">{o.name}</div>
                         <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-1">
+                          <Badge variant="outline" className="text-[10px]">{o.module}</Badge>
                           <span>{o.objectTypeName || o.objectType}</span>
                           <span>·</span>
                           <span>Dev: {o.devVersion || '—'}</span>
@@ -372,7 +398,7 @@ export default function PromotionalTransferWizard() {
             )}
             <div className="text-sm text-muted-foreground">{selectedList.length} selected</div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep('Module')}>Back</Button>
+              <Button variant="outline" onClick={() => setStep('Modules')}>Back</Button>
               <Button disabled={busy || !selectedList.length} onClick={saveSelectionAndDeps}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Review dependencies
@@ -484,7 +510,7 @@ export default function PromotionalTransferWizard() {
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div><dt className="text-muted-foreground">Source</dt><dd className="font-medium">{summary.source}</dd></div>
               <div><dt className="text-muted-foreground">Target</dt><dd className="font-medium">{summary.target}</dd></div>
-              <div><dt className="text-muted-foreground">Module</dt><dd className="font-medium">{summary.module}</dd></div>
+              <div><dt className="text-muted-foreground">Modules</dt><dd className="font-medium">{summary.module}</dd></div>
               <div><dt className="text-muted-foreground">Selected objects</dt><dd className="font-medium">{summary.selectedObjects}</dd></div>
               <div><dt className="text-muted-foreground">Dependencies</dt><dd className="font-medium">{summary.dependencies}</dd></div>
               <div><dt className="text-muted-foreground">New objects</dt><dd className="font-medium">{summary.newObjects}</dd></div>

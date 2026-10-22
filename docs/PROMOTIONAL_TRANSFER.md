@@ -22,7 +22,9 @@ Not CI/CD, not schema migration, not full DB clone, not file export/import.
 | State | Wizard steps in page state; package persisted via Nest API after each major step |
 | API | `src/services/api/promotionApi.ts` → `GET/POST /api/promotion/*` with Bearer token |
 
-Screens: Dashboard → Create (source/target → module → objects) → Contents/Dependencies → Validation → Summary → Execute → Result; plus History/Detail.
+Screens: Dashboard → Create (source/target → **one or more modules** → objects) → Contents/Dependencies → Validation → Summary → Execute → Result; plus History/Detail.
+
+Multi-module packages store `modules` (JSON array) and keep `module` as a display label (e.g. `Forms + Workflows`).
 
 ## 2. Backend architecture
 
