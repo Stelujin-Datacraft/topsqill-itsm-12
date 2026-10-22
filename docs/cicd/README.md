@@ -54,19 +54,19 @@ SSH key: generate a deploy key, add **public** key to `~/.ssh/authorized_keys` o
 
 After secrets exist: Actions → **Deploy Dev** → Run workflow (branch `main`).
 
-### Step 3 — Deploy Prod (manual only)
+### Step 3 — Deploy Prod (auto on `main`)
 
 Workflow: `.github/workflows/deploy-prod.yml`
 
-Secrets: `PROD_VM_HOST`, `PROD_VM_USER`, `PROD_VM_SSH_KEY`, optional `PROD_VM_SSH_PORT`.  
-Environment: **`production`**.
+Secrets: `PROD_VM_HOST`, `PROD_VM_USER`, `PROD_VM_SSH_KEY`, optional `PROD_VM_SSH_PORT`.
 
-Deploys `origin/main` (falls back to `develop` only if main missing).
+Deploys `origin/main` (falls back to `develop` only if main missing).  
+Runs on every push to `main` and via **Run workflow**.
 
 ### Step 4 — Auto-deploy Dev (enabled)
 
 `deploy-dev.yml` runs on every push to `develop` and via **Run workflow**.  
-Prod stays manual (`workflow_dispatch` only).
+`deploy-prod.yml` runs on every push to `main` and via **Run workflow**.
 
 ## Rules we keep
 
