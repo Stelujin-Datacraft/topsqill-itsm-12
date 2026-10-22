@@ -1,9 +1,11 @@
-# Step 3 — Deploy main → Prod VM (manual only).
-# Requires PROD_* secrets. Never auto-deploy on push until you explicitly enable it.
+# Step 3 — Deploy main → Prod VM.
+# Requires PROD_* secrets. Auto on push to main; workflow_dispatch still available.
 name: Deploy Prod
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 
 concurrency:
   group: deploy-prod
