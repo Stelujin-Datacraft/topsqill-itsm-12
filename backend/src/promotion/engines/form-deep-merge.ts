@@ -47,12 +47,37 @@ export function optionStableKey(opt: unknown): string {
 }
 
 /**
+ * Normalize field.options from DB / portable payloads.
+ * Form builder often persists options as a JSON string; Supabase may return
+ * array, string, or double-encoded string. Without this, mapping shows the
+ * parent field as matched and never lists option rows (New stays 0).
+ */
+export function parseOptionsArray(value: unknown): unknown[] {
+  if (value == null) return [];
+  let cur: unknown = value;
+  // Unwrap string / double-encoded JSON up to 2 times
+  for (let i = 0; i < 2; i++) {
+    if (typeof cur !== 'string') break;
+    const trimmed = cur.trim();
+    if (!trimmed) return [];
+    try {
+      cur = JSON.parse(trimmed);
+    } catch {
+      // Plain string option list is not valid — treat as empty
+      return [];
+    }
+  }
+  if (Array.isArray(cur)) return cur;
+  return [];
+}
+
+/**
  * Union options: keep Prod-only, append Dev-only, Dev wins on matching key.
  * Preserves Prod order for existing keys; appends new Dev options at the end.
  */
 export function mergeFieldOptions(prodOptions: unknown, devOptions: unknown): unknown[] {
-  const prod = Array.isArray(prodOptions) ? prodOptions : [];
-  const dev = Array.isArray(devOptions) ? [...devOptions] : [];
+  const prod = parseOptionsArray(prodOptions);
+  const dev = parseOptionsArray(devOptions);
   if (!dev.length) return prod.length ? [...prod] : [];
   if (!prod.length) return [...dev];
 
@@ -100,8 +125,9 @@ export const CHOICE_FIELD_TYPES = new Set([
 
 export function fieldHasMergeableOptions(field: JsonRecord): boolean {
   const type = norm(field.field_type ?? field.type);
-  if (CHOICE_FIELD_TYPES.has(type)) return true;
-  return Array.isArray(field.options) && field.options.length > 0;
+  if (CHOICE_FIELD_TYPES.has(type) && parseOptionsArray(field.options).length > 0) return true;
+  if (CHOICE_FIELD_TYPES.has(type)) return true; // still merge when Dev brings options onto empty Prod
+  return parseOptionsArray(field.options).length > 0;
 }
 
 /** Union of string principals / ids (case-insensitive, first-seen casing kept). */
@@ -497,10 +523,9 @@ export function mergeRules(prodRules: unknown, devRules: unknown): JsonRecord[] 
   return result;
 }
 
-/** Human-readable option labels for mapping reports. */
+/** Human-readable option labels for mapping reports (handles stringified JSON). */
 export function listOptionLabels(options: unknown): string[] {
-  if (!Array.isArray(options)) return [];
-  return options
+  return parseOptionsArray(options)
     .map((o) => {
       if (o == null) return '';
       if (typeof o === 'string' || typeof o === 'number') return String(o);
@@ -511,6 +536,25 @@ export function listOptionLabels(options: unknown): string[] {
       return '';
     })
     .filter((v) => v.trim().length > 0);
+}
+
+/**
+ * Diff Dev vs Prod options for mapping report rows.
+ * Returns each Dev option with matched|new status.
+ */
+export function diffFieldOptions(
+  devOptions: unknown,
+  prodOptions: unknown,
+): Array<{ label: string; key: string; status: 'matched' | 'new' }> {
+  const prodKeys = new Set(listOptionLabels(prodOptions).map((p) => optionStableKey(p)));
+  return listOptionLabels(devOptions).map((label) => {
+    const key = optionStableKey(label);
+    return {
+      label,
+      key,
+      status: key && prodKeys.has(key) ? ('matched' as const) : ('new' as const),
+    };
+  });
 }
 
 export function listRuleSummaries(rules: unknown): Array<{ key: string; label: string; actions: string[] }> {

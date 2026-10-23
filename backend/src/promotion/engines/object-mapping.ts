@@ -13,7 +13,7 @@ import type {
 } from '../registry/types';
 import { getHandler } from '../handlers';
 import { formStableId, resolveFormIdOnTarget, resolveUserIdByEmail, resolveRoleIdByName, resolveGroupIdByName } from '../handlers/promo-utils';
-import { listOptionLabels, listRuleSummaries, optionStableKey } from './form-deep-merge';
+import { diffFieldOptions, listRuleSummaries } from './form-deep-merge';
 
 function bump(counts: MappingReport['counts'], status: MappingStatus) {
   counts.total += 1;
@@ -33,10 +33,6 @@ function fieldStableKey(f: Record<string, unknown>): string {
   const label = String(f.label || '').trim().toLowerCase();
   const type = String(f.field_type || '').trim().toLowerCase();
   return `${label}::${type}`;
-}
-
-function optionValues(options: unknown): string[] {
-  return listOptionLabels(options);
 }
 
 function addRuleMappingEntries(
@@ -288,26 +284,26 @@ export async function buildMappingReport(opts: {
           status: prod ? 'matched' : 'new',
           detail: `${f.field_type || 'field'} · ${childApplyMode}`,
         });
-        const prodOptKeys = new Set(
-          (prod ? optionValues(prod.options) : []).map((p) => optionStableKey(p)),
-        );
-        for (const opt of optionValues(f.options)) {
-          const hit = prodOptKeys.has(optionStableKey(opt));
+        // Dig into dropdown/radio/multiselect options (handles stringified JSON).
+        for (const opt of diffFieldOptions(f.options, prod?.options)) {
+          const isNew = !prod || opt.status === 'new';
           add(entries, counts, {
             kind: 'option',
             objectType: 'form',
             objectStableId: portable.stableId,
             objectName: portable.name,
-            label: `${f.label}: ${opt}`,
-            sourceKey: opt,
-            targetKey: hit ? opt : null,
-            status: !prod ? 'new' : hit ? 'matched' : 'new',
+            label: `${f.label}: ${opt.label}`,
+            sourceKey: opt.label,
+            targetKey: isNew ? null : opt.label,
+            status: isNew ? 'new' : 'matched',
             detail:
               childApplyMode === 'merge'
-                ? hit
-                  ? 'merge — update option value'
-                  : 'merge — append option (keep Prod-only options)'
-                : 'replace — package options overwrite field',
+                ? isNew
+                  ? 'merge — append option (keep Prod-only options)'
+                  : 'merge — update option value'
+                : isNew
+                  ? 'replace — new option from Dev package'
+                  : 'replace — package options overwrite field',
           });
         }
       }

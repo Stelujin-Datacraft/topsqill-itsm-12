@@ -7,7 +7,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   actionStableKey,
+  diffFieldOptions,
   fieldMappingStableKey,
+  listOptionLabels,
   mergeCustomConfig,
   mergeFieldOptions,
   mergeFormFieldPayload,
@@ -20,6 +22,7 @@ import {
   mergeTransitionRules,
   optionStableKey,
   parseJsonArray,
+  parseOptionsArray,
   remapPageFieldIds,
   ruleStableKey,
 } from '../../src/promotion/engines/form-deep-merge';
@@ -59,6 +62,48 @@ async function main() {
       ['a', 'b', 'c', 'd'],
     );
     assert.equal(out.find((o) => o.value === 'b')?.label, 'B-dev');
+  });
+
+  await test('parseOptionsArray handles stringified and double-encoded JSON', () => {
+    const opts = [
+      { id: '1', value: 'opt1', label: 'Option 1' },
+      { id: '2', value: 'opt2', label: 'Option 2' },
+    ];
+    assert.equal(parseOptionsArray(JSON.stringify(opts)).length, 2);
+    assert.equal(parseOptionsArray(JSON.stringify(JSON.stringify(opts))).length, 2);
+    assert.deepEqual(listOptionLabels(JSON.stringify(opts)), ['opt1', 'opt2']);
+  });
+
+  await test('diffFieldOptions marks Dev-only option as new (mapping dig-down)', () => {
+    const prod = JSON.stringify([
+      { id: '1', value: 'alpha', label: 'Alpha' },
+      { id: '2', value: 'beta', label: 'Beta' },
+    ]);
+    const dev = JSON.stringify([
+      { id: '1', value: 'alpha', label: 'Alpha' },
+      { id: '2', value: 'beta', label: 'Beta' },
+      { id: '3', value: 'gamma', label: 'Gamma' }, // new in Dev
+    ]);
+    const diff = diffFieldOptions(dev, prod);
+    assert.equal(diff.length, 3);
+    assert.equal(diff.find((d) => d.key === 'alpha')?.status, 'matched');
+    assert.equal(diff.find((d) => d.key === 'beta')?.status, 'matched');
+    assert.equal(diff.find((d) => d.key === 'gamma')?.status, 'new');
+  });
+
+  await test('mergeFieldOptions works when both sides are JSON strings', () => {
+    const out = mergeFieldOptions(
+      JSON.stringify([{ value: 'a', label: 'A' }]),
+      JSON.stringify([
+        { value: 'a', label: 'A2' },
+        { value: 'b', label: 'B' },
+      ]),
+    ) as Array<{ value: string; label: string }>;
+    assert.deepEqual(
+      out.map((o) => o.value),
+      ['a', 'b'],
+    );
+    assert.equal(out[0].label, 'A2');
   });
 
   await test('mergeFormFieldPayload deep-merges select options', () => {
