@@ -45,6 +45,8 @@ async function main() {
     assert.ok(/childApplyMode/.test(src));
     assert.ok(/applyMode === 'merge'/.test(src));
     assert.ok(/form_fields.*delete/.test(src.replace(/\n/g, ' ')));
+    assert.ok(/mergeFormFieldPayload/.test(src));
+    assert.ok(/mergeRules/.test(src));
   });
 
   await test('registry / types expose ChildApplyMode and MappingReport', () => {

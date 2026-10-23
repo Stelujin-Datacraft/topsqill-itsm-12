@@ -146,20 +146,50 @@ export class RoleHandler implements PromotableHandler {
       roleId = data.id;
     }
 
-    await target.from('role_permissions').delete().eq('role_id', roleId);
+    const applyMode = ctx.childApplyMode || 'replace';
     const perms = (portable.children?.role_permissions || []) as Record<string, unknown>[];
-    if (perms.length) {
-      const inserts = perms.map((p) => ({
-        role_id: roleId,
-        resource_type: p.resource_type,
-        resource_id: null,
-        permission_type: p.permission_type,
-      }));
-      const { error: pErr } = await target.from('role_permissions').insert(inserts);
-      if (pErr) return { status: 'failed' as const, error: `role_permissions: ${pErr.message}` };
+
+    if (applyMode === 'merge') {
+      // Union by resource_type + permission_type; keep Prod-only type-wide grants.
+      const { data: existingPerms } = await target
+        .from('role_permissions')
+        .select('id, resource_type, permission_type, resource_id')
+        .eq('role_id', roleId)
+        .is('resource_id', null);
+      const existingKeys = new Set(
+        (existingPerms || []).map(
+          (p) => `${String(p.resource_type || '').toLowerCase()}::${String(p.permission_type || '').toLowerCase()}`,
+        ),
+      );
+      for (const p of perms) {
+        const key = `${String(p.resource_type || '').toLowerCase()}::${String(p.permission_type || '').toLowerCase()}`;
+        if (existingKeys.has(key)) continue;
+        const { error: pErr } = await target.from('role_permissions').insert({
+          role_id: roleId,
+          resource_type: p.resource_type,
+          resource_id: null,
+          permission_type: p.permission_type,
+        });
+        if (pErr && !/duplicate|unique/i.test(pErr.message)) {
+          return { status: 'failed' as const, error: `role_permissions merge: ${pErr.message}` };
+        }
+        existingKeys.add(key);
+      }
+    } else {
+      await target.from('role_permissions').delete().eq('role_id', roleId);
+      if (perms.length) {
+        const inserts = perms.map((p) => ({
+          role_id: roleId,
+          resource_type: p.resource_type,
+          resource_id: null,
+          permission_type: p.permission_type,
+        }));
+        const { error: pErr } = await target.from('role_permissions').insert(inserts);
+        if (pErr) return { status: 'failed' as const, error: `role_permissions: ${pErr.message}` };
+      }
     }
 
-    return { status: 'succeeded' as const, prodAfter: { id: roleId, ...row } };
+    return { status: 'succeeded' as const, prodAfter: { id: roleId, ...row, childApplyMode: applyMode } };
   }
 }
 
@@ -385,19 +415,43 @@ export class OrgUserHandler implements PromotableHandler {
     }
 
     // Sync role assignments by role name
+    const applyMode = ctx.childApplyMode || 'replace';
     const roleNames = (portable.portable.assigned_role_names as string[]) || [];
-    await target.from('user_role_assignments').delete().eq('user_id', userId);
-    for (const roleName of roleNames) {
-      const roleId = await resolveRoleIdByName(target, organizationId, roleName);
-      if (!roleId) continue;
-      const { error: aErr } = await target.from('user_role_assignments').insert({
-        user_id: userId,
-        role_id: roleId,
-        assigned_by: ctx.actorId,
-        assigned_at: new Date().toISOString(),
-      });
-      if (aErr && !/duplicate|unique/i.test(aErr.message)) {
-        return { status: 'failed' as const, error: `user_role_assignments: ${aErr.message}` };
+    if (applyMode === 'merge') {
+      // Append missing Dev roles; keep Prod-only assignments.
+      const { data: existingAssigns } = await target
+        .from('user_role_assignments')
+        .select('role_id')
+        .eq('user_id', userId);
+      const have = new Set((existingAssigns || []).map((a) => String(a.role_id)));
+      for (const roleName of roleNames) {
+        const roleId = await resolveRoleIdByName(target, organizationId, roleName);
+        if (!roleId || have.has(roleId)) continue;
+        const { error: aErr } = await target.from('user_role_assignments').insert({
+          user_id: userId,
+          role_id: roleId,
+          assigned_by: ctx.actorId,
+          assigned_at: new Date().toISOString(),
+        });
+        if (aErr && !/duplicate|unique/i.test(aErr.message)) {
+          return { status: 'failed' as const, error: `user_role_assignments merge: ${aErr.message}` };
+        }
+        have.add(roleId);
+      }
+    } else {
+      await target.from('user_role_assignments').delete().eq('user_id', userId);
+      for (const roleName of roleNames) {
+        const roleId = await resolveRoleIdByName(target, organizationId, roleName);
+        if (!roleId) continue;
+        const { error: aErr } = await target.from('user_role_assignments').insert({
+          user_id: userId,
+          role_id: roleId,
+          assigned_by: ctx.actorId,
+          assigned_at: new Date().toISOString(),
+        });
+        if (aErr && !/duplicate|unique/i.test(aErr.message)) {
+          return { status: 'failed' as const, error: `user_role_assignments: ${aErr.message}` };
+        }
       }
     }
 
@@ -422,7 +476,7 @@ export class OrgUserHandler implements PromotableHandler {
 
     return {
       status: 'succeeded' as const,
-      prodAfter: { id: userId, ...profileRow, assigned_role_names: roleNames },
+      prodAfter: { id: userId, ...profileRow, assigned_role_names: roleNames, childApplyMode: applyMode },
     };
   }
 }
@@ -642,44 +696,95 @@ export class GroupHandler implements PromotableHandler {
       groupId = data.id;
     }
 
-    // Sync multi-role assignments
-    await target.from('group_role_assignments').delete().eq('group_id', groupId);
-    for (const roleName of roleNames) {
-      const roleId = await resolveRoleIdByName(target, organizationId, roleName);
-      if (!roleId) continue;
-      const { error: rErr } = await target.from('group_role_assignments').insert({
-        group_id: groupId,
-        role_id: roleId,
-        assigned_by: ctx.actorId,
-      });
-      if (rErr && !/duplicate|unique/i.test(rErr.message)) {
-        return { status: 'failed' as const, error: `group_role_assignments: ${rErr.message}` };
-      }
-    }
-
-    // Sync memberships (users by email, nested groups by name — skip unresolved)
-    await target.from('group_memberships').delete().eq('group_id', groupId);
+    const applyMode = ctx.childApplyMode || 'replace';
     const members = (portable.portable.members as Array<{ type: string; email?: string; name?: string }>) || [];
-    for (const m of members) {
-      let memberId: string | null = null;
-      if (m.type === 'user') memberId = await resolveUserIdByEmail(target, m.email);
-      else if (m.type === 'group') memberId = await resolveGroupIdByName(target, organizationId, m.name);
-      if (!memberId) continue;
-      const { error: mErr } = await target.from('group_memberships').insert({
-        group_id: groupId,
-        member_id: memberId,
-        member_type: m.type,
-        added_by: ctx.actorId,
-        added_at: new Date().toISOString(),
-      });
-      if (mErr && !/duplicate|unique/i.test(mErr.message)) {
-        return { status: 'failed' as const, error: `group_memberships: ${mErr.message}` };
+
+    if (applyMode === 'merge') {
+      // Append missing roles / members; keep Prod-only extras.
+      const { data: existingRoles } = await target
+        .from('group_role_assignments')
+        .select('role_id')
+        .eq('group_id', groupId);
+      const haveRoles = new Set((existingRoles || []).map((r) => String(r.role_id)));
+      for (const roleName of roleNames) {
+        const roleId = await resolveRoleIdByName(target, organizationId, roleName);
+        if (!roleId || haveRoles.has(roleId)) continue;
+        const { error: rErr } = await target.from('group_role_assignments').insert({
+          group_id: groupId,
+          role_id: roleId,
+          assigned_by: ctx.actorId,
+        });
+        if (rErr && !/duplicate|unique/i.test(rErr.message)) {
+          return { status: 'failed' as const, error: `group_role_assignments merge: ${rErr.message}` };
+        }
+        haveRoles.add(roleId);
+      }
+
+      const { data: existingMembers } = await target
+        .from('group_memberships')
+        .select('member_id, member_type')
+        .eq('group_id', groupId);
+      const haveMembers = new Set(
+        (existingMembers || []).map((m) => `${m.member_type}:${m.member_id}`),
+      );
+      for (const m of members) {
+        let memberId: string | null = null;
+        if (m.type === 'user') memberId = await resolveUserIdByEmail(target, m.email);
+        else if (m.type === 'group') memberId = await resolveGroupIdByName(target, organizationId, m.name);
+        if (!memberId) continue;
+        const key = `${m.type}:${memberId}`;
+        if (haveMembers.has(key)) continue;
+        const { error: mErr } = await target.from('group_memberships').insert({
+          group_id: groupId,
+          member_id: memberId,
+          member_type: m.type,
+          added_by: ctx.actorId,
+          added_at: new Date().toISOString(),
+        });
+        if (mErr && !/duplicate|unique/i.test(mErr.message)) {
+          return { status: 'failed' as const, error: `group_memberships merge: ${mErr.message}` };
+        }
+        haveMembers.add(key);
+      }
+    } else {
+      // Sync multi-role assignments
+      await target.from('group_role_assignments').delete().eq('group_id', groupId);
+      for (const roleName of roleNames) {
+        const roleId = await resolveRoleIdByName(target, organizationId, roleName);
+        if (!roleId) continue;
+        const { error: rErr } = await target.from('group_role_assignments').insert({
+          group_id: groupId,
+          role_id: roleId,
+          assigned_by: ctx.actorId,
+        });
+        if (rErr && !/duplicate|unique/i.test(rErr.message)) {
+          return { status: 'failed' as const, error: `group_role_assignments: ${rErr.message}` };
+        }
+      }
+
+      // Sync memberships (users by email, nested groups by name — skip unresolved)
+      await target.from('group_memberships').delete().eq('group_id', groupId);
+      for (const m of members) {
+        let memberId: string | null = null;
+        if (m.type === 'user') memberId = await resolveUserIdByEmail(target, m.email);
+        else if (m.type === 'group') memberId = await resolveGroupIdByName(target, organizationId, m.name);
+        if (!memberId) continue;
+        const { error: mErr } = await target.from('group_memberships').insert({
+          group_id: groupId,
+          member_id: memberId,
+          member_type: m.type,
+          added_by: ctx.actorId,
+          added_at: new Date().toISOString(),
+        });
+        if (mErr && !/duplicate|unique/i.test(mErr.message)) {
+          return { status: 'failed' as const, error: `group_memberships: ${mErr.message}` };
+        }
       }
     }
 
     return {
       status: 'succeeded' as const,
-      prodAfter: { id: groupId, ...row, role_names: roleNames, members },
+      prodAfter: { id: groupId, ...row, role_names: roleNames, members, childApplyMode: applyMode },
     };
   }
 }

@@ -570,8 +570,8 @@ export default function PromotionalTransferWizard() {
           <CardHeader>
             <CardTitle>Object mapping review</CardTitle>
             <CardDescription>
-              Archer-style Dev → Prod identity map for selected objects (fields, options, users, roles, form refs).
-              Default apply mode is Replace (children refreshed to match Dev). Merge keeps Prod-only form fields.
+              Archer-style Dev → Prod identity map for selected objects (fields, options, rules, actions, users, roles, form refs).
+              Default apply mode is Replace (children refreshed to match Dev). Merge keeps Prod-only extras and appends nested values.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -598,8 +598,10 @@ export default function PromotionalTransferWizard() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Replace updates matched objects and replaces nested config. Merge upserts form fields by label+type
-                without deleting Prod-only fields. Workflows/roles still replace their graphs/permissions.
+                Replace updates matched objects and replaces nested config. Merge digs into form fields (options,
+                custom_config/lifecycle transitions, pages, permissions, rules/actions), unions Access Control
+                role grants / user roles / group members, and unions data-feed &amp; ITAM field mappings —
+                Prod-only extras are kept. Workflow graphs still replace.
               </p>
             </div>
 

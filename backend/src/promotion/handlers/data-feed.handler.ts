@@ -3,6 +3,11 @@ import type { DependencyRef, ObjectRef, PortableObject, TransferContext } from '
 import { sanitizeEnvSpecific } from '../engines/env-values';
 import type { PromotableHandler, SbClient } from './handler.types';
 import {
+  fieldMappingStableKey,
+  matchingRuleStableKey,
+  mergeKeyedRecords,
+} from '../engines/form-deep-merge';
+import {
   formStableId,
   remapOrgProject,
   resolveFormIdOnTarget,
@@ -159,6 +164,24 @@ export class DataFeedHandler implements PromotableHandler {
       };
     }
 
+    const applyMode = ctx.childApplyMode || 'replace';
+    let matchingRules: unknown = portable.portable.matching_rules || [];
+    let fieldMappings: unknown = portable.portable.field_mappings || [];
+
+    // merge: union mapping/rule rows by source↔target name (preferred) or id.
+    // replace: package arrays overwrite Prod.
+    if (applyMode === 'merge' && existing.exists && existing.id) {
+      const { data: prodFeed } = await target
+        .from('data_feeds')
+        .select('matching_rules, field_mappings')
+        .eq('id', existing.id)
+        .maybeSingle();
+      if (prodFeed) {
+        matchingRules = mergeKeyedRecords(prodFeed.matching_rules, matchingRules, matchingRuleStableKey);
+        fieldMappings = mergeKeyedRecords(prodFeed.field_mappings, fieldMappings, fieldMappingStableKey);
+      }
+    }
+
     const row = {
       name: portable.portable.name,
       description: portable.portable.description ?? null,
@@ -167,8 +190,8 @@ export class DataFeedHandler implements PromotableHandler {
       source_form_id: sourceFormId,
       target_form_id: targetFormId,
       matching_type: portable.portable.matching_type || 'field_matching',
-      matching_rules: portable.portable.matching_rules || [],
-      field_mappings: portable.portable.field_mappings || [],
+      matching_rules: matchingRules,
+      field_mappings: fieldMappings,
       no_match_behavior: portable.portable.no_match_behavior || 'skip',
       schedule: portable.portable.schedule ?? null,
       is_active: portable.portable.is_active ?? true,
@@ -182,7 +205,7 @@ export class DataFeedHandler implements PromotableHandler {
     if (existing.exists && existing.id) {
       const { error } = await target.from('data_feeds').update(row).eq('id', existing.id);
       if (error) return { status: 'failed' as const, error: error.message };
-      return { status: 'succeeded' as const, prodAfter: { id: existing.id, ...row } };
+      return { status: 'succeeded' as const, prodAfter: { id: existing.id, ...row, childApplyMode: applyMode } };
     }
 
     const { data, error } = await target

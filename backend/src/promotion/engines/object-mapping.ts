@@ -13,6 +13,7 @@ import type {
 } from '../registry/types';
 import { getHandler } from '../handlers';
 import { formStableId, resolveFormIdOnTarget, resolveUserIdByEmail, resolveRoleIdByName, resolveGroupIdByName } from '../handlers/promo-utils';
+import { listOptionLabels, listRuleSummaries, optionStableKey } from './form-deep-merge';
 
 function bump(counts: MappingReport['counts'], status: MappingStatus) {
   counts.total += 1;
@@ -35,18 +36,67 @@ function fieldStableKey(f: Record<string, unknown>): string {
 }
 
 function optionValues(options: unknown): string[] {
-  if (!Array.isArray(options)) return [];
-  return options
-    .map((o) => {
-      if (o == null) return '';
-      if (typeof o === 'string' || typeof o === 'number') return String(o);
-      if (typeof o === 'object') {
-        const rec = o as Record<string, unknown>;
-        return String(rec.value ?? rec.label ?? rec.name ?? '');
-      }
-      return '';
-    })
-    .filter((v) => v.trim().length > 0);
+  return listOptionLabels(options);
+}
+
+function addRuleMappingEntries(
+  entries: MappingEntry[],
+  counts: MappingReport['counts'],
+  opts: {
+    portable: PortableObject;
+    ruleKind: 'field_rules' | 'form_rules';
+    devRules: unknown;
+    prodRules: unknown;
+    childApplyMode: ChildApplyMode;
+  },
+) {
+  const { portable, ruleKind, devRules, prodRules, childApplyMode } = opts;
+  const prodSummaries = listRuleSummaries(prodRules);
+  const prodByKey = new Map(prodSummaries.map((r) => [r.key, r]));
+  const prodActionKeys = new Set(
+    prodSummaries.flatMap((r) => r.actions.map((a) => `${r.key}::${a.toLowerCase()}`)),
+  );
+
+  for (const rule of listRuleSummaries(devRules)) {
+    const prod = prodByKey.get(rule.key);
+    add(entries, counts, {
+      kind: 'rule',
+      objectType: 'form',
+      objectStableId: portable.stableId,
+      objectName: portable.name,
+      label: `${ruleKind === 'field_rules' ? 'Field rule' : 'Form rule'}: ${rule.label}`,
+      sourceKey: rule.key,
+      targetKey: prod ? prod.key : null,
+      status: prod ? 'matched' : 'new',
+      detail:
+        childApplyMode === 'merge'
+          ? prod
+            ? 'merge — update rule; keep Prod-only rules'
+            : 'merge — append rule on Prod'
+          : 'replace — package rules overwrite Prod',
+    });
+
+    for (const act of rule.actions) {
+      const actKey = `${rule.key}::${act.toLowerCase()}`;
+      const hit = prodActionKeys.has(actKey);
+      add(entries, counts, {
+        kind: 'action',
+        objectType: 'form',
+        objectStableId: portable.stableId,
+        objectName: portable.name,
+        label: `${rule.label}: ${act}`,
+        sourceKey: act,
+        targetKey: hit ? act : null,
+        status: !prod ? 'new' : hit ? 'matched' : 'new',
+        detail:
+          childApplyMode === 'merge'
+            ? hit
+              ? 'merge — update action'
+              : 'merge — append action'
+            : 'replace with package',
+      });
+    }
+  }
 }
 
 function extractFormIdsFromConfig(config: unknown, out: Set<string>) {
@@ -209,12 +259,19 @@ export async function buildMappingReport(opts: {
     if (portable.objectType === 'form') {
       const fields = (portable.children?.form_fields || []) as Record<string, unknown>[];
       let prodFields: Record<string, unknown>[] = [];
+      let prodFormRow: { field_rules?: unknown; form_rules?: unknown } | null = null;
       if (found.id) {
         const { data } = await target
           .from('form_fields')
           .select('id, label, field_type, options')
           .eq('form_id', found.id);
         prodFields = (data || []) as any[];
+        const { data: formRow } = await target
+          .from('forms')
+          .select('field_rules, form_rules')
+          .eq('id', found.id)
+          .maybeSingle();
+        prodFormRow = formRow;
       }
       const prodByKey = new Map(prodFields.map((f) => [fieldStableKey(f), f]));
       for (const f of fields) {
@@ -231,9 +288,11 @@ export async function buildMappingReport(opts: {
           status: prod ? 'matched' : 'new',
           detail: `${f.field_type || 'field'} · ${childApplyMode}`,
         });
+        const prodOptKeys = new Set(
+          (prod ? optionValues(prod.options) : []).map((p) => optionStableKey(p)),
+        );
         for (const opt of optionValues(f.options)) {
-          const prodOpts = prod ? optionValues(prod.options) : [];
-          const hit = prodOpts.some((p) => p.toLowerCase() === opt.toLowerCase());
+          const hit = prodOptKeys.has(optionStableKey(opt));
           add(entries, counts, {
             kind: 'option',
             objectType: 'form',
@@ -243,10 +302,30 @@ export async function buildMappingReport(opts: {
             sourceKey: opt,
             targetKey: hit ? opt : null,
             status: !prod ? 'new' : hit ? 'matched' : 'new',
-            detail: 'dropdown/option value',
+            detail:
+              childApplyMode === 'merge'
+                ? hit
+                  ? 'merge — update option value'
+                  : 'merge — append option (keep Prod-only options)'
+                : 'replace — package options overwrite field',
           });
         }
       }
+
+      addRuleMappingEntries(entries, counts, {
+        portable,
+        ruleKind: 'field_rules',
+        devRules: portable.portable.field_rules,
+        prodRules: prodFormRow?.field_rules,
+        childApplyMode,
+      });
+      addRuleMappingEntries(entries, counts, {
+        portable,
+        ruleKind: 'form_rules',
+        devRules: portable.portable.form_rules,
+        prodRules: prodFormRow?.form_rules,
+        childApplyMode,
+      });
     }
 
     if (portable.objectType === 'org_user') {

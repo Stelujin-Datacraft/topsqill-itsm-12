@@ -115,6 +115,8 @@ export interface MappingEntry {
     | 'object'
     | 'field'
     | 'option'
+    | 'rule'
+    | 'action'
     | 'user'
     | 'role'
     | 'group'
