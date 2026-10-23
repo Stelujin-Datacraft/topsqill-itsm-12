@@ -52,4 +52,14 @@ test('parseModulesQuery parses modules param', () => {
   assert.deepEqual(parseModulesQuery(undefined, 'Forms,Reports'), ['Forms', 'Reports']);
 });
 
+test('new modules normalize alongside legacy ones', () => {
+  const r = normalizePackageModules({
+    modules: ['Forms', 'Access Control', 'Data Feed', 'Knowledge Base', 'Integration Studio', 'IT Asset', 'SQL Builder'],
+  });
+  assert.equal(r.modules.length, 7);
+  assert.ok(r.modules.includes('Access Control'));
+  assert.ok(r.modules.includes('SQL Builder'));
+  assert.match(r.moduleLabel, /Forms \+/);
+});
+
 console.log('\nAll multi-module package tests passed.');

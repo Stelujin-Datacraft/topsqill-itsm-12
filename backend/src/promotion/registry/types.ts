@@ -24,13 +24,27 @@ export type PromotableObjectType =
   | 'workflow'
   | 'report'
   | 'dashboard'
-  | 'email_template';
+  | 'email_template'
+  | 'role'
+  | 'data_feed'
+  | 'kb_folder'
+  | 'policy'
+  | 'vis_integration'
+  | 'asset_category'
+  | 'itam_sync_mapping'
+  | 'saved_query';
 
 export type PromotionModule =
   | 'Forms'
   | 'Workflows'
   | 'Reports'
-  | 'Notifications';
+  | 'Notifications'
+  | 'Access Control'
+  | 'Data Feed'
+  | 'Knowledge Base'
+  | 'Integration Studio'
+  | 'IT Asset'
+  | 'SQL Builder';
 
 export interface RegistryEntry {
   objectType: PromotableObjectType;

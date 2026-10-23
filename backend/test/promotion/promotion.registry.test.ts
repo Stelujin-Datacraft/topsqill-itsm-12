@@ -27,17 +27,41 @@ function test(name: string, fn: () => void) {
 
 console.log('Promotional Transfer — registry & safety tests');
 
+const EXPECTED_MODULES = [
+  'Forms',
+  'Workflows',
+  'Reports',
+  'Notifications',
+  'Access Control',
+  'Data Feed',
+  'Knowledge Base',
+  'Integration Studio',
+  'IT Asset',
+  'SQL Builder',
+];
+
 test('registry only contains explicitly promotable types', () => {
   assert.ok(PROMOTABLE_REGISTRY.length >= 5);
   for (const e of PROMOTABLE_REGISTRY) {
     assert.equal(e.promotable, true);
     assert.ok(e.supportsRecordSelection);
-    assert.ok(['Forms', 'Workflows', 'Reports', 'Notifications'].includes(e.module));
+    assert.ok(EXPECTED_MODULES.includes(e.module), `unexpected module ${e.module}`);
   }
 });
 
 test('operational data types are not registered', () => {
-  for (const t of ['form_submissions', 'incidents', 'tickets', 'audit_logs', 'workflow_queue']) {
+  for (const t of [
+    'form_submissions',
+    'incidents',
+    'tickets',
+    'audit_logs',
+    'workflow_queue',
+    'data_feed_runs',
+    'user_role_assignments',
+    'vis_secret_blobs',
+    'it_assets',
+    'itam_discovery_runs',
+  ]) {
     assert.equal(isRegisteredPromotable(t), false);
     assert.ok(NON_PROMOTABLE_CATEGORIES.includes(t as any) || !getRegistryEntry(t));
   }
@@ -52,7 +76,23 @@ test('modules list only includes modules with promotable objects', () => {
   const modules = listModules();
   assert.ok(modules.some((m) => m.module === 'Forms'));
   assert.ok(modules.some((m) => m.module === 'Workflows'));
+  assert.ok(modules.some((m) => m.module === 'Access Control'));
+  assert.ok(modules.some((m) => m.module === 'Data Feed'));
+  assert.ok(modules.some((m) => m.module === 'Knowledge Base'));
+  assert.ok(modules.some((m) => m.module === 'Integration Studio'));
+  assert.ok(modules.some((m) => m.module === 'IT Asset'));
+  assert.ok(modules.some((m) => m.module === 'SQL Builder'));
   assert.ok(!modules.some((m) => m.module === 'Incidents' as any));
+  for (const m of modules) {
+    assert.ok(typeof m.description === 'string' && m.description.length > 0);
+  }
+});
+
+test('legacy core modules remain registered unchanged', () => {
+  for (const t of ['form', 'workflow', 'report', 'dashboard', 'email_template']) {
+    assert.equal(isRegisteredPromotable(t), true);
+    assert.equal(getHandler(t).objectType, t);
+  }
 });
 
 test('every registry type has a transfer handler', () => {

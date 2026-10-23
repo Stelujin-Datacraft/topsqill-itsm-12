@@ -178,15 +178,23 @@ Dashboard → Create New → Source/Target (fixed Dev→Prod) → Module → Sel
 
 ---
 
-## Initial promotable types
+## Promotable types
 
-| Type | Module | Children |
-|------|--------|----------|
-| `form` | Forms | `form_fields` |
-| `workflow` | Workflows | `workflow_nodes`, `workflow_connections` |
-| `report` | Reports | — |
-| `dashboard` | Reports | — |
-| `email_template` | Notifications | — |
+| Type | Module | Children | Notes |
+|------|--------|----------|-------|
+| `form` | Forms | `form_fields` | Config only — never submissions |
+| `workflow` | Workflows | `workflow_nodes`, `workflow_connections` | — |
+| `report` | Reports | — | — |
+| `dashboard` | Reports | — | — |
+| `email_template` | Notifications | — | — |
+| `role` | Access Control | `role_permissions` | Type-wide perms only; no user assignments |
+| `data_feed` | Data Feed | — | Remaps forms via `reference_id`; no runs |
+| `kb_folder` | Knowledge Base | — | No per-user folder access grants |
+| `policy` | Knowledge Base | — | Document config/content; no approvals/ratings |
+| `vis_integration` | Integration Studio | `versions` | No secrets/executions; recreate connections on Prod |
+| `asset_category` | IT Asset | — | Taxonomy only — no `it_assets` inventory |
+| `itam_sync_mapping` | IT Asset | — | Mapping config only — no sync runs/history |
+| `saved_query` | SQL Builder | — | Ownership remapped to promoting admin |
 
 ## Environment configuration
 
