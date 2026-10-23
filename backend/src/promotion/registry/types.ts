@@ -105,6 +105,49 @@ export interface ValidationFinding {
   details?: Record<string, unknown>;
 }
 
+/** How nested config children are applied when the parent already exists on Prod. */
+export type ChildApplyMode = 'replace' | 'merge';
+
+export type MappingStatus = 'matched' | 'new' | 'unresolved' | 'stripped';
+
+export interface MappingEntry {
+  kind:
+    | 'object'
+    | 'field'
+    | 'option'
+    | 'user'
+    | 'role'
+    | 'group'
+    | 'form_ref'
+    | 'org'
+    | 'project';
+  objectType: string;
+  objectStableId: string;
+  objectName: string;
+  /** Human label for the mapped element (field label, email, role name, …) */
+  label: string;
+  /** Dev-side identity */
+  sourceKey: string;
+  /** Prod-side identity when resolved */
+  targetKey: string | null;
+  status: MappingStatus;
+  detail?: string;
+}
+
+export interface MappingReport {
+  childApplyMode: ChildApplyMode;
+  generatedAt: string;
+  counts: {
+    matched: number;
+    new: number;
+    unresolved: number;
+    stripped: number;
+    total: number;
+  };
+  entries: MappingEntry[];
+  blockers: string[];
+}
+
 export interface TransferContext {
   packageId: string;
   actorId: string;
@@ -115,6 +158,8 @@ export interface TransferContext {
   targetOrganizationId?: string | null;
   projectMap: Record<string, string>;
   dualDb: boolean;
+  /** Default replace — deep refresh of selected object children (Archer default). */
+  childApplyMode?: ChildApplyMode;
 }
 
 export function contentHash(value: unknown): string {

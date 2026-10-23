@@ -156,6 +156,20 @@ export class PromotionController {
     return this.promotionService.validate(this.userId(req), id);
   }
 
+  /**
+   * Archer-style mapping review: Dev→Prod identity map for selected objects
+   * (fields, options, users, roles, form refs) + child apply mode (replace|merge).
+   */
+  @Post('packages/:id/mappings')
+  @UseGuards(PromotionalTransferEnabledGuard)
+  mappings(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @Body() body: { childApplyMode?: 'replace' | 'merge' },
+  ) {
+    return this.promotionService.buildMappings(this.userId(req), id, body || {});
+  }
+
   @Get('packages/:id/summary')
   @UseGuards(PromotionalTransferEnabledGuard)
   summary(@Req() req: AuthedRequest, @Param('id') id: string) {

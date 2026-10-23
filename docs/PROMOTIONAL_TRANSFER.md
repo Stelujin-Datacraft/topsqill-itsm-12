@@ -160,8 +160,19 @@ Preferred: per-object upsert (idempotent retry). Before overwrite, store `prod_b
 | PUT | `/promotion/packages/:id/selection` | Set selected objects |
 | POST | `/promotion/packages/:id/dependencies` | Resolve deps |
 | POST | `/promotion/packages/:id/validate` | Run validation |
+| POST | `/promotion/packages/:id/mappings` | Archer-style Dev→Prod mapping review + apply mode |
 | POST | `/promotion/packages/:id/execute` | Promote |
 | GET | `/promotion/registry` | Registry catalog |
+
+### Mapping review & apply mode
+
+After validation, the wizard shows a **Mapping** step:
+
+- Resolves objects, form fields (label+type), dropdown options, users (email), roles/groups (name), and workflow/data-feed form refs
+- **Replace** (default): matched objects update; nested children for that object are replaced (forms/workflows/roles) so Prod matches the package
+- **Merge**: form fields upsert by label+type and **Prod-only fields are kept**; workflows/roles still replace their graphs/permissions
+- Unresolved required maps (e.g. missing Prod form for a workflow ref) become **blockers** and block execute
+- Env-specific values (secrets, localhost URLs) are listed as **stripped**
 
 ## 19. UI screens and workflow
 

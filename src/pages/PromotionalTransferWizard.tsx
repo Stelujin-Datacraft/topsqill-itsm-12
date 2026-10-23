@@ -29,6 +29,7 @@ const STEPS = [
   'Select Objects',
   'Dependencies',
   'Validation',
+  'Mapping',
   'Summary',
   'Result',
 ] as const;
@@ -56,6 +57,8 @@ export default function PromotionalTransferWizard() {
   const [missingDeps, setMissingDeps] = useState<any[]>([]);
   const [includeDeps, setIncludeDeps] = useState<Record<string, boolean>>({});
   const [summary, setSummary] = useState<any>(null);
+  const [mappingReport, setMappingReport] = useState<any>(null);
+  const [childApplyMode, setChildApplyMode] = useState<'replace' | 'merge'>('replace');
   const [busy, setBusy] = useState(false);
   const [loadingObjects, setLoadingObjects] = useState(false);
 
@@ -208,14 +211,52 @@ export default function PromotionalTransferWizard() {
     }
   }
 
+  async function loadMappings() {
+    if (!packageId) return;
+    setBusy(true);
+    try {
+      const res = await promotionApi.mappings(packageId, { childApplyMode });
+      setMappingReport(res.mapping);
+      setChildApplyMode(res.childApplyMode || 'replace');
+      setStep('Mapping');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to build object mappings');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshMappings(mode: 'replace' | 'merge') {
+    if (!packageId) return;
+    setBusy(true);
+    setChildApplyMode(mode);
+    try {
+      const res = await promotionApi.mappings(packageId, { childApplyMode: mode });
+      setMappingReport(res.mapping);
+      setChildApplyMode(res.childApplyMode || mode);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to refresh mappings');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function loadSummary() {
     if (!packageId) return;
     setBusy(true);
     try {
+      // Persist latest apply mode + mapping before summary
+      const mapped = await promotionApi.mappings(packageId, { childApplyMode });
+      setMappingReport(mapped.mapping);
       const s = await promotionApi.summary(packageId);
       setSummary(s);
       if (s.conflicts > 0) {
         toast.error('Resolve conflicts before promoting');
+        return;
+      }
+      if (mapped.mapping?.blockers?.length) {
+        toast.error('Resolve mapping blockers before continuing');
+        setStep('Mapping');
         return;
       }
       setStep('Summary');
@@ -514,6 +555,129 @@ export default function PromotionalTransferWizard() {
               <Button variant="outline" onClick={() => setStep('Dependencies')}>Back</Button>
               <Button
                 disabled={busy || (pkgDetail?.package?.validation_summary?.conflicts ?? 0) > 0 || pkgDetail?.package?.status !== 'Ready'}
+                onClick={loadMappings}
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Review mappings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 'Mapping' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Object mapping review</CardTitle>
+            <CardDescription>
+              Archer-style Dev → Prod identity map for selected objects (fields, options, users, roles, form refs).
+              Default apply mode is Replace (children refreshed to match Dev). Merge keeps Prod-only form fields.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Child apply mode</Label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={childApplyMode === 'replace' ? 'default' : 'outline'}
+                  disabled={busy}
+                  onClick={() => refreshMappings('replace')}
+                >
+                  Replace (default)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={childApplyMode === 'merge' ? 'default' : 'outline'}
+                  disabled={busy}
+                  onClick={() => refreshMappings('merge')}
+                >
+                  Merge (forms keep Prod extras)
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Replace updates matched objects and replaces nested config. Merge upserts form fields by label+type
+                without deleting Prod-only fields. Workflows/roles still replace their graphs/permissions.
+              </p>
+            </div>
+
+            {mappingReport && (
+              <>
+                <div className="flex flex-wrap gap-2 text-sm">
+                  <Badge variant="outline" className="bg-emerald-50">Matched: {mappingReport.counts?.matched ?? 0}</Badge>
+                  <Badge variant="outline" className="bg-sky-50">New: {mappingReport.counts?.new ?? 0}</Badge>
+                  <Badge variant="outline" className="bg-red-50">Unresolved: {mappingReport.counts?.unresolved ?? 0}</Badge>
+                  <Badge variant="outline" className="bg-amber-50">Stripped: {mappingReport.counts?.stripped ?? 0}</Badge>
+                </div>
+
+                {!!mappingReport.blockers?.length && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 space-y-1">
+                    <div className="font-medium">Mapping blockers (must resolve before promote)</div>
+                    {mappingReport.blockers.map((b: string, i: number) => (
+                      <div key={i}>• {b}</div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="rounded-md border max-h-[420px] overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-muted/70 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2">Kind</th>
+                        <th className="px-3 py-2">Object</th>
+                        <th className="px-3 py-2">Label</th>
+                        <th className="px-3 py-2">Dev</th>
+                        <th className="px-3 py-2">Prod</th>
+                        <th className="px-3 py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(mappingReport.entries || []).map((e: any, idx: number) => (
+                        <tr key={`${e.kind}-${e.sourceKey}-${idx}`} className="align-top">
+                          <td className="px-3 py-2 text-xs">{e.kind}</td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium">{e.objectName}</div>
+                            <div className="text-[10px] text-muted-foreground">{e.objectType}</div>
+                          </td>
+                          <td className="px-3 py-2">{e.label}</td>
+                          <td className="px-3 py-2 font-mono text-[11px] break-all">{e.sourceKey}</td>
+                          <td className="px-3 py-2 font-mono text-[11px] break-all">{e.targetKey || '—'}</td>
+                          <td className="px-3 py-2">
+                            <Badge
+                              variant="outline"
+                              className={
+                                e.status === 'matched'
+                                  ? 'bg-emerald-50'
+                                  : e.status === 'new'
+                                    ? 'bg-sky-50'
+                                    : e.status === 'stripped'
+                                      ? 'bg-amber-50'
+                                      : 'bg-red-50'
+                              }
+                            >
+                              {e.status}
+                            </Badge>
+                            {e.detail && (
+                              <div className="mt-1 text-[10px] text-muted-foreground">{e.detail}</div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setStep('Validation')}>Back</Button>
+              <Button
+                disabled={
+                  busy ||
+                  !!mappingReport?.blockers?.length
+                }
                 onClick={loadSummary}
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -535,6 +699,7 @@ export default function PromotionalTransferWizard() {
               <div><dt className="text-muted-foreground">Source</dt><dd className="font-medium">{summary.source}</dd></div>
               <div><dt className="text-muted-foreground">Target</dt><dd className="font-medium">{summary.target}</dd></div>
               <div><dt className="text-muted-foreground">Modules</dt><dd className="font-medium">{summary.module}</dd></div>
+              <div><dt className="text-muted-foreground">Apply mode</dt><dd className="font-medium">{summary.childApplyMode || childApplyMode}</dd></div>
               <div><dt className="text-muted-foreground">Selected objects</dt><dd className="font-medium">{summary.selectedObjects}</dd></div>
               <div><dt className="text-muted-foreground">Dependencies</dt><dd className="font-medium">{summary.dependencies}</dd></div>
               <div><dt className="text-muted-foreground">New objects</dt><dd className="font-medium">{summary.newObjects}</dd></div>
@@ -551,7 +716,7 @@ export default function PromotionalTransferWizard() {
               ))}
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setStep('Validation')}>Back</Button>
+              <Button variant="outline" onClick={() => setStep('Mapping')}>Back</Button>
               <Button disabled={busy || summary.conflicts > 0} onClick={executePromote}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Promote to Production

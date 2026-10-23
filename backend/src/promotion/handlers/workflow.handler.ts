@@ -1,8 +1,10 @@
 import { contentHash, versionFromPayload } from '../registry/types';
 import type { DependencyRef, ObjectRef, PortableObject, TransferContext } from '../registry/types';
 import { sanitizeEnvSpecific } from '../engines/env-values';
+import { remapFormIdsInValue } from '../engines/object-mapping';
 import type { PromotableHandler, SbClient } from './handler.types';
 import { stableIdFromRow } from './handler.types';
+import { formStableId, resolveFormIdOnTarget } from './promo-utils';
 
 function extractFormIdsFromConfig(config: unknown, out: Set<string>) {
   if (!config || typeof config !== 'object') return;
@@ -16,7 +18,7 @@ function extractFormIdsFromConfig(config: unknown, out: Set<string>) {
     if (
       (key === 'form_id' || key === 'formid' || key === 'source_form_id' || key === 'target_form_id') &&
       typeof v === 'string' &&
-      v.length > 10
+      v.trim().length > 0
     ) {
       out.add(v);
     } else if (v && typeof v === 'object') {
@@ -241,14 +243,24 @@ export class WorkflowHandler implements PromotableHandler {
 
     const nodes = (portable.children?.workflow_nodes || []) as Record<string, unknown>[];
     const idMap = new Map<string, string>();
+    const formIdCache = new Map<string, string | null>();
+    const resolveForm = async (devFormId: string) => {
+      if (formIdCache.has(devFormId)) return formIdCache.get(devFormId)!;
+      const stable = await formStableId(_source, devFormId);
+      const prodId = await resolveFormIdOnTarget(target, { formId: devFormId, formStableId: stable });
+      formIdCache.set(devFormId, prodId);
+      return prodId;
+    };
+
     if (nodes.length) {
       for (const n of nodes) {
         const { _dev_node_id, config, ...rest } = n;
+        const remappedConfig = await remapFormIdsInValue(config || {}, resolveForm);
         const { data, error } = await target
           .from('workflow_nodes')
           .insert({
             ...rest,
-            config: config || {},
+            config: remappedConfig || {},
             workflow_id: workflowId,
             updated_at: new Date().toISOString(),
           })

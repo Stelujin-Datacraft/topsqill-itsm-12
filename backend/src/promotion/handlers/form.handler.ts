@@ -188,23 +188,67 @@ export class FormHandler implements PromotableHandler {
       formId = data.id;
     }
 
-    // Replace fields for this form (configuration only — never touches submissions)
-    await target.from('form_fields').delete().eq('form_id', formId);
+    // Nested fields — configuration only (never touches submissions).
+    // replace (default): delete+insert children so Prod matches Dev package.
+    // merge: upsert by label+field_type; leave Prod-only extra fields untouched.
     const fields = (portable.children?.form_fields || []) as Record<string, unknown>[];
-    if (fields.length) {
-      const inserts = fields.map((f, idx) => {
+    const applyMode = ctx.childApplyMode || 'replace';
+
+    if (applyMode === 'merge' && fields.length) {
+      const { data: existingFields } = await target
+        .from('form_fields')
+        .select('id, label, field_type')
+        .eq('form_id', formId);
+      const byKey = new Map(
+        (existingFields || []).map((f) => [
+          `${String(f.label || '')
+            .trim()
+            .toLowerCase()}::${String(f.field_type || '')
+            .trim()
+            .toLowerCase()}`,
+          f.id as string,
+        ]),
+      );
+      for (let idx = 0; idx < fields.length; idx++) {
+        const f = fields[idx];
         const { _dev_field_id, ...rest } = f;
-        return {
+        const key = `${String(rest.label || '')
+          .trim()
+          .toLowerCase()}::${String(rest.field_type || '')
+          .trim()
+          .toLowerCase()}`;
+        const payload = {
           ...rest,
           form_id: formId,
           field_order: rest.field_order ?? idx,
           updated_at: new Date().toISOString(),
         };
-      });
-      const { error: fErr } = await target.from('form_fields').insert(inserts);
-      if (fErr) return { status: 'failed' as const, error: `form_fields: ${fErr.message}` };
+        const existingId = byKey.get(key);
+        if (existingId) {
+          const { error } = await target.from('form_fields').update(payload).eq('id', existingId);
+          if (error) return { status: 'failed' as const, error: `form_fields merge update: ${error.message}` };
+        } else {
+          const { error } = await target.from('form_fields').insert(payload);
+          if (error) return { status: 'failed' as const, error: `form_fields merge insert: ${error.message}` };
+        }
+      }
+    } else {
+      await target.from('form_fields').delete().eq('form_id', formId);
+      if (fields.length) {
+        const inserts = fields.map((f, idx) => {
+          const { _dev_field_id, ...rest } = f;
+          return {
+            ...rest,
+            form_id: formId,
+            field_order: rest.field_order ?? idx,
+            updated_at: new Date().toISOString(),
+          };
+        });
+        const { error: fErr } = await target.from('form_fields').insert(inserts);
+        if (fErr) return { status: 'failed' as const, error: `form_fields: ${fErr.message}` };
+      }
     }
 
-    return { status: 'succeeded' as const, prodAfter: { id: formId, ...row } };
+    return { status: 'succeeded' as const, prodAfter: { id: formId, ...row, childApplyMode: applyMode } };
   }
 }

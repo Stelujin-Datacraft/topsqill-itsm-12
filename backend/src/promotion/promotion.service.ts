@@ -14,6 +14,7 @@ import {
   isRegisteredPromotable,
 } from './registry/promotable-registry';
 import type {
+  ChildApplyMode,
   DependencyRef,
   PortableObject,
   PromotableObjectType,
@@ -24,6 +25,7 @@ import { getHandler, listHandlers } from './handlers';
 import { PROMOTION_SCHEMA_SQL } from './schema.sql';
 import { assertPromotionalTransferAllowed } from './promotion-access';
 import { normalizePackageModules, parseModulesQuery } from './package-modules';
+import { buildMappingReport } from './engines/object-mapping';
 
 function makePromotionId(): string {
   const d = new Date();
@@ -776,6 +778,7 @@ export class PromotionService {
     const validations = detail.validations || [];
     const newObjects = items.filter((i: any) => !i.prod_version).length;
     const toUpdate = items.filter((i: any) => i.prod_version && i.validation_status === 'warning').length;
+    const promoSummary = (detail.package.promotion_summary || {}) as Record<string, unknown>;
     return {
       source: detail.package.source_environment,
       target: detail.package.target_environment,
@@ -788,8 +791,87 @@ export class PromotionService {
       conflicts: validations.filter((v: any) => v.severity === 'conflict').length,
       status: detail.package.status,
       transferMode: this.environments.isDualDb() ? 'dual_supabase' : 'logical_snapshot',
+      childApplyMode: (promoSummary.childApplyMode as ChildApplyMode) || 'replace',
+      mapping: promoSummary.mapping || null,
       items,
       package: detail.package,
+    };
+  }
+
+  /**
+   * Archer-style mapping review: resolve Dev→Prod identities for selected objects
+   * (fields, options, users, roles, form refs) and persist on the package.
+   */
+  async buildMappings(
+    userId: string,
+    packageId: string,
+    body: { childApplyMode?: ChildApplyMode } = {},
+  ) {
+    await this.assertAdmin(userId);
+    const detail = await this.getPackage(userId, packageId);
+    const items = (detail.items || []).filter((i: any) => i.included);
+    if (!items.length) {
+      throw new BadRequestException('Select at least one promotable object before mapping review');
+    }
+
+    const childApplyMode: ChildApplyMode =
+      body.childApplyMode === 'merge' ? 'merge' : 'replace';
+    const dual = this.environments.isDualDb();
+    const mode = dual ? 'dual_supabase' : 'logical_snapshot';
+    const source = this.environments.getSourceClient();
+    const target = this.environments.getTargetClient();
+
+    const ctx: TransferContext = {
+      packageId,
+      actorId: userId,
+      sourceKey: this.environments.getSourceKey(),
+      targetKey: this.environments.getTargetKey(),
+      organizationId: detail.package.organization_id,
+      projectId: detail.package.project_id,
+      targetOrganizationId: this.environments.getTargetOrganizationId(),
+      projectMap: this.environments.getProjectMap(),
+      dualDb: dual,
+      childApplyMode,
+    };
+
+    const mapping = await buildMappingReport({
+      source,
+      target,
+      items,
+      ctx,
+      childApplyMode,
+      transferMode: mode,
+    });
+
+    const prevSummary =
+      detail.package.promotion_summary && typeof detail.package.promotion_summary === 'object'
+        ? (detail.package.promotion_summary as Record<string, unknown>)
+        : {};
+
+    await this.db()
+      .from('promotion_packages')
+      .update({
+        promotion_summary: {
+          ...prevSummary,
+          childApplyMode,
+          mapping,
+          mappingReviewedAt: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', packageId);
+
+    await this.audit(packageId, 'mapping_reviewed', userId, 'Object mapping review generated', {
+      childApplyMode,
+      counts: mapping.counts,
+      blockers: mapping.blockers.length,
+    });
+
+    return {
+      packageId,
+      childApplyMode,
+      mapping,
+      package: (await this.getPackage(userId, packageId)).package,
     };
   }
 
@@ -814,6 +896,19 @@ export class PromotionService {
     const mode = dual ? 'dual_supabase' : 'logical_snapshot';
     const source = this.environments.getSourceClient();
     const target = this.environments.getTargetClient();
+    const promoSummary = (pkg.promotion_summary || {}) as Record<string, unknown>;
+    const childApplyMode: ChildApplyMode =
+      promoSummary.childApplyMode === 'merge' ? 'merge' : 'replace';
+
+    // Soft gate: if mapping was reviewed and has blockers, refuse execute until resolved
+    const mapping = promoSummary.mapping as { blockers?: string[] } | undefined;
+    if (mapping?.blockers?.length) {
+      throw new BadRequestException(
+        `Resolve mapping blockers before promote: ${mapping.blockers.slice(0, 3).join('; ')}${
+          mapping.blockers.length > 3 ? '…' : ''
+        }`,
+      );
+    }
 
     const ctx: TransferContext = {
       packageId,
@@ -825,6 +920,7 @@ export class PromotionService {
       targetOrganizationId: this.environments.getTargetOrganizationId(),
       projectMap: this.environments.getProjectMap(),
       dualDb: dual,
+      childApplyMode,
     };
 
     await this.db()

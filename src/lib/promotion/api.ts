@@ -71,6 +71,8 @@ export const promotionApi = {
   resolveDependencies: (id: string, includeStableIds?: string[]) =>
     promoRequest<any>(`/packages/${id}/dependencies`, { method: 'POST', body: { includeStableIds } }),
   validate: (id: string) => promoRequest<any>(`/packages/${id}/validate`, { method: 'POST', body: {} }),
+  mappings: (id: string, body?: { childApplyMode?: 'replace' | 'merge' }) =>
+    promoRequest<any>(`/packages/${id}/mappings`, { method: 'POST', body: body || {} }),
   summary: (id: string) => promoRequest<any>(`/packages/${id}/summary`),
   execute: (id: string) => promoRequest<any>(`/packages/${id}/execute`, { method: 'POST', body: {} }),
 };
