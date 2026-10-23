@@ -1,7 +1,7 @@
 import { FormHandler } from './form.handler';
 import { WorkflowHandler } from './workflow.handler';
 import { ReportHandler, DashboardHandler, EmailTemplateHandler } from './report.handler';
-import { RoleHandler } from './access-control.handler';
+import { RoleHandler, OrgUserHandler, GroupHandler } from './access-control.handler';
 import { DataFeedHandler } from './data-feed.handler';
 import { KbFolderHandler, PolicyHandler } from './knowledge-base.handler';
 import { VisIntegrationHandler } from './vis.handler';
@@ -17,7 +17,9 @@ const handlers: PromotableHandler[] = [
   new ReportHandler(),
   new DashboardHandler(),
   new EmailTemplateHandler(),
+  new OrgUserHandler(),
   new RoleHandler(),
+  new GroupHandler(),
   new DataFeedHandler(),
   new KbFolderHandler(),
   new PolicyHandler(),

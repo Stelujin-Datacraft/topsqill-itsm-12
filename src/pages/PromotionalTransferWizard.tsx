@@ -92,6 +92,7 @@ export default function PromotionalTransferWizard() {
       const res = await promotionApi.objects({
         modules: mods,
         projectId: currentProject?.id,
+        organizationId: userProfile?.organization_id || undefined,
       });
       setObjects(res.objects || []);
       setSelected({});
@@ -100,7 +101,22 @@ export default function PromotionalTransferWizard() {
     } finally {
       setLoadingObjects(false);
     }
-  }, [currentProject?.id]);
+  }, [currentProject?.id, userProfile?.organization_id]);
+
+  /** Group listed objects by type so Access Control shows Users / Roles / Groups sections. */
+  const objectsByType = useMemo(() => {
+    const order: string[] = [];
+    const map = new Map<string, any[]>();
+    for (const o of objects) {
+      const key = o.objectTypeName || o.objectType;
+      if (!map.has(key)) {
+        map.set(key, []);
+        order.push(key);
+      }
+      map.get(key)!.push(o);
+    }
+    return order.map((label) => ({ label, items: map.get(label)! }));
+  }, [objects]);
 
   function toggleModule(mod: string) {
     setSelectedModules((prev) =>
@@ -368,32 +384,71 @@ export default function PromotionalTransferWizard() {
             ) : !objects.length ? (
               <p className="text-sm text-muted-foreground">No promotable objects found for these modules/project.</p>
             ) : (
-              <div className="rounded-md border divide-y max-h-[480px] overflow-auto">
-                {objects.map((o) => {
-                  const key = `${o.objectType}:${o.objectId}`;
-                  return (
-                    <label key={key} className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30">
-                      <Checkbox
-                        checked={!!selected[key]}
-                        onCheckedChange={(v) => setSelected((s) => ({ ...s, [key]: !!v }))}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium">{o.name}</div>
-                        <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-1">
-                          <Badge variant="outline" className="text-[10px]">{o.module}</Badge>
-                          <span>{o.objectTypeName || o.objectType}</span>
-                          <span>·</span>
-                          <span>Dev: {o.devVersion || '—'}</span>
-                          <span>·</span>
-                          <span>Prod: {o.prodVersion || 'not present'}</span>
-                          <span>·</span>
-                          <span>{o.conflictStatus}</span>
-                          {o.hasDependencies && <Badge variant="outline" className="text-[10px]">has dependencies</Badge>}
-                        </div>
+              <div className="rounded-md border max-h-[480px] overflow-auto">
+                {objectsByType.map((section) => (
+                  <div key={section.label}>
+                    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-muted/60 px-4 py-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {section.label}
+                        <span className="ml-2 font-normal normal-case">({section.items.length})</span>
                       </div>
-                    </label>
-                  );
-                })}
+                      <button
+                        type="button"
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => {
+                          const allSelected = section.items.every(
+                            (o) => selected[`${o.objectType}:${o.objectId}`],
+                          );
+                          setSelected((s) => {
+                            const next = { ...s };
+                            for (const o of section.items) {
+                              next[`${o.objectType}:${o.objectId}`] = !allSelected;
+                            }
+                            return next;
+                          });
+                        }}
+                      >
+                        {section.items.every((o) => selected[`${o.objectType}:${o.objectId}`])
+                          ? 'Deselect all'
+                          : 'Select all'}
+                      </button>
+                    </div>
+                    <div className="divide-y">
+                      {section.items.map((o) => {
+                        const key = `${o.objectType}:${o.objectId}`;
+                        return (
+                          <label
+                            key={key}
+                            className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30"
+                          >
+                            <Checkbox
+                              checked={!!selected[key]}
+                              onCheckedChange={(v) => setSelected((s) => ({ ...s, [key]: !!v }))}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium">{o.name}</div>
+                              <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-1">
+                                <Badge variant="outline" className="text-[10px]">{o.module}</Badge>
+                                <span>{o.objectTypeName || o.objectType}</span>
+                                <span>·</span>
+                                <span>Dev: {o.devVersion || '—'}</span>
+                                <span>·</span>
+                                <span>Prod: {o.prodVersion || 'not present'}</span>
+                                <span>·</span>
+                                <span>{o.conflictStatus}</span>
+                                {o.hasDependencies && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    has dependencies
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
             <div className="text-sm text-muted-foreground">{selectedList.length} selected</div>

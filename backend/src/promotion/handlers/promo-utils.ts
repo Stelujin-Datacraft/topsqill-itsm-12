@@ -75,3 +75,50 @@ export async function formStableId(source: SbClient, formId: string | null | und
   if (!data) return null;
   return (data.reference_id && String(data.reference_id).trim()) || data.id;
 }
+
+/** Resolve a role on the target by organization + name. */
+export async function resolveRoleIdByName(
+  target: SbClient,
+  organizationId: string | null | undefined,
+  roleName: string | null | undefined,
+): Promise<string | null> {
+  if (!organizationId || !roleName?.trim()) return null;
+  const { data } = await target
+    .from('roles')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .eq('name', roleName.trim())
+    .maybeSingle();
+  return data?.id || null;
+}
+
+/** Resolve a user on the target by email (case-insensitive). */
+export async function resolveUserIdByEmail(
+  target: SbClient,
+  email: string | null | undefined,
+): Promise<string | null> {
+  if (!email?.trim()) return null;
+  const normalized = email.trim().toLowerCase();
+  const { data } = await target
+    .from('user_profiles')
+    .select('id, email')
+    .ilike('email', normalized)
+    .maybeSingle();
+  return data?.id || null;
+}
+
+/** Resolve a group on the target by organization + name. */
+export async function resolveGroupIdByName(
+  target: SbClient,
+  organizationId: string | null | undefined,
+  groupName: string | null | undefined,
+): Promise<string | null> {
+  if (!organizationId || !groupName?.trim()) return null;
+  const { data } = await target
+    .from('groups')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .eq('name', groupName.trim())
+    .maybeSingle();
+  return data?.id || null;
+}

@@ -95,6 +95,16 @@ test('legacy core modules remain registered unchanged', () => {
   }
 });
 
+test('Access Control exposes users, roles, and groups', () => {
+  const ac = listModules().find((m) => m.module === 'Access Control');
+  assert.ok(ac);
+  assert.deepEqual(ac!.objectTypes.slice().sort(), ['group', 'org_user', 'role'].sort());
+  for (const t of ['org_user', 'role', 'group'] as const) {
+    assert.equal(isRegisteredPromotable(t), true);
+    assert.equal(getHandler(t).objectType, t);
+  }
+});
+
 test('every registry type has a transfer handler', () => {
   const handlers = listHandlers();
   assert.equal(handlers.length, PROMOTABLE_REGISTRY.length);

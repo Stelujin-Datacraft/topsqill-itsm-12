@@ -43,8 +43,8 @@ export const PROMOTION_MODULES: Array<{
   },
   {
     module: 'Access Control',
-    objectTypes: ['role'],
-    description: 'Role definitions and type-wide permissions (no user assignments)',
+    objectTypes: ['org_user', 'role', 'group'],
+    description: 'Users, roles, and groups (select each record to transfer)',
   },
   {
     module: 'Data Feed',

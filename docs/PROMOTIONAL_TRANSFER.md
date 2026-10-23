@@ -187,7 +187,9 @@ Dashboard → Create New → Source/Target (fixed Dev→Prod) → Module → Sel
 | `report` | Reports | — | — |
 | `dashboard` | Reports | — | — |
 | `email_template` | Notifications | — | — |
-| `role` | Access Control | `role_permissions` | Type-wide perms only; no user assignments |
+| `org_user` | Access Control | `user_role_assignments` | Match by email; no passwords; create auth user on Prod if missing |
+| `role` | Access Control | `role_permissions` | Type-wide perms only (resource UUIDs stripped) |
+| `group` | Access Control | `group_memberships`, `group_role_assignments` | Members by email / nested group name; roles by name |
 | `data_feed` | Data Feed | — | Remaps forms via `reference_id`; no runs |
 | `kb_folder` | Knowledge Base | — | No per-user folder access grants |
 | `policy` | Knowledge Base | — | Document config/content; no approvals/ratings |

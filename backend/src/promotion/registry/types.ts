@@ -26,6 +26,8 @@ export type PromotableObjectType =
   | 'dashboard'
   | 'email_template'
   | 'role'
+  | 'org_user'
+  | 'group'
   | 'data_feed'
   | 'kb_folder'
   | 'policy'
