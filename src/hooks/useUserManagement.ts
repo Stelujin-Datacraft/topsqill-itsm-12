@@ -123,19 +123,29 @@ export const useUserManagement = () => {
         return false;
       }
 
+      if (!data || (typeof data === 'object' && 'success' in data && !(data as { success?: boolean }).success)) {
+        toast({
+          title: "Error",
+          description:
+            (data as { error?: string } | null)?.error ||
+            "Failed to create user account and send welcome email.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       console.log('User account created successfully:', data);
       
       // Show appropriate toast based on email status
-      if (data.emailSent) {
+      if ((data as { emailSent?: boolean }).emailSent) {
         toast({
           title: "User created successfully",
           description: `${firstName} ${lastName} has been created and will receive a welcome email with login credentials.`,
         });
       } else {
         toast({
-          title: "User created with email issue",
-          description: `${firstName} ${lastName} has been created, but there was an issue sending the welcome email.`,
-          variant: "destructive",
+          title: "User created successfully",
+          description: `${firstName} ${lastName} has been created in your organization.`,
         });
       }
       
@@ -493,6 +503,19 @@ export const useUserManagement = () => {
         toast({
           title: "Error",
           description: error.message || "Failed to create user account.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data || (typeof data === 'object' && 'success' in data && !(data as { success?: boolean }).success)) {
+        const errMsg =
+          (data as { error?: string; message?: string } | null)?.error ||
+          (data as { message?: string } | null)?.message ||
+          'Failed to create user account.';
+        toast({
+          title: "Error",
+          description: errMsg,
           variant: "destructive",
         });
         return;

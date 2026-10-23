@@ -1,7 +1,10 @@
-import { Controller, Post, Body, Headers, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Headers, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from '../common/decorators/public.decorator';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
+
+type AuthedRequest = Request & { user?: { id: string } };
 
 @Controller('auth')
 export class AuthController {
@@ -48,13 +51,19 @@ export class AuthController {
 
   @UseGuards(SupabaseAuthGuard)
   @Post('send-welcome-email')
-  sendWelcomeEmail(@Body() body: Record<string, unknown>) {
-    return this.authService.sendWelcomeEmail(body);
+  sendWelcomeEmail(@Req() req: AuthedRequest, @Body() body: Record<string, unknown>) {
+    return this.authService.sendWelcomeEmail({
+      ...body,
+      _actorId: req.user?.id,
+    });
   }
 
   @UseGuards(SupabaseAuthGuard)
   @Post('send-user-invitation')
-  sendUserInvitation(@Body() body: Record<string, unknown>) {
-    return this.authService.sendUserInvitation(body);
+  sendUserInvitation(@Req() req: AuthedRequest, @Body() body: Record<string, unknown>) {
+    return this.authService.sendUserInvitation({
+      ...body,
+      _actorId: req.user?.id,
+    });
   }
 }

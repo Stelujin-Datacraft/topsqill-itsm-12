@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { promotionApi } from '@/lib/promotion/api';
 import { DEFAULT_PROMOTION_ENVIRONMENTS, PROMOTION_MODULES } from '@/lib/promotion/registry';
+import { ModuleObjectDualListbox } from '@/components/promotion/ModuleObjectDualListbox';
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, AlertTriangle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -48,6 +50,7 @@ export default function PromotionalTransferWizard() {
   const [apiWarning, setApiWarning] = useState<string | null>(null);
   const [objects, setObjects] = useState<any[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [activeObjectModule, setActiveObjectModule] = useState<string>('');
   const [packageId, setPackageId] = useState<string | null>(null);
   const [pkgDetail, setPkgDetail] = useState<any>(null);
   const [missingDeps, setMissingDeps] = useState<any[]>([]);
@@ -96,6 +99,7 @@ export default function PromotionalTransferWizard() {
       });
       setObjects(res.objects || []);
       setSelected({});
+      setActiveObjectModule(mods[0] || '');
     } catch (e: any) {
       toast.error(e?.message || 'Failed to list promotable objects');
     } finally {
@@ -103,20 +107,19 @@ export default function PromotionalTransferWizard() {
     }
   }, [currentProject?.id, userProfile?.organization_id]);
 
-  /** Group listed objects by type so Access Control shows Users / Roles / Groups sections. */
-  const objectsByType = useMemo(() => {
-    const order: string[] = [];
+  /** Objects grouped by package module for tabbed dual-listboxes. */
+  const objectsByModule = useMemo(() => {
     const map = new Map<string, any[]>();
+    for (const mod of selectedModules) map.set(mod, []);
     for (const o of objects) {
-      const key = o.objectTypeName || o.objectType;
-      if (!map.has(key)) {
-        map.set(key, []);
-        order.push(key);
-      }
-      map.get(key)!.push(o);
+      const mod = o.module || 'Other';
+      if (!map.has(mod)) map.set(mod, []);
+      map.get(mod)!.push(o);
     }
-    return order.map((label) => ({ label, items: map.get(label)! }));
-  }, [objects]);
+    return selectedModules
+      .filter((m) => map.has(m))
+      .map((module) => ({ module, items: map.get(module) || [] }));
+  }, [objects, selectedModules]);
 
   function toggleModule(mod: string) {
     setSelectedModules((prev) =>
@@ -371,7 +374,7 @@ export default function PromotionalTransferWizard() {
           <CardHeader>
             <CardTitle>Select promotable objects</CardTitle>
             <CardDescription>
-              Only registered promotable objects appear from: {selectedModules.join(', ') || 'selected modules'}.
+              Use a module tab, then move items with the listbox (Available → Selected). Search filters each side.
               Unselected objects will not be transferred.
               {currentProject ? ` Scoped to project: ${currentProject.name}` : ''}
             </CardDescription>
@@ -381,77 +384,43 @@ export default function PromotionalTransferWizard() {
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading objects…
               </div>
-            ) : !objects.length ? (
+            ) : !objectsByModule.length ? (
               <p className="text-sm text-muted-foreground">No promotable objects found for these modules/project.</p>
             ) : (
-              <div className="rounded-md border max-h-[480px] overflow-auto">
-                {objectsByType.map((section) => (
-                  <div key={section.label}>
-                    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-muted/60 px-4 py-2">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {section.label}
-                        <span className="ml-2 font-normal normal-case">({section.items.length})</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="text-xs text-primary hover:underline"
-                        onClick={() => {
-                          const allSelected = section.items.every(
-                            (o) => selected[`${o.objectType}:${o.objectId}`],
-                          );
-                          setSelected((s) => {
-                            const next = { ...s };
-                            for (const o of section.items) {
-                              next[`${o.objectType}:${o.objectId}`] = !allSelected;
-                            }
-                            return next;
-                          });
-                        }}
-                      >
-                        {section.items.every((o) => selected[`${o.objectType}:${o.objectId}`])
-                          ? 'Deselect all'
-                          : 'Select all'}
-                      </button>
-                    </div>
-                    <div className="divide-y">
-                      {section.items.map((o) => {
-                        const key = `${o.objectType}:${o.objectId}`;
-                        return (
-                          <label
-                            key={key}
-                            className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30"
-                          >
-                            <Checkbox
-                              checked={!!selected[key]}
-                              onCheckedChange={(v) => setSelected((s) => ({ ...s, [key]: !!v }))}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium">{o.name}</div>
-                              <div className="text-xs text-muted-foreground flex flex-wrap gap-2 mt-1">
-                                <Badge variant="outline" className="text-[10px]">{o.module}</Badge>
-                                <span>{o.objectTypeName || o.objectType}</span>
-                                <span>·</span>
-                                <span>Dev: {o.devVersion || '—'}</span>
-                                <span>·</span>
-                                <span>Prod: {o.prodVersion || 'not present'}</span>
-                                <span>·</span>
-                                <span>{o.conflictStatus}</span>
-                                {o.hasDependencies && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    has dependencies
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
+              <Tabs
+                value={activeObjectModule || objectsByModule[0]?.module}
+                onValueChange={setActiveObjectModule}
+                className="w-full"
+              >
+                <TabsList className="mb-3 flex h-auto w-full flex-wrap justify-start gap-1">
+                  {objectsByModule.map(({ module, items }) => {
+                    const count = items.filter((o) => selected[`${o.objectType}:${o.objectId}`]).length;
+                    return (
+                      <TabsTrigger key={module} value={module} className="text-xs sm:text-sm">
+                        {module}
+                        <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">
+                          {count}/{items.length}
+                        </Badge>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+                {objectsByModule.map(({ module, items }) => (
+                  <TabsContent key={module} value={module} className="mt-0 space-y-3">
+                    {!items.length ? (
+                      <p className="text-sm text-muted-foreground">No objects in {module} for this scope.</p>
+                    ) : (
+                      <ModuleObjectDualListbox
+                        items={items}
+                        selected={selected}
+                        onChange={setSelected}
+                      />
+                    )}
+                  </TabsContent>
                 ))}
-              </div>
+              </Tabs>
             )}
-            <div className="text-sm text-muted-foreground">{selectedList.length} selected</div>
+            <div className="text-sm text-muted-foreground">{selectedList.length} selected across all modules</div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep('Modules')}>Back</Button>
               <Button disabled={busy || !selectedList.length} onClick={saveSelectionAndDeps}>
