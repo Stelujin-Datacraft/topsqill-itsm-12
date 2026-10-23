@@ -1,6 +1,7 @@
 import { contentHash, versionFromPayload } from '../registry/types';
 import type { DependencyRef, ObjectRef, PortableObject, TransferContext } from '../registry/types';
 import { sanitizeEnvSpecific } from '../engines/env-values';
+import { itamMappingStableKey, mergeKeyedRecords, mergeStringLists } from '../engines/form-deep-merge';
 import type { PromotableHandler, SbClient } from './handler.types';
 import { remapOrgProject, writeLogicalSnapshot } from './promo-utils';
 
@@ -283,15 +284,33 @@ export class ItamSyncMappingHandler implements PromotableHandler {
       return { status: 'failed' as const, error: 'PROMOTION_PROD_ORG_ID required to promote ITAM sync mappings' };
     }
 
+    const applyMode = ctx.childApplyMode || 'replace';
+    let mappings: unknown = portable.portable.mappings || [];
+    let matchingSource: unknown = portable.portable.matching_source_fields || [];
+    let matchingTarget: unknown = portable.portable.matching_target_fields || [];
+
+    if (applyMode === 'merge' && existing.exists && existing.id) {
+      const { data: prodMap } = await target
+        .from('itam_sync_mappings')
+        .select('mappings, matching_source_fields, matching_target_fields')
+        .eq('id', existing.id)
+        .maybeSingle();
+      if (prodMap) {
+        mappings = mergeKeyedRecords(prodMap.mappings, mappings, itamMappingStableKey);
+        matchingSource = mergeStringLists(prodMap.matching_source_fields, matchingSource);
+        matchingTarget = mergeStringLists(prodMap.matching_target_fields, matchingTarget);
+      }
+    }
+
     const row = {
       name: portable.portable.name,
       organization_id: organizationId,
       target_form_id: portable.portable.target_form_id,
       version: portable.portable.version || 1,
       status: portable.portable.status || 'DRAFT',
-      mappings: portable.portable.mappings || [],
-      matching_source_fields: portable.portable.matching_source_fields || [],
-      matching_target_fields: portable.portable.matching_target_fields || [],
+      mappings,
+      matching_source_fields: matchingSource,
+      matching_target_fields: matchingTarget,
       mapping_source: portable.portable.mapping_source || 'DETERMINISTIC',
       confidence: portable.portable.confidence ?? null,
       reasoning: portable.portable.reasoning ?? null,
@@ -304,7 +323,7 @@ export class ItamSyncMappingHandler implements PromotableHandler {
     if (existing.exists && existing.id) {
       const { error } = await target.from('itam_sync_mappings').update(row).eq('id', existing.id);
       if (error) return { status: 'failed' as const, error: error.message };
-      return { status: 'succeeded' as const, prodAfter: { id: existing.id, ...row } };
+      return { status: 'succeeded' as const, prodAfter: { id: existing.id, ...row, childApplyMode: applyMode } };
     }
 
     const { data, error } = await target

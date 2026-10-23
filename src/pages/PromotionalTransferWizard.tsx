@@ -598,9 +598,10 @@ export default function PromotionalTransferWizard() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Replace updates matched objects and replaces nested config. Merge upserts form fields by label+type,
-                unions dropdown/radio/multiselect options by value, and merges field/form rules (+ actions) by name —
-                Prod-only fields, options, and rules are kept. Workflows/roles still replace their graphs/permissions.
+                Replace updates matched objects and replaces nested config. Merge digs into form fields (options,
+                custom_config/lifecycle transitions, pages, permissions, rules/actions), unions Access Control
+                role grants / user roles / group members, and unions data-feed &amp; ITAM field mappings —
+                Prod-only extras are kept. Workflow graphs still replace.
               </p>
             </div>
 

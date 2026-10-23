@@ -7,12 +7,20 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   actionStableKey,
+  fieldMappingStableKey,
+  mergeCustomConfig,
   mergeFieldOptions,
   mergeFormFieldPayload,
+  mergeFormPermissions,
+  mergeKeyedRecords,
+  mergePages,
   mergeRuleActions,
   mergeRules,
+  mergeStringLists,
+  mergeTransitionRules,
   optionStableKey,
   parseJsonArray,
+  remapPageFieldIds,
   ruleStableKey,
 } from '../../src/promotion/engines/form-deep-merge';
 
@@ -152,11 +160,114 @@ async function main() {
     assert.equal(arr[0].name, 'R1');
   });
 
-  await test('form.handler wires mergeFieldOptions / mergeRules', () => {
+  await test('mergeFormPermissions unions principal lists', () => {
+    const out: any = mergeFormPermissions(
+      { view: ['role-a', '*'], submit: ['role-a'], edit: [] },
+      { view: ['role-b'], submit: ['role-a'], edit: ['role-b'] },
+    );
+    assert.deepEqual(out.view.sort(), ['*', 'role-a', 'role-b'].sort());
+    assert.deepEqual(out.submit, ['role-a']);
+    assert.deepEqual(out.edit, ['role-b']);
+  });
+
+  await test('mergePages keeps Prod-only and unions fields', () => {
+    const out = mergePages(
+      [
+        { id: 'p1', name: 'Main', order: 0, fields: ['f-prod-1', 'f-prod-2'] },
+        { id: 'p-only', name: 'Prod Extra', order: 2, fields: ['f-x'] },
+      ],
+      [
+        { id: 'p1', name: 'Main Updated', order: 0, fields: ['f-prod-2', 'f-dev-3'] },
+        { id: 'p-new', name: 'Dev Page', order: 1, fields: ['f-dev-4'] },
+      ],
+    );
+    assert.equal(out.length, 3);
+    const main = out.find((p) => p.id === 'p1')!;
+    assert.equal(main.name, 'Main Updated');
+    assert.deepEqual((main.fields as string[]).sort(), ['f-dev-3', 'f-prod-1', 'f-prod-2'].sort());
+    assert.ok(out.some((p) => p.id === 'p-only'));
+    assert.ok(out.some((p) => p.id === 'p-new'));
+  });
+
+  await test('remapPageFieldIds maps Dev→Prod and drops unknown', () => {
+    const map = new Map([
+      ['dev-1', 'prod-1'],
+      ['dev-2', 'prod-2'],
+    ]);
+    const out = remapPageFieldIds([{ id: 'p1', fields: ['dev-1', 'missing', 'prod-2'] }], map);
+    assert.deepEqual(out[0].fields, ['prod-1', 'prod-2']);
+  });
+
+  await test('mergeCustomConfig unions transitionRules and filters', () => {
+    const out: any = mergeCustomConfig(
+      {
+        displayAsLifecycle: true,
+        transitionRules: { New: ['In Progress'], Done: ['Closed'] },
+        filters: [{ id: 'f1', field: 'a', operator: '==', value: '1' }],
+      },
+      {
+        displayAsLifecycle: true,
+        transitionRules: { New: ['Blocked', 'In Progress'], Open: ['New'] },
+        filters: [
+          { id: 'f1', field: 'a', operator: '==', value: '2' },
+          { id: 'f2', field: 'b', operator: '!=', value: 'x' },
+        ],
+      },
+    );
+    assert.deepEqual(out.transitionRules.New.sort(), ['Blocked', 'In Progress'].sort());
+    assert.deepEqual(out.transitionRules.Done, ['Closed']);
+    assert.deepEqual(out.transitionRules.Open, ['New']);
+    assert.equal(out.filters.length, 2);
+    assert.equal(out.filters.find((f: any) => f.id === 'f1').value, '2');
+  });
+
+  await test('mergeTransitionRules is associative for empty sides', () => {
+    assert.deepEqual(mergeTransitionRules(null, { A: ['B'] }), { A: ['B'] });
+    assert.deepEqual(mergeStringLists(['a'], ['A', 'b']), ['a', 'b']);
+  });
+
+  await test('mergeKeyedRecords for field mappings prefers names', () => {
+    assert.equal(
+      fieldMappingStableKey({ sourceFieldName: 'Status', targetFieldName: 'State' }),
+      'name:status=>state',
+    );
+    const out = mergeKeyedRecords(
+      [{ sourceFieldName: 'A', targetFieldName: 'B', transform: 'prod' }],
+      [
+        { sourceFieldName: 'A', targetFieldName: 'B', transform: 'dev' },
+        { sourceFieldName: 'C', targetFieldName: 'D' },
+      ],
+      fieldMappingStableKey,
+    );
+    assert.equal(out.length, 2);
+    assert.equal(out[0].transform, 'dev');
+  });
+
+  await test('form.handler wires deep merges + page remap', () => {
     const src = readFileSync(resolve(process.cwd(), 'src/promotion/handlers/form.handler.ts'), 'utf8');
     assert.ok(/mergeFormFieldPayload/.test(src));
     assert.ok(/mergeRules/.test(src));
+    assert.ok(/mergeFormPermissions/.test(src));
+    assert.ok(/mergePages/.test(src));
+    assert.ok(/remapPageFieldIds/.test(src));
     assert.ok(/applyMode === 'merge'/.test(src));
+  });
+
+  await test('access-control honors merge for children', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/promotion/handlers/access-control.handler.ts'), 'utf8');
+    assert.ok(/applyMode === 'merge'/.test(src));
+    assert.ok(/role_permissions merge/.test(src) || /existingKeys/.test(src));
+    assert.ok(/user_role_assignments merge/.test(src) || /have\.has\(roleId\)/.test(src));
+    assert.ok(/group_memberships merge/.test(src) || /haveMembers/.test(src));
+  });
+
+  await test('data-feed and itam merge mapping arrays', () => {
+    const feed = readFileSync(resolve(process.cwd(), 'src/promotion/handlers/data-feed.handler.ts'), 'utf8');
+    const itam = readFileSync(resolve(process.cwd(), 'src/promotion/handlers/itam.handler.ts'), 'utf8');
+    assert.ok(/mergeKeyedRecords/.test(feed));
+    assert.ok(/fieldMappingStableKey/.test(feed));
+    assert.ok(/mergeKeyedRecords/.test(itam));
+    assert.ok(/itamMappingStableKey/.test(itam));
   });
 
   await test('object-mapping reports rule and action kinds', () => {
