@@ -1,6 +1,7 @@
 import { contentHash, versionFromPayload } from '../registry/types';
 import type { DependencyRef, ObjectRef, PortableObject, TransferContext } from '../registry/types';
 import { sanitizeEnvSpecific } from '../engines/env-values';
+import { mergeFormFieldPayload, mergeRules, parseJsonArray } from '../engines/form-deep-merge';
 import type { PromotableHandler, SbClient } from './handler.types';
 import { stableIdFromRow } from './handler.types';
 
@@ -156,6 +157,24 @@ export class FormHandler implements PromotableHandler {
       ctx.projectId ||
       portable.portable._dev_project_id;
     const organizationId = ctx.targetOrganizationId || portable.portable._dev_organization_id || null;
+    const applyMode = ctx.childApplyMode || 'replace';
+
+    let fieldRules: unknown = portable.portable.field_rules;
+    let formRules: unknown = portable.portable.form_rules;
+
+    // merge: dig into field_rules / form_rules — union by rule name, deep-merge actions.
+    // replace: package rules replace Prod wholesale (unchanged Archer default).
+    if (applyMode === 'merge' && existing.exists && existing.id) {
+      const { data: prodForm } = await target
+        .from('forms')
+        .select('field_rules, form_rules')
+        .eq('id', existing.id)
+        .maybeSingle();
+      if (prodForm) {
+        fieldRules = mergeRules(prodForm.field_rules, portable.portable.field_rules);
+        formRules = mergeRules(prodForm.form_rules, portable.portable.form_rules);
+      }
+    }
 
     const row: Record<string, unknown> = {
       name: portable.portable.name,
@@ -163,8 +182,8 @@ export class FormHandler implements PromotableHandler {
       status: portable.portable.status || 'active',
       layout: portable.portable.layout,
       pages: portable.portable.pages,
-      field_rules: portable.portable.field_rules,
-      form_rules: portable.portable.form_rules,
+      field_rules: fieldRules,
+      form_rules: formRules,
       permissions: portable.portable.permissions,
       is_public: portable.portable.is_public ?? false,
       reference_id: portable.stableId,
@@ -190,46 +209,50 @@ export class FormHandler implements PromotableHandler {
 
     // Nested fields — configuration only (never touches submissions).
     // replace (default): delete+insert children so Prod matches Dev package.
-    // merge: upsert by label+field_type; leave Prod-only extra fields untouched.
+    // merge: upsert by label+field_type; leave Prod-only extra fields untouched;
+    //        deep-merge choice options (dropdown/radio/multiselect) by option value.
     const fields = (portable.children?.form_fields || []) as Record<string, unknown>[];
-    const applyMode = ctx.childApplyMode || 'replace';
 
-    if (applyMode === 'merge' && fields.length) {
-      const { data: existingFields } = await target
-        .from('form_fields')
-        .select('id, label, field_type')
-        .eq('form_id', formId);
-      const byKey = new Map(
-        (existingFields || []).map((f) => [
-          `${String(f.label || '')
+    if (applyMode === 'merge') {
+      // Empty Dev field list still keeps all Prod fields (merge never deletes children).
+      if (fields.length) {
+        const { data: existingFields } = await target
+          .from('form_fields')
+          .select('id, label, field_type, options')
+          .eq('form_id', formId);
+        const byKey = new Map(
+          (existingFields || []).map((f) => [
+            `${String(f.label || '')
+              .trim()
+              .toLowerCase()}::${String(f.field_type || '')
+              .trim()
+              .toLowerCase()}`,
+            f as Record<string, unknown>,
+          ]),
+        );
+        for (let idx = 0; idx < fields.length; idx++) {
+          const f = fields[idx];
+          const { _dev_field_id, ...rest } = f;
+          const key = `${String(rest.label || '')
             .trim()
-            .toLowerCase()}::${String(f.field_type || '')
+            .toLowerCase()}::${String(rest.field_type || '')
             .trim()
-            .toLowerCase()}`,
-          f.id as string,
-        ]),
-      );
-      for (let idx = 0; idx < fields.length; idx++) {
-        const f = fields[idx];
-        const { _dev_field_id, ...rest } = f;
-        const key = `${String(rest.label || '')
-          .trim()
-          .toLowerCase()}::${String(rest.field_type || '')
-          .trim()
-          .toLowerCase()}`;
-        const payload = {
-          ...rest,
-          form_id: formId,
-          field_order: rest.field_order ?? idx,
-          updated_at: new Date().toISOString(),
-        };
-        const existingId = byKey.get(key);
-        if (existingId) {
-          const { error } = await target.from('form_fields').update(payload).eq('id', existingId);
-          if (error) return { status: 'failed' as const, error: `form_fields merge update: ${error.message}` };
-        } else {
-          const { error } = await target.from('form_fields').insert(payload);
-          if (error) return { status: 'failed' as const, error: `form_fields merge insert: ${error.message}` };
+            .toLowerCase()}`;
+          const prodField = byKey.get(key);
+          const mergedRest = prodField ? mergeFormFieldPayload(prodField, rest) : rest;
+          const payload = {
+            ...mergedRest,
+            form_id: formId,
+            field_order: mergedRest.field_order ?? rest.field_order ?? idx,
+            updated_at: new Date().toISOString(),
+          };
+          if (prodField?.id) {
+            const { error } = await target.from('form_fields').update(payload).eq('id', prodField.id);
+            if (error) return { status: 'failed' as const, error: `form_fields merge update: ${error.message}` };
+          } else {
+            const { error } = await target.from('form_fields').insert(payload);
+            if (error) return { status: 'failed' as const, error: `form_fields merge insert: ${error.message}` };
+          }
         }
       }
     } else {
@@ -249,6 +272,15 @@ export class FormHandler implements PromotableHandler {
       }
     }
 
-    return { status: 'succeeded' as const, prodAfter: { id: formId, ...row, childApplyMode: applyMode } };
+    return {
+      status: 'succeeded' as const,
+      prodAfter: {
+        id: formId,
+        ...row,
+        childApplyMode: applyMode,
+        field_rules_count: parseJsonArray(fieldRules).length,
+        form_rules_count: parseJsonArray(formRules).length,
+      },
+    };
   }
 }
