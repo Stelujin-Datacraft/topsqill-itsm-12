@@ -205,36 +205,41 @@ export function useWorkflowData() {
       console.log('Starting workflow save operation...');
       console.log('Saving nodes:', nodes.length, 'connections:', connections.length);
 
-      // Step 1: Clear any workflow execution references to nodes we're about to delete
+      // Step 1: Clear any workflow execution references to nodes we're about to delete.
+      // allowEmpty: brand-new / never-run workflows have 0 executions — that is not a failure.
       console.log('Step 1: Clearing workflow execution references...');
-      const { error: clearReferencesError } = await supabase
+      const { error: clearReferencesError } = await (supabase as any)
         .from('workflow_executions')
         .update({ current_node_id: null, wait_node_id: null })
-        .eq('workflow_id', workflowId);
+        .eq('workflow_id', workflowId)
+        .allowEmpty();
 
       if (clearReferencesError) {
         console.error('Error clearing workflow execution references:', clearReferencesError);
         throw new Error(`Failed to clear execution references: ${clearReferencesError.message}`);
       }
 
-      // Step 2: Delete existing connections first (they depend on nodes)
+      // Step 2: Delete existing connections first (they depend on nodes).
+      // allowEmpty: first save or empty graph may have no connections yet.
       console.log('Step 2: Deleting existing connections...');
-      const { error: connectionsDeleteError } = await supabase
+      const { error: connectionsDeleteError } = await (supabase as any)
         .from('workflow_connections')
         .delete()
-        .eq('workflow_id', workflowId);
+        .eq('workflow_id', workflowId)
+        .allowEmpty();
 
       if (connectionsDeleteError) {
         console.error('Error deleting connections:', connectionsDeleteError);
         throw new Error(`Failed to delete connections: ${connectionsDeleteError.message}`);
       }
 
-      // Step 3: Delete existing nodes
+      // Step 3: Delete existing nodes (allowEmpty for first-time graphs with no prior nodes).
       console.log('Step 3: Deleting existing nodes...');
-      const { error: nodesDeleteError } = await supabase
+      const { error: nodesDeleteError } = await (supabase as any)
         .from('workflow_nodes')
         .delete()
-        .eq('workflow_id', workflowId);
+        .eq('workflow_id', workflowId)
+        .allowEmpty();
 
       if (nodesDeleteError) {
         console.error('Error deleting nodes:', nodesDeleteError);
@@ -303,13 +308,18 @@ export function useWorkflowData() {
             throw new Error(`Invalid connection data: missing required fields for connection ${conn.id}`);
           }
           
+          const conditionType =
+            conn.label === 'true' || conn.label === 'false'
+              ? conn.label
+              : (conn as any).conditionType || null;
           return {
             id: conn.id,
             workflow_id: workflowId,
             source_node_id: conn.source,
             target_node_id: conn.target,
             source_handle: conn.sourceHandle || null,
-            target_handle: conn.targetHandle || null
+            target_handle: conn.targetHandle || null,
+            condition_type: conditionType,
           };
         });
 
@@ -330,9 +340,13 @@ export function useWorkflowData() {
 
       console.log('Workflow save operation completed successfully');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving workflow nodes:', error);
-      return false;
+      // Re-throw so the designer toast can show the real cause (empty-mutation
+      // false failures are avoided via allowEmpty on clear/delete steps).
+      throw error instanceof Error
+        ? error
+        : new Error(error?.message || 'Failed to save workflow nodes');
     }
   };
 

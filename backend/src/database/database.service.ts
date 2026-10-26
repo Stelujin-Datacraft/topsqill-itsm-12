@@ -59,12 +59,22 @@ export interface DatabaseUpdateDto {
   data: Record<string, unknown>;
   filters: FilterClause[];
   returning?: string;
+  /**
+   * When true, updating 0 rows is success (e.g. clear FK refs when none exist).
+   * Default false — empty results usually mean RLS denial or missing row.
+   */
+  allowEmpty?: boolean;
 }
 
 export interface DatabaseDeleteDto {
   table: string;
   filters: FilterClause[];
   returning?: string;
+  /**
+   * When true, deleting 0 rows is success (e.g. replace-children when already empty).
+   * Default false — empty results usually mean RLS denial or missing row.
+   */
+  allowEmpty?: boolean;
 }
 
 export interface DatabaseRpcDto {
@@ -405,9 +415,12 @@ export class DatabaseService {
     // requires order on a unique column (see assertMutationWithinRowLimit).
     const { data, error } = await query.select(select);
     if (error) throw new BadRequestException(error.message);
-    // RLS can yield success with zero rows — do not report false success to clients.
-    this.assertMutationAffectedRows(data, 'update', dto.table, 1);
-    return { data, error: null };
+    // RLS can yield success with zero rows — do not report false success to clients
+    // unless the caller opted into allowEmpty (intentional no-op clears).
+    if (!dto.allowEmpty) {
+      this.assertMutationAffectedRows(data, 'update', dto.table, 1);
+    }
+    return { data: data ?? [], error: null };
   }
 
   async delete(dto: DatabaseDeleteDto, authHeader?: string) {
@@ -424,9 +437,12 @@ export class DatabaseService {
     // Do not call .limit() on DELETE — same PostgREST Limited Delete constraint.
     const { data, error } = await query.select(returning);
     if (error) throw new BadRequestException(error.message);
-    // RLS deny / wrong id often returns [] with no error — treat as failure.
-    this.assertMutationAffectedRows(data, 'delete', dto.table, 1);
-    return { data, error: null };
+    // RLS deny / wrong id often returns [] with no error — treat as failure
+    // unless the caller opted into allowEmpty (replace-children when already empty).
+    if (!dto.allowEmpty) {
+      this.assertMutationAffectedRows(data, 'delete', dto.table, 1);
+    }
+    return { data: data ?? [], error: null };
   }
 
   async rpc(dto: DatabaseRpcDto, authHeader?: string) {

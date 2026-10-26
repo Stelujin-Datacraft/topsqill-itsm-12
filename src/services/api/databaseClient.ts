@@ -369,6 +369,8 @@ class UpsertBuilder {
 }
 
 class UpdateBuilder extends FilterMixin {
+  private emptyOk = false;
+
   constructor(
     private table: string,
     private data: Record<string, unknown>,
@@ -376,7 +378,14 @@ class UpdateBuilder extends FilterMixin {
     super();
   }
 
+  /** Allow 0 updated rows (intentional no-op clears). Default still treats empty as RLS failure. */
+  allowEmpty() {
+    this.emptyOk = true;
+    return this;
+  }
+
   select(columns = '*') {
+    const allowEmpty = this.emptyOk;
     return new ReturningResult(() => withFallback(
       async () => {
         try {
@@ -391,6 +400,7 @@ class UpdateBuilder extends FilterMixin {
             data: this.data,
             filters: this.filters,
             returning: columns,
+            allowEmpty,
           }),
         }).then(normalizeResult);
       },
@@ -405,7 +415,7 @@ class UpdateBuilder extends FilterMixin {
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    ).then((result) => requireAffectedRows(result, 'updated')));
+    ).then((result) => (allowEmpty ? result : requireAffectedRows(result, 'updated'))));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -414,11 +424,20 @@ class UpdateBuilder extends FilterMixin {
 }
 
 class DeleteBuilder extends FilterMixin {
+  private emptyOk = false;
+
   constructor(private table: string) {
     super();
   }
 
+  /** Allow 0 deleted rows (replace-children when already empty). */
+  allowEmpty() {
+    this.emptyOk = true;
+    return this;
+  }
+
   select(columns = '*') {
+    const allowEmpty = this.emptyOk;
     return new ReturningResult(() => withFallback(
       async () => {
         try {
@@ -428,7 +447,12 @@ class DeleteBuilder extends FilterMixin {
         }
         return request('/database/delete', {
           method: 'POST',
-          body: JSON.stringify({ table: this.table, filters: this.filters, returning: columns }),
+          body: JSON.stringify({
+            table: this.table,
+            filters: this.filters,
+            returning: columns,
+            allowEmpty,
+          }),
         }).then(normalizeResult);
       },
       async () => {
@@ -442,7 +466,7 @@ class DeleteBuilder extends FilterMixin {
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    ).then((result) => requireAffectedRows(result, 'deleted')));
+    ).then((result) => (allowEmpty ? result : requireAffectedRows(result, 'deleted'))));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
