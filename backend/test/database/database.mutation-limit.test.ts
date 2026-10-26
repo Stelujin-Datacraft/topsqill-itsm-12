@@ -344,6 +344,43 @@ async function main() {
     console.log('  ✓ update with zero returned rows rejected');
   }
 
+  // ── allowEmpty: intentional no-op clears (workflow save) ────────────────
+  {
+    const { client } = makeCapturingClient({
+      count: 0,
+      mutateData: [],
+    });
+    const svc = makeService(client);
+    const cleared = await svc.update(
+      {
+        table: 'workflow_executions',
+        data: { current_node_id: null, wait_node_id: null },
+        filters: [{ kind: 'filter', column: 'workflow_id', operator: 'eq', value: 'wf-1' }],
+        allowEmpty: true,
+      },
+      AUTH,
+    );
+    assert.equal(cleared.error, null);
+    console.log('  ✓ update allowEmpty succeeds with zero rows');
+  }
+  {
+    const { client } = makeCapturingClient({
+      count: 0,
+      mutateData: [],
+    });
+    const svc = makeService(client);
+    const wiped = await svc.delete(
+      {
+        table: 'workflow_connections',
+        filters: [{ kind: 'filter', column: 'workflow_id', operator: 'eq', value: 'wf-1' }],
+        allowEmpty: true,
+      },
+      AUTH,
+    );
+    assert.equal(wiped.error, null);
+    console.log('  ✓ delete allowEmpty succeeds with zero rows');
+  }
+
   console.log('All database.mutation-limit tests passed.');
 }
 

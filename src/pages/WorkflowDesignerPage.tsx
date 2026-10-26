@@ -230,15 +230,16 @@ const WorkflowDesignerPage = () => {
       } else {
         toast({
           title: "Save failed",
-          description: "Failed to save workflow. Please try again.",
+          description:
+            "Failed to save workflow. Check the browser console for details, then try again.",
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving workflow:', error);
       toast({
         title: "Save failed",
-        description: "Failed to save workflow. Please try again.",
+        description: error?.message || "Failed to save workflow. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -791,11 +792,14 @@ const WorkflowDesignerPage = () => {
               variant: 'destructive',
             });
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('AI apply auto-save failed:', e);
           toast({
             title: 'AI Workflow Applied',
-            description: 'Click Save before activating so the trigger form is stored.',
+            description:
+              e?.message
+                ? `Save failed: ${e.message}. Click Save before activating.`
+                : 'Click Save before activating so the trigger form is stored.',
             variant: 'destructive',
           });
         }
