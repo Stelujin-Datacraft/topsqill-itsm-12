@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards, Headers } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { AuthHeader } from '../common/decorators/current-user.decorator';
 
 @Controller('users')
 export class UsersController {
@@ -9,14 +10,24 @@ export class UsersController {
 
   @UseGuards(SupabaseAuthGuard)
   @Post('delete')
-  deleteUser(@Body() body: { userId: string }) {
-    return this.usersService.deleteUser(body.userId);
+  deleteUser(
+    @Body() body: { userId: string },
+    @AuthHeader() authHeader: string,
+  ) {
+    return this.usersService.deleteUser(body.userId, authHeader);
   }
 
   @UseGuards(SupabaseAuthGuard)
   @Post('admin-change-password')
-  adminChangePassword(@Body() body: { userId: string; newPassword: string }) {
-    return this.usersService.adminChangePassword(body.userId, body.newPassword);
+  adminChangePassword(
+    @Body() body: { userId: string; newPassword: string },
+    @AuthHeader() authHeader: string,
+  ) {
+    return this.usersService.adminChangePassword(
+      body.userId,
+      body.newPassword,
+      authHeader,
+    );
   }
 
   @Public()
