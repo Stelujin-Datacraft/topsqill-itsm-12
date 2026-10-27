@@ -1,9 +1,11 @@
 # Real Estate Platform — Integration Plan on TopSqill
 
-**Status:** Architecture analysis only (no implementation)  
+**Status:** Architecture analysis + foundation implementation started  
 **Repo:** TopSqill ITSM / no-code platform (`topsqill-itsm-12`)  
 **Audience:** Engineering / product leadership  
-**Date:** 2026-10-27 (Asia/Calcutta)
+**Date:** 2026-10-27 (Asia/Calcutta)  
+**Locked product scope:** full **lead generation** first; social networking deferred.  
+**Safety:** see [`docs/realestate/FOUNDATION.md`](./realestate/FOUNDATION.md) — additive `re_*` only, feature-flagged, no core engine edits.
 
 ---
 
