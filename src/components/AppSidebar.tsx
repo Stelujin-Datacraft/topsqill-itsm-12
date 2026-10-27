@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight, Building2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -22,6 +22,7 @@ import { useOrganization } from "@/contexts/OrganizationContext"
 import { NotificationPanel } from "@/components/NotificationPanel"
 import { ThemeSelector } from "@/components/ThemeSelector"
 import { isPromotionalTransferUiEnabled } from "@/lib/promotion/feature"
+import { isReLeadgenUiEnabled } from "@/lib/re/feature"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation();
@@ -35,6 +36,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const effectiveRole = effectiveProfile?.role || 'user';
   const promotionalTransferVisible =
     effectiveRole === 'admin' && isPromotionalTransferUiEnabled();
+  const reLeadgenVisible = isReLeadgenUiEnabled();
 
   const data = {
     user: {
@@ -122,6 +124,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Cable,
         iconColor: "text-module-api",
       },
+      ...(reLeadgenVisible
+        ? [
+            {
+              title: 'Real Estate',
+              url: '/re',
+              icon: Building2,
+              iconColor: 'text-module-projects',
+            },
+          ]
+        : []),
       {
         title: t('nav.knowledgeBase'),
         url: "/knowledge-base",

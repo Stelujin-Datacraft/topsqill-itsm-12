@@ -23,6 +23,7 @@ import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
 import { RouteLoader } from "./components/RouteLoader";
 import { PromotionalTransferGate } from "./components/PromotionalTransferGate";
+import { ReLeadgenGate } from "./components/re/ReLeadgenGate";
 
 // Wrap React.lazy with retry + reload-on-failure to handle stale chunk hashes after redeploys
 const lazyWithRetry = <T extends React.ComponentType<any>>(
@@ -86,6 +87,11 @@ const PromotionalTransferDashboard = lazyWithRetry(() => import("./pages/Promoti
 const PromotionalTransferWizard = lazyWithRetry(() => import("./pages/PromotionalTransferWizard"));
 const PromotionalTransferDetail = lazyWithRetry(() => import("./pages/PromotionalTransferDetail"));
 const PromotionalTransferHistory = lazyWithRetry(() => import("./pages/PromotionalTransferHistory"));
+const ReShell = lazyWithRetry(() => import("./pages/re/ReShell"));
+const ReDashboard = lazyWithRetry(() => import("./pages/re/ReDashboard"));
+const ReLeadsPage = lazyWithRetry(() => import("./pages/re/ReLeadsPage"));
+const ReListingsPage = lazyWithRetry(() => import("./pages/re/ReListingsPage"));
+const ReProfilesPage = lazyWithRetry(() => import("./pages/re/ReProfilesPage"));
 const MarketHome = lazyWithRetry(() => import("./pages/MarketHome"));
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { MARKET_CODES } from "@/content/markets";
@@ -425,6 +431,18 @@ const App = () => (
                             <BlogAdmin />
                           </Suspense>
                         } />
+                        <Route path="/re" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <ReLeadgenGate>
+                              <ReShell />
+                            </ReLeadgenGate>
+                          </Suspense>
+                        }>
+                          <Route index element={<ReDashboard />} />
+                          <Route path="leads" element={<ReLeadsPage />} />
+                          <Route path="listings" element={<ReListingsPage />} />
+                          <Route path="profiles" element={<ReProfilesPage />} />
+                        </Route>
                         <Route path="/promotional-transfer" element={
                           <Suspense fallback={<RouteLoader />}>
                             <PromotionalTransferGate>
