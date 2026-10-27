@@ -22,7 +22,7 @@ import { useOrganization } from "@/contexts/OrganizationContext"
 import { NotificationPanel } from "@/components/NotificationPanel"
 import { ThemeSelector } from "@/components/ThemeSelector"
 import { isPromotionalTransferUiEnabled } from "@/lib/promotion/feature"
-import { isReLeadgenUiEnabled } from "@/lib/re/feature"
+import { isReLeadgenUiEnabled, isReNetworkUiEnabled } from "@/lib/re/feature"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation();
@@ -37,6 +37,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const promotionalTransferVisible =
     effectiveRole === 'admin' && isPromotionalTransferUiEnabled();
   const reLeadgenVisible = isReLeadgenUiEnabled();
+  const reNetworkVisible = isReNetworkUiEnabled();
 
   const data = {
     user: {
@@ -127,8 +128,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ...(reLeadgenVisible
         ? [
             {
-              title: 'Real Estate',
-              url: '/re',
+              title: reNetworkVisible ? 'Real Estate Network' : 'Real Estate',
+              url: reNetworkVisible ? '/re/home' : '/re',
               icon: Building2,
               iconColor: 'text-module-projects',
             },

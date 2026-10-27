@@ -6,6 +6,9 @@ export type ReAvailability = {
   reason: string;
   schemaReady: boolean | null;
   requiredTables?: string[];
+  metaEnrichEnabled?: boolean;
+  dedupeEnabled?: boolean;
+  networkEnabled?: boolean;
 };
 
 export type ReOverview = {
@@ -49,29 +52,114 @@ export type ReLead = {
 
 export type ReProfile = {
   id: string;
-  organization_id: string;
+  organization_id?: string;
   project_id?: string | null;
   profile_type: string;
   display_name: string;
   email?: string | null;
   phone?: string | null;
-  status: string;
-  created_at: string;
+  status?: string;
+  created_at?: string;
+  user_id?: string | null;
+  headline?: string | null;
+  bio?: string | null;
+  avatar_url?: string | null;
+  cover_url?: string | null;
+  location_text?: string | null;
+  service_areas?: string[] | null;
+  specializations?: string[] | null;
+  languages?: string[] | null;
+  website_url?: string | null;
+  visibility?: string | null;
+  is_company_page?: boolean | null;
 };
 
 export type ReListing = {
   id: string;
-  organization_id: string;
+  organization_id?: string;
   project_id?: string | null;
   title: string;
-  listing_kind: string;
+  listing_kind?: string;
   listing_type?: string | null;
-  status: string;
+  status?: string;
   city?: string | null;
   locality?: string | null;
   price?: number | null;
   currency?: string | null;
   owner_profile_id?: string | null;
+  created_at?: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  area_value?: number | null;
+  area_unit?: string | null;
+  cover_image_url?: string | null;
+  description?: string | null;
+  furnishing?: string | null;
+};
+
+export type RePost = {
+  id: string;
+  organization_id: string;
+  author_user_id: string;
+  author_profile_id?: string | null;
+  post_type: string;
+  body: string;
+  visibility: string;
+  listing_id?: string | null;
+  reaction_count: number;
+  comment_count: number;
+  repost_count: number;
+  created_at: string;
+  my_reaction?: string | null;
+  listing?: ReListing | null;
+  author?: ReProfile | null;
+};
+
+export type ReComment = {
+  id: string;
+  post_id: string;
+  author_user_id: string;
+  parent_comment_id?: string | null;
+  body: string;
+  created_at: string;
+};
+
+export type ReConnection = {
+  id: string;
+  organization_id: string;
+  requester_user_id: string;
+  addressee_user_id: string;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+};
+
+export type ReConversation = {
+  id: string;
+  organization_id: string;
+  title?: string | null;
+  is_group: boolean;
+  last_message_at?: string | null;
+  last_message?: ReMessage | null;
+  membership?: { last_read_at?: string | null; muted?: boolean } | null;
+};
+
+export type ReMessage = {
+  id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  body: string;
+  listing_id?: string | null;
+  created_at: string;
+};
+
+export type ReNotification = {
+  id: string;
+  kind: string;
+  title: string;
+  body?: string | null;
+  href?: string | null;
+  read_at?: string | null;
   created_at: string;
 };
 
@@ -392,6 +480,144 @@ export const reApi = {
     reRequest<{ processed: number; sent: number; failed: number }>(
       '/re/follow-up-jobs/process',
       { method: 'POST' },
+    ),
+
+  // --- Network (social) ---
+  networkFeed: (organizationId: string, limit = 30, cursor?: string) =>
+    reRequest<{ posts: RePost[]; nextCursor: string | null }>(
+      `/re/network/feed?organizationId=${encodeURIComponent(organizationId)}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+      { method: 'GET' },
+    ),
+
+  createPost: (body: {
+    organizationId: string;
+    body: string;
+    postType?: string;
+    visibility?: string;
+    listingId?: string | null;
+    authorProfileId?: string | null;
+    mediaUrls?: string[];
+  }) =>
+    reRequest<{ post: RePost }>('/re/network/posts', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  reactToPost: (postId: string, organizationId: string, reaction = 'like') =>
+    reRequest<{ reacted: boolean }>(`/re/network/posts/${encodeURIComponent(postId)}/react`, {
+      method: 'POST',
+      body: JSON.stringify({ organizationId, reaction }),
+    }),
+
+  listComments: (postId: string, organizationId: string) =>
+    reRequest<{ comments: ReComment[] }>(
+      `/re/network/posts/${encodeURIComponent(postId)}/comments?organizationId=${encodeURIComponent(organizationId)}`,
+      { method: 'GET' },
+    ),
+
+  addComment: (postId: string, organizationId: string, body: string) =>
+    reRequest<{ comment: ReComment }>(
+      `/re/network/posts/${encodeURIComponent(postId)}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ organizationId, body }),
+      },
+    ),
+
+  searchProfessionals: (organizationId: string, q = '') =>
+    reRequest<{ profiles: ReProfile[] }>(
+      `/re/network/professionals?organizationId=${encodeURIComponent(organizationId)}&q=${encodeURIComponent(q)}`,
+      { method: 'GET' },
+    ),
+
+  listConnections: (organizationId: string) =>
+    reRequest<{ connections: ReConnection[] }>(
+      `/re/network/connections?organizationId=${encodeURIComponent(organizationId)}`,
+      { method: 'GET' },
+    ),
+
+  requestConnection: (organizationId: string, addresseeUserId: string) =>
+    reRequest<{ connection: ReConnection }>('/re/network/connections', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId, addresseeUserId }),
+    }),
+
+  respondConnection: (connectionId: string, organizationId: string, accept: boolean) =>
+    reRequest<{ connection: ReConnection }>(
+      `/re/network/connections/${encodeURIComponent(connectionId)}/respond`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ organizationId, accept }),
+      },
+    ),
+
+  followUser: (organizationId: string, followingUserId: string) =>
+    reRequest<{ follow: unknown }>('/re/network/follow', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId, followingUserId }),
+    }),
+
+  unfollowUser: (organizationId: string, followingUserId: string) =>
+    reRequest<{ ok: boolean }>('/re/network/unfollow', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId, followingUserId }),
+    }),
+
+  listConversations: (organizationId: string) =>
+    reRequest<{ conversations: ReConversation[] }>(
+      `/re/network/conversations?organizationId=${encodeURIComponent(organizationId)}`,
+      { method: 'GET' },
+    ),
+
+  openDirectConversation: (organizationId: string, otherUserId: string) =>
+    reRequest<{ conversation: ReConversation }>('/re/network/conversations/direct', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId, otherUserId }),
+    }),
+
+  listMessages: (conversationId: string, organizationId: string) =>
+    reRequest<{ messages: ReMessage[] }>(
+      `/re/network/conversations/${encodeURIComponent(conversationId)}/messages?organizationId=${encodeURIComponent(organizationId)}`,
+      { method: 'GET' },
+    ),
+
+  sendMessage: (conversationId: string, organizationId: string, body: string) =>
+    reRequest<{ message: ReMessage }>(
+      `/re/network/conversations/${encodeURIComponent(conversationId)}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ organizationId, body }),
+      },
+    ),
+
+  listNotifications: (limit = 40) =>
+    reRequest<{ notifications: ReNotification[] }>(
+      `/re/network/notifications?limit=${limit}`,
+      { method: 'GET' },
+    ),
+
+  markNotificationsRead: (ids?: string[]) =>
+    reRequest<{ ok: boolean }>('/re/network/notifications/read', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+
+  getPublicProfile: (profileId: string, organizationId: string) =>
+    reRequest<{ profile: ReProfile; listings: ReListing[] }>(
+      `/re/network/profiles/${encodeURIComponent(profileId)}?organizationId=${encodeURIComponent(organizationId)}`,
+      { method: 'GET' },
+    ),
+
+  updateSocialProfile: (
+    profileId: string,
+    body: { organizationId: string } & Record<string, unknown>,
+  ) =>
+    reRequest<{ profile: ReProfile }>(
+      `/re/network/profiles/${encodeURIComponent(profileId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
     ),
 };
 

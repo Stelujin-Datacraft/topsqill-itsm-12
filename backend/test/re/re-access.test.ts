@@ -8,6 +8,7 @@ import {
   isReDedupeEnabled,
   isReLeadgenEnabled,
   isReMetaEnrichEnabled,
+  isReNetworkEnabled,
   resolveReEnvironment,
 } from '../../src/re/re-access';
 
@@ -76,6 +77,33 @@ test('META_ENRICH can be enabled on production explicitly', () => {
   } as NodeJS.ProcessEnv;
   assert.equal(isReMetaEnrichEnabled(env), true);
   assert.equal(isReDedupeEnabled(env), true);
+});
+
+test('NETWORK defaults on in development and fail-closed on production', () => {
+  assert.equal(isReNetworkEnabled({ ENVIRONMENT: 'development' } as NodeJS.ProcessEnv), true);
+  assert.equal(
+    isReNetworkEnabled({
+      ENVIRONMENT: 'production',
+      RE_LEADGEN_ENABLED: 'true',
+    } as NodeJS.ProcessEnv),
+    false,
+  );
+  assert.equal(
+    isReNetworkEnabled({
+      ENVIRONMENT: 'production',
+      RE_LEADGEN_ENABLED: 'true',
+      RE_NETWORK_ENABLED: 'true',
+    } as NodeJS.ProcessEnv),
+    true,
+  );
+  assert.equal(
+    isReNetworkEnabled({
+      ENVIRONMENT: 'development',
+      RE_LEADGEN_ENABLED: 'false',
+    } as NodeJS.ProcessEnv),
+    false,
+  );
+  assert.equal(getReAccessState({ ENVIRONMENT: 'development' } as NodeJS.ProcessEnv).networkEnabled, true);
 });
 
 console.log('All re-access tests passed');

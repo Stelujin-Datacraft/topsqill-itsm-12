@@ -93,6 +93,12 @@ const ReLeadsPage = lazyWithRetry(() => import("./pages/re/ReLeadsPage"));
 const ReListingsPage = lazyWithRetry(() => import("./pages/re/ReListingsPage"));
 const ReProfilesPage = lazyWithRetry(() => import("./pages/re/ReProfilesPage"));
 const ReSourcesPage = lazyWithRetry(() => import("./pages/re/ReSourcesPage"));
+const ReHomeFeed = lazyWithRetry(() => import("./pages/re/ReHomeFeed"));
+const ReNetworkPage = lazyWithRetry(() => import("./pages/re/ReNetworkPage"));
+const RePropertiesPage = lazyWithRetry(() => import("./pages/re/RePropertiesPage"));
+const ReMessagesPage = lazyWithRetry(() => import("./pages/re/ReMessagesPage"));
+const ReNotificationsPage = lazyWithRetry(() => import("./pages/re/ReNotificationsPage"));
+const RePublicProfilePage = lazyWithRetry(() => import("./pages/re/RePublicProfilePage"));
 const MarketHome = lazyWithRetry(() => import("./pages/MarketHome"));
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { MARKET_CODES } from "@/content/markets";
@@ -440,6 +446,12 @@ const App = () => (
                           </Suspense>
                         }>
                           <Route index element={<ReDashboard />} />
+                          <Route path="home" element={<ReHomeFeed />} />
+                          <Route path="network" element={<ReNetworkPage />} />
+                          <Route path="properties" element={<RePropertiesPage />} />
+                          <Route path="messages" element={<ReMessagesPage />} />
+                          <Route path="notifications" element={<ReNotificationsPage />} />
+                          <Route path="u/:profileId" element={<RePublicProfilePage />} />
                           <Route path="leads" element={<ReLeadsPage />} />
                           <Route path="listings" element={<ReListingsPage />} />
                           <Route path="profiles" element={<ReProfilesPage />} />

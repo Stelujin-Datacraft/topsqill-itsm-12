@@ -1,7 +1,7 @@
 # Real Estate Lead Gen — Foundation (safety rules)
 
-**Scope locked:** fully functional **lead generation** (profiles, listings, leads/CRM, ingest, email/SMS/WhatsApp follow-ups, AI campaigns).  
-**Deferred:** LinkedIn-style network (connections, follows, feed, in-app social chat).
+**Scope:** fully functional **lead generation** (profiles, listings, leads/CRM, ingest, enrich, dedupe, email follow-ups) **plus** optional **Real Estate Network** (feed, connections, messaging) behind a separate flag.  
+**Network details:** [`NETWORK.md`](./NETWORK.md).
 
 ## Do-not-break rules
 
@@ -10,9 +10,11 @@
 3. **Feature flags (fail closed on Prod).**
    - Backend: `RE_LEADGEN_ENABLED` (default: on in `ENVIRONMENT=development`, off in production).
    - Frontend: `VITE_RE_LEADGEN_ENABLED` (same defaults).
-4. **Nav/routes gated.** Sidebar and `/re` routes hidden when the flag is off so existing TopSqill UX is unchanged.
+   - Network: `RE_NETWORK_ENABLED` / `VITE_RE_NETWORK_ENABLED` (same defaults; requires Lead Gen on).
+4. **Nav/routes gated.** Sidebar and `/re` routes hidden when the Lead Gen flag is off so existing TopSqill UX is unchanged. Network shell extras hide when Network flag is off (CRM shell remains).
 5. **No workflow executor edits in foundation.** SMS/WhatsApp actions come in a later PR as additive executors.
 6. **Migrations are opt-in on VMs.** Applying SQL is a separate ops step; Nest availability reports `schemaReady: false` until tables exist.
+7. **Do not edit prior RE migrations.** Network schema is a new migration file only.
 
 ## Slices
 
