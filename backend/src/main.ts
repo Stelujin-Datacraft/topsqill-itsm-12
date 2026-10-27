@@ -12,7 +12,15 @@ async function bootstrap() {
   const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:8080');
   const bodyLimit = configService.get<string>('REQUEST_BODY_LIMIT', '2mb');
 
-  app.use(json({ limit: bodyLimit }));
+  // Preserve raw body for Meta X-Hub-Signature-256 verification on RE ingest.
+  app.use(
+    json({
+      limit: bodyLimit,
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: bodyLimit }));
 
   app.enableCors({
@@ -25,6 +33,8 @@ async function bootstrap() {
       'x-api-key',
       'x-client-info',
       'apikey',
+      'x-hub-signature-256',
+      'x-re-ingest-key',
     ],
   });
 

@@ -3,12 +3,13 @@
  *
  * Fail closed on Production unless explicitly enabled.
  *
- *   RE_LEADGEN_ENABLED — "true" | "false" (optional override)
- *   ENVIRONMENT | APP_ENV — "development" | "production"
+ *   RE_LEADGEN_ENABLED — master switch
+ *   RE_LEADGEN_META_ENRICH — Meta Graph enrichment jobs
+ *   RE_LEADGEN_DEDUPE — phone/email de-dupe + re-enquiry
  *
- * Defaults:
- *   development → enabled unless RE_LEADGEN_ENABLED=false
- *   production  → disabled unless RE_LEADGEN_ENABLED=true
+ * Defaults (all):
+ *   development → enabled unless flag=false
+ *   production  → disabled unless flag=true
  */
 
 export type ReAppEnvironment = 'development' | 'production';
@@ -16,6 +17,8 @@ export type ReAppEnvironment = 'development' | 'production';
 export interface ReAccessState {
   environment: ReAppEnvironment;
   enabled: boolean;
+  metaEnrichEnabled: boolean;
+  dedupeEnabled: boolean;
   reason: string;
 }
 
@@ -35,6 +38,16 @@ function parseBoolFlag(raw: string | undefined | null): boolean | null {
   return null;
 }
 
+function flagOrEnvDefault(
+  env: NodeJS.ProcessEnv,
+  key: string,
+  environment: ReAppEnvironment,
+): boolean {
+  const flag = parseBoolFlag(env[key]);
+  if (flag !== null) return flag;
+  return environment === 'development';
+}
+
 export function resolveReEnvironment(env: NodeJS.ProcessEnv = process.env): ReAppEnvironment {
   const explicit =
     normalizeEnv(env.ENVIRONMENT) ||
@@ -45,14 +58,24 @@ export function resolveReEnvironment(env: NodeJS.ProcessEnv = process.env): ReAp
 }
 
 export function isReLeadgenEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const flag = parseBoolFlag(env.RE_LEADGEN_ENABLED);
-  if (flag !== null) return flag;
-  return resolveReEnvironment(env) === 'development';
+  return flagOrEnvDefault(env, 'RE_LEADGEN_ENABLED', resolveReEnvironment(env));
+}
+
+export function isReMetaEnrichEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (!isReLeadgenEnabled(env)) return false;
+  return flagOrEnvDefault(env, 'RE_LEADGEN_META_ENRICH', resolveReEnvironment(env));
+}
+
+export function isReDedupeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (!isReLeadgenEnabled(env)) return false;
+  return flagOrEnvDefault(env, 'RE_LEADGEN_DEDUPE', resolveReEnvironment(env));
 }
 
 export function getReAccessState(env: NodeJS.ProcessEnv = process.env): ReAccessState {
   const environment = resolveReEnvironment(env);
   const enabled = isReLeadgenEnabled(env);
+  const metaEnrichEnabled = isReMetaEnrichEnabled(env);
+  const dedupeEnabled = isReDedupeEnabled(env);
   let reason: string;
   if (!enabled) {
     reason =
@@ -62,7 +85,7 @@ export function getReAccessState(env: NodeJS.ProcessEnv = process.env): ReAccess
   } else {
     reason = 'Real Estate Lead Gen is enabled';
   }
-  return { environment, enabled, reason };
+  return { environment, enabled, metaEnrichEnabled, dedupeEnabled, reason };
 }
 
 export function assertReLeadgenAllowed(env: NodeJS.ProcessEnv = process.env): ReAccessState {

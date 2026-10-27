@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -47,10 +48,46 @@ export class ReIngestController {
     return res.status(200).send(result.challenge);
   }
 
+  /** Alias matching provider key used in Sources UI webhook URLs */
+  @Public()
+  @Get('meta_ads/:pathToken')
+  async metaAdsVerify(
+    @Param('pathToken') pathToken: string,
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') verifyToken: string,
+    @Query('hub.challenge') challenge: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.ingest.verifyMeta(pathToken, mode, verifyToken, challenge);
+    return res.status(200).send(result.challenge);
+  }
+
   @Public()
   @Post('meta/:pathToken')
-  metaLead(@Param('pathToken') pathToken: string, @Body() body: Record<string, unknown>) {
-    return this.ingest.ingestMeta(pathToken, body || {});
+  metaLead(
+    @Param('pathToken') pathToken: string,
+    @Body() body: Record<string, unknown>,
+    @Headers('x-hub-signature-256') signature?: string,
+    @Req() req?: { rawBody?: Buffer },
+  ) {
+    return this.ingest.ingestMeta(pathToken, body || {}, {
+      signature,
+      rawBody: req?.rawBody,
+    });
+  }
+
+  @Public()
+  @Post('meta_ads/:pathToken')
+  metaAdsLead(
+    @Param('pathToken') pathToken: string,
+    @Body() body: Record<string, unknown>,
+    @Headers('x-hub-signature-256') signature?: string,
+    @Req() req?: { rawBody?: Buffer },
+  ) {
+    return this.ingest.ingestMeta(pathToken, body || {}, {
+      signature,
+      rawBody: req?.rawBody,
+    });
   }
 
   @Public()
