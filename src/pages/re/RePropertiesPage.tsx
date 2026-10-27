@@ -73,7 +73,7 @@ export default function RePropertiesPage() {
   }, [listings, q, purpose, city, params]);
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold">Properties</h2>

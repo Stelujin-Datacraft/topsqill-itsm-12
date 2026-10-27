@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -8,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 export default function ReMessagesPage() {
   const { currentOrganization } = useOrganization();
+  const [params] = useSearchParams();
   const orgId = currentOrganization?.id;
   const [conversations, setConversations] = useState<ReConversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -29,6 +31,8 @@ export default function ReMessagesPage() {
 
   useEffect(() => {
     void reload();
+    const preset = params.get('c');
+    if (preset) setActiveId(preset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
@@ -56,7 +60,7 @@ export default function ReMessagesPage() {
   };
 
   return (
-    <div className="rounded-lg border bg-white dark:bg-card overflow-hidden grid md:grid-cols-[280px_1fr] min-h-[480px]">
+    <div className="grid h-[calc(100vh-7.5rem)] min-h-[520px] w-full overflow-hidden rounded-lg border border-[#e6e4e1] bg-white md:grid-cols-[320px_minmax(0,1fr)]">
       <div className="border-r overflow-y-auto max-h-[70vh]">
         <div className="p-3 border-b font-semibold text-sm">Inbox</div>
         {loading ? (

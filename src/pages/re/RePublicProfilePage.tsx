@@ -117,7 +117,7 @@ export default function RePublicProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-[860px] space-y-4">
       <div className="rounded-lg border bg-white dark:bg-card overflow-hidden">
         <div
           className="h-28 bg-gradient-to-r from-primary/40 to-primary/10"

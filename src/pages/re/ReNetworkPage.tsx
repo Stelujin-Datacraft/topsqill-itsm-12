@@ -121,7 +121,7 @@ export default function ReNetworkPage() {
   };
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto">
+    <div className="mx-auto w-full max-w-[760px] space-y-3">
       <div>
         <h2 className="text-xl font-semibold">My Network</h2>
         <p className="text-sm text-muted-foreground">
@@ -178,7 +178,7 @@ export default function ReNetworkPage() {
               return (
                 <div
                   key={p.id}
-                  className="rounded-lg border bg-white dark:bg-card p-4 flex flex-wrap items-center justify-between gap-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e6e4e1] bg-white p-4"
                 >
                   <div className="min-w-0">
                     <Link to={`/re/u/${p.id}`} className="font-semibold text-sm hover:underline">
