@@ -241,4 +241,122 @@ export const reApi = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+
+  ensureSources: (organizationId: string, projectId?: string | null) =>
+    reRequest<{ sources: ReSourceConfig[] }>('/re/sources/ensure', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId, projectId }),
+    }),
+
+  listSources: (organizationId: string) =>
+    reRequest<{ sources: ReSourceConfig[] }>(
+      `/re/sources?organizationId=${encodeURIComponent(organizationId)}`,
+      { method: 'GET' },
+    ),
+
+  updateSource: (body: {
+    organizationId: string;
+    provider: string;
+    enabled?: boolean;
+    displayName?: string;
+    verifyToken?: string;
+    accessToken?: string;
+    pageId?: string | null;
+    formIdExternal?: string | null;
+    rotateIngestKey?: boolean;
+  }) =>
+    reRequest<{ source: ReSourceConfig }>('/re/sources', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  listIngestEvents: (organizationId: string, limit = 50) =>
+    reRequest<{ events: ReIngestEvent[] }>(
+      `/re/ingest-events?organizationId=${encodeURIComponent(organizationId)}&limit=${limit}`,
+      { method: 'GET' },
+    ),
+
+  testIngest: (organizationId: string, provider: string, sample?: Record<string, unknown>) =>
+    reRequest<{ lead: ReLead }>('/re/ingest/test', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId, provider, sample }),
+    }),
+
+  listFollowUpRules: (organizationId: string) =>
+    reRequest<{ rules: ReFollowUpRule[] }>(
+      `/re/follow-up-rules?organizationId=${encodeURIComponent(organizationId)}`,
+      { method: 'GET' },
+    ),
+
+  upsertFollowUpRule: (body: {
+    organizationId: string;
+    id?: string;
+    enabled?: boolean;
+    name?: string;
+    delayMinutes?: number;
+    subjectTemplate?: string;
+    bodyTemplate?: string;
+  }) =>
+    reRequest<{ rule: ReFollowUpRule }>('/re/follow-up-rules', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  listFollowUpJobs: (organizationId: string, limit = 50) =>
+    reRequest<{ jobs: ReFollowUpJob[] }>(
+      `/re/follow-up-jobs?organizationId=${encodeURIComponent(organizationId)}&limit=${limit}`,
+      { method: 'GET' },
+    ),
+
+  processFollowUpsNow: () =>
+    reRequest<{ processed: number; sent: number; failed: number }>(
+      '/re/follow-up-jobs/process',
+      { method: 'POST' },
+    ),
+};
+
+export type ReSourceConfig = {
+  id: string;
+  organization_id: string;
+  provider: string;
+  enabled: boolean;
+  display_name?: string | null;
+  ingest_key?: string | null;
+  verify_token?: string | null;
+  page_id?: string | null;
+  form_id_external?: string | null;
+  webhook_path_token?: string | null;
+  settings?: Record<string, unknown>;
+};
+
+export type ReIngestEvent = {
+  id: string;
+  organization_id?: string | null;
+  provider: string;
+  status: string;
+  lead_id?: string | null;
+  external_id?: string | null;
+  error_message?: string | null;
+  created_at: string;
+};
+
+export type ReFollowUpRule = {
+  id: string;
+  organization_id: string;
+  enabled: boolean;
+  name: string;
+  delay_minutes: number;
+  channel: string;
+  subject_template: string;
+  body_template: string;
+};
+
+export type ReFollowUpJob = {
+  id: string;
+  lead_id: string;
+  status: string;
+  channel: string;
+  run_at: string;
+  last_error?: string | null;
+  created_at: string;
 };

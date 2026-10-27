@@ -5,9 +5,10 @@ import { WorkflowsModule } from '../workflows/workflows.module';
 import { DataFeedsModule } from '../data-feeds/data-feeds.module';
 import { SlaModule } from '../sla/sla.module';
 import { PoliciesModule } from '../policies/policies.module';
+import { ReModule } from '../re/re.module';
 
 @Module({
-  imports: [WorkflowsModule, DataFeedsModule, SlaModule, PoliciesModule],
+  imports: [WorkflowsModule, DataFeedsModule, SlaModule, PoliciesModule, ReModule],
   providers: [CronService, CronLockService],
 })
 export class CronModule {}

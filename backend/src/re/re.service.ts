@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
@@ -12,6 +14,7 @@ import {
   RE_PROFILE_TYPES,
   isOneOf,
 } from './re.constants';
+import { ReFollowupService } from './re-followup.service';
 
 const REQUIRED_TABLES = [
   're_profiles',
@@ -104,7 +107,10 @@ export type ReUpdateListingDto = {
 
 @Injectable()
 export class ReService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    @Optional() @Inject(ReFollowupService) private readonly followups?: ReFollowupService,
+  ) {}
 
   availability() {
     const access = getReAccessState();
@@ -285,6 +291,11 @@ export class ReService {
         createdBy,
         { source: row.source },
       );
+      try {
+        await this.followups?.scheduleForLead(dto.organizationId, data);
+      } catch {
+        // Follow-up schema may be absent until ingest migration is applied.
+      }
     }
 
     return { lead: data };
