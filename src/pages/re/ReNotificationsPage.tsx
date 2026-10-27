@@ -31,7 +31,7 @@ export default function ReNotificationsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-[760px] space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h2 className="text-xl font-semibold">Notifications</h2>

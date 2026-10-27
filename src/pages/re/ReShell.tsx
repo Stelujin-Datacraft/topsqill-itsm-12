@@ -14,8 +14,6 @@ import {
   Network,
 } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { isReNetworkUiEnabled } from '@/lib/re/feature';
 import { ReMessagingDrawer } from '@/components/re/ReMessagingDrawer';
@@ -29,12 +27,12 @@ const crmTabs = [
 ];
 
 const networkNav = [
-  { to: '/re/home', end: false, label: 'Home', icon: Home },
-  { to: '/re/network', end: false, label: 'Network', icon: Network },
-  { to: '/re/properties', end: false, label: 'Properties', icon: Briefcase },
-  { to: '/re/leads', end: false, label: 'CRM', icon: Inbox },
-  { to: '/re/messages', end: false, label: 'Messaging', icon: MessageSquare },
-  { to: '/re/notifications', end: false, label: 'Notifications', icon: Bell },
+  { to: '/re/home', label: 'Home', icon: Home },
+  { to: '/re/network', label: 'Network', icon: Network },
+  { to: '/re/properties', label: 'Properties', icon: Briefcase },
+  { to: '/re/leads', label: 'CRM', icon: Inbox },
+  { to: '/re/messages', label: 'Messaging', icon: MessageSquare },
+  { to: '/re/notifications', label: 'Notifications', icon: Bell },
 ];
 
 function CrmShell() {
@@ -96,90 +94,78 @@ function NetworkShell() {
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
     const term = q.trim();
-    if (!term) return;
-    navigate(`/re/network?q=${encodeURIComponent(term)}`);
+    navigate(term ? `/re/network?q=${encodeURIComponent(term)}` : '/re/network');
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#f3f2ef] dark:bg-background">
-      <header className="sticky top-0 z-30 border-b bg-white/95 dark:bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-        <div className="mx-auto max-w-6xl px-3 sm:px-4 h-14 flex items-center gap-3">
-          <SidebarTrigger className="shrink-0" />
-          <NavLink to="/re/home" className="flex items-center gap-2 shrink-0">
-            <div className="h-8 w-8 rounded bg-primary text-primary-foreground grid place-items-center font-bold text-sm">
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col bg-[#f4f2ee] text-[#191919] dark:bg-background dark:text-foreground">
+      <header className="z-30 shrink-0 border-b border-[#e6e4e1] bg-white dark:border-border dark:bg-card">
+        <div className="flex h-[56px] w-full items-center gap-2 px-3 lg:gap-4 lg:px-5">
+          <SidebarTrigger className="shrink-0 text-[#666]" />
+          <NavLink to="/re/home" className="flex shrink-0 items-center gap-2" aria-label="TopSqill Real Estate home">
+            <span className="grid h-9 w-9 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
               TQ
-            </div>
-            <span className="hidden sm:inline font-semibold text-sm tracking-tight">
+            </span>
+            <span className="hidden text-[15px] font-semibold tracking-tight xl:inline">
               TopSqill RE
             </span>
           </NavLink>
 
-          <form onSubmit={onSearch} className="flex-1 max-w-xs sm:max-w-sm">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+          <form onSubmit={onSearch} className="min-w-0 max-w-[280px] flex-1">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666]" />
+              <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="I'm looking for…"
-                className="pl-8 h-9 rounded-full bg-muted/60 border-0"
-                aria-label="Global search"
+                placeholder="Search"
+                aria-label="Search professionals and properties"
+                className="h-9 w-full rounded-full border-0 bg-[#edf3f8] pl-9 pr-3 text-sm outline-none ring-primary/30 placeholder:text-[#666] focus:ring-2 dark:bg-muted"
               />
-            </div>
+            </label>
           </form>
 
-          <nav className="hidden md:flex items-center gap-0.5 ml-auto">
+          <nav className="ml-auto hidden h-full items-stretch md:flex">
             {networkNav.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
                   cn(
-                    'flex flex-col items-center justify-center px-3 py-1 min-w-[64px] text-[11px] border-b-2 transition-colors',
+                    'flex min-w-[72px] flex-col items-center justify-center gap-0.5 border-b-2 px-2 text-[12px] leading-none transition-colors',
                     isActive
-                      ? 'border-foreground text-foreground'
-                      : 'border-transparent text-muted-foreground hover:text-foreground',
+                      ? 'border-[#191919] text-[#191919] dark:border-foreground dark:text-foreground'
+                      : 'border-transparent text-[#666] hover:text-[#191919]',
                   )
                 }
               >
-                <Icon className="h-5 w-5 mb-0.5" />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <Icon className={cn('h-[22px] w-[22px]', isActive && 'text-primary')} strokeWidth={1.75} />
+                    <span>{label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
+            <button
+              type="button"
+              onClick={() => setMsgOpen(true)}
+              className="flex min-w-[72px] flex-col items-center justify-center gap-0.5 border-b-2 border-transparent px-2 text-[12px] leading-none text-[#666] hover:text-[#191919]"
+            >
+              <MessageSquare className="h-[22px] w-[22px]" strokeWidth={1.75} />
+              <span>Chat</span>
+            </button>
           </nav>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="md:hidden"
-            onClick={() => setMsgOpen(true)}
-            aria-label="Open messaging"
-          >
-            <MessageSquare className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="hidden md:inline-flex"
-            onClick={() => setMsgOpen(true)}
-          >
-            <MessageSquare className="h-4 w-4 mr-1" />
-            Messages
-          </Button>
         </div>
 
-        <nav className="md:hidden flex overflow-x-auto border-t gap-1 px-2 py-1">
+        <nav className="flex gap-1 overflow-x-auto border-t border-[#e6e4e1] px-2 py-1.5 md:hidden">
           {networkNav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
                 cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs whitespace-nowrap',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground',
+                  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs',
+                  isActive ? 'bg-primary text-primary-foreground' : 'bg-white text-[#666]',
                 )
               }
             >
@@ -190,8 +176,8 @@ function NetworkShell() {
         </nav>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl px-3 sm:px-4 py-4">
+      <div className="min-h-0 w-full flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-[1128px] px-3 py-4 sm:px-4 lg:py-6">
           <Outlet />
         </div>
       </div>
