@@ -21,10 +21,14 @@
 - Nest: `/api/re/availability`, overview, lead list/create
 - FE: gated shell (Dashboard, Leads, Listings, Profiles)
 
-### CRM CRUD (current)
+### CRM CRUD (merged)
 - Profiles create/update
 - Listings create/update (link owner profile)
 - Leads: pipeline stage, assignee, linked listing, notes + timeline
-- Nest: `PATCH` leads/profiles/listings, `GET` assignees/activities, `POST` notes
+
+### E2E sources + follow-ups (current)
+- Webhooks: website, Meta, Google, LinkedIn, portals, call
+- Source config UI, ingest audit, email follow-up jobs + cron
+- Report: [`LEADGEN_E2E_REPORT.md`](./LEADGEN_E2E_REPORT.md)
 
 See also: [`../realestate-integration-plan.md`](../realestate-integration-plan.md)

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Building2, LayoutDashboard, Users, Home, Inbox } from 'lucide-react';
+import { Building2, LayoutDashboard, Users, Home, Inbox, Cable } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,7 @@ const tabs = [
   { to: '/re/leads', end: false, label: 'Leads', icon: Inbox },
   { to: '/re/listings', end: false, label: 'Listings', icon: Home },
   { to: '/re/profiles', end: false, label: 'Profiles', icon: Users },
+  { to: '/re/sources', end: false, label: 'Sources', icon: Cable },
 ];
 
 export default function ReShell() {

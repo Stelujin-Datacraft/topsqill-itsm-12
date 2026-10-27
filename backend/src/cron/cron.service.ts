@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CronLockService } from '../common/services/cron-lock.service';
 import { WorkflowsService } from '../workflows/workflows.service';
 import { DataFeedsService } from '../data-feeds/data-feeds.service';
 import { SlaService } from '../sla/sla.service';
 import { PoliciesService } from '../policies/policies.service';
+import { ReFollowupService } from '../re/re-followup.service';
 
 @Injectable()
 export class CronService {
@@ -17,6 +17,7 @@ export class CronService {
     private readonly dataFeedsService: DataFeedsService,
     private readonly slaService: SlaService,
     private readonly policiesService: PoliciesService,
+    private readonly reFollowups: ReFollowupService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -76,6 +77,19 @@ export class CronService {
       this.logger.error('Policy review reminders error', err);
     } finally {
       await this.cronLock.release('policy-reminders');
+    }
+  }
+
+  /** Real Estate lead-gen email follow-ups (no-op when RE flag/schema off). */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async processReFollowups() {
+    if (!(await this.cronLock.tryAcquire('re-followups'))) return;
+    try {
+      await this.reFollowups.processDueJobs(40);
+    } catch (err) {
+      this.logger.error('RE follow-up processing error', err);
+    } finally {
+      await this.cronLock.release('re-followups');
     }
   }
 }

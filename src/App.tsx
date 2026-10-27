@@ -92,6 +92,7 @@ const ReDashboard = lazyWithRetry(() => import("./pages/re/ReDashboard"));
 const ReLeadsPage = lazyWithRetry(() => import("./pages/re/ReLeadsPage"));
 const ReListingsPage = lazyWithRetry(() => import("./pages/re/ReListingsPage"));
 const ReProfilesPage = lazyWithRetry(() => import("./pages/re/ReProfilesPage"));
+const ReSourcesPage = lazyWithRetry(() => import("./pages/re/ReSourcesPage"));
 const MarketHome = lazyWithRetry(() => import("./pages/MarketHome"));
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { MARKET_CODES } from "@/content/markets";
@@ -442,6 +443,7 @@ const App = () => (
                           <Route path="leads" element={<ReLeadsPage />} />
                           <Route path="listings" element={<ReListingsPage />} />
                           <Route path="profiles" element={<ReProfilesPage />} />
+                          <Route path="sources" element={<ReSourcesPage />} />
                         </Route>
                         <Route path="/promotional-transfer" element={
                           <Suspense fallback={<RouteLoader />}>

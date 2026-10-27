@@ -48,6 +48,7 @@ jobs:
           npm run test:promotion
           npx tsx test/re/re-access.test.ts
           npx tsx test/re/re-constants.test.ts
+          npx tsx test/re/re-providers.test.ts
 
   frontend:
     name: Frontend build
