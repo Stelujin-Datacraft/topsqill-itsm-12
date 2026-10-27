@@ -6,6 +6,7 @@
  *   RE_LEADGEN_ENABLED — master switch
  *   RE_LEADGEN_META_ENRICH — Meta Graph enrichment jobs
  *   RE_LEADGEN_DEDUPE — phone/email de-dupe + re-enquiry
+ *   RE_NETWORK_ENABLED — social feed / connections / messaging shell
  *
  * Defaults (all):
  *   development → enabled unless flag=false
@@ -19,6 +20,7 @@ export interface ReAccessState {
   enabled: boolean;
   metaEnrichEnabled: boolean;
   dedupeEnabled: boolean;
+  networkEnabled: boolean;
   reason: string;
 }
 
@@ -71,11 +73,17 @@ export function isReDedupeEnabled(env: NodeJS.ProcessEnv = process.env): boolean
   return flagOrEnvDefault(env, 'RE_LEADGEN_DEDUPE', resolveReEnvironment(env));
 }
 
+export function isReNetworkEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (!isReLeadgenEnabled(env)) return false;
+  return flagOrEnvDefault(env, 'RE_NETWORK_ENABLED', resolveReEnvironment(env));
+}
+
 export function getReAccessState(env: NodeJS.ProcessEnv = process.env): ReAccessState {
   const environment = resolveReEnvironment(env);
   const enabled = isReLeadgenEnabled(env);
   const metaEnrichEnabled = isReMetaEnrichEnabled(env);
   const dedupeEnabled = isReDedupeEnabled(env);
+  const networkEnabled = isReNetworkEnabled(env);
   let reason: string;
   if (!enabled) {
     reason =
@@ -85,7 +93,7 @@ export function getReAccessState(env: NodeJS.ProcessEnv = process.env): ReAccess
   } else {
     reason = 'Real Estate Lead Gen is enabled';
   }
-  return { environment, enabled, metaEnrichEnabled, dedupeEnabled, reason };
+  return { environment, enabled, metaEnrichEnabled, dedupeEnabled, networkEnabled, reason };
 }
 
 export function assertReLeadgenAllowed(env: NodeJS.ProcessEnv = process.env): ReAccessState {

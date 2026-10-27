@@ -120,6 +120,7 @@ export class ReService {
       reason: access.reason,
       metaEnrichEnabled: access.metaEnrichEnabled,
       dedupeEnabled: access.dedupeEnabled,
+      networkEnabled: access.networkEnabled,
       schemaReady: null as boolean | null,
       requiredTables: [...REQUIRED_TABLES],
     };

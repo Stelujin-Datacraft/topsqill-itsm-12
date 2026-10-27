@@ -39,3 +39,11 @@ export function isReLeadgenUiEnabled(): boolean {
   if (flag !== null) return flag;
   return resolveReFrontendEnvironment() === 'development';
 }
+
+/** Social Network shell (feed / connections / messaging). Requires Lead Gen UI on. */
+export function isReNetworkUiEnabled(): boolean {
+  if (!isReLeadgenUiEnabled()) return false;
+  const flag = parseFlag(import.meta.env.VITE_RE_NETWORK_ENABLED);
+  if (flag !== null) return flag;
+  return resolveReFrontendEnvironment() === 'development';
+}
