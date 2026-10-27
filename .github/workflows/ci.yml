@@ -49,6 +49,9 @@ jobs:
           npx tsx test/re/re-access.test.ts
           npx tsx test/re/re-constants.test.ts
           npx tsx test/re/re-providers.test.ts
+          npx tsx test/re/re-normalize.test.ts
+          npx tsx test/re/re-dedupe.test.ts
+          npx tsx test/re/re-enrich-dedupe-flow.test.ts
 
   frontend:
     name: Frontend build

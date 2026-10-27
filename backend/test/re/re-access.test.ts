@@ -5,7 +5,9 @@
 import assert from 'node:assert/strict';
 import {
   getReAccessState,
+  isReDedupeEnabled,
   isReLeadgenEnabled,
+  isReMetaEnrichEnabled,
   resolveReEnvironment,
 } from '../../src/re/re-access';
 
@@ -49,6 +51,31 @@ test('RE_LEADGEN_ENABLED=false disables on development', () => {
     RE_LEADGEN_ENABLED: 'false',
   } as NodeJS.ProcessEnv;
   assert.equal(isReLeadgenEnabled(env), false);
+});
+
+test('META_ENRICH and DEDUPE default on in development', () => {
+  const env = { ENVIRONMENT: 'development' } as NodeJS.ProcessEnv;
+  assert.equal(isReMetaEnrichEnabled(env), true);
+  assert.equal(isReDedupeEnabled(env), true);
+  assert.equal(getReAccessState(env).metaEnrichEnabled, true);
+  assert.equal(getReAccessState(env).dedupeEnabled, true);
+});
+
+test('META_ENRICH and DEDUPE fail closed on production', () => {
+  const env = { ENVIRONMENT: 'production', RE_LEADGEN_ENABLED: 'true' } as NodeJS.ProcessEnv;
+  assert.equal(isReMetaEnrichEnabled(env), false);
+  assert.equal(isReDedupeEnabled(env), false);
+});
+
+test('META_ENRICH can be enabled on production explicitly', () => {
+  const env = {
+    ENVIRONMENT: 'production',
+    RE_LEADGEN_ENABLED: 'true',
+    RE_LEADGEN_META_ENRICH: 'true',
+    RE_LEADGEN_DEDUPE: 'true',
+  } as NodeJS.ProcessEnv;
+  assert.equal(isReMetaEnrichEnabled(env), true);
+  assert.equal(isReDedupeEnabled(env), true);
 });
 
 console.log('All re-access tests passed');

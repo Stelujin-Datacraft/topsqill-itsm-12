@@ -118,6 +118,8 @@ export class ReService {
       enabled: access.enabled,
       environment: access.environment,
       reason: access.reason,
+      metaEnrichEnabled: access.metaEnrichEnabled,
+      dedupeEnabled: access.dedupeEnabled,
       schemaReady: null as boolean | null,
       requiredTables: [...REQUIRED_TABLES],
     };

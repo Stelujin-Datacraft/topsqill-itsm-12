@@ -6,6 +6,7 @@ import { DataFeedsService } from '../data-feeds/data-feeds.service';
 import { SlaService } from '../sla/sla.service';
 import { PoliciesService } from '../policies/policies.service';
 import { ReFollowupService } from '../re/re-followup.service';
+import { ReMetaEnrichService } from '../re/re-meta-enrich.service';
 
 @Injectable()
 export class CronService {
@@ -18,6 +19,7 @@ export class CronService {
     private readonly slaService: SlaService,
     private readonly policiesService: PoliciesService,
     private readonly reFollowups: ReFollowupService,
+    private readonly reMetaEnrich: ReMetaEnrichService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -90,6 +92,19 @@ export class CronService {
       this.logger.error('RE follow-up processing error', err);
     } finally {
       await this.cronLock.release('re-followups');
+    }
+  }
+
+  /** Meta Lead Ads Graph enrichment queue. */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async processReMetaEnrichment() {
+    if (!(await this.cronLock.tryAcquire('re-meta-enrich'))) return;
+    try {
+      await this.reMetaEnrich.processDueJobs(25);
+    } catch (err) {
+      this.logger.error('RE Meta enrichment processing error', err);
+    } finally {
+      await this.cronLock.release('re-meta-enrich');
     }
   }
 }

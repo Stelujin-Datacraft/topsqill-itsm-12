@@ -4,11 +4,13 @@ import {
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { SupabaseService } from '../supabase/supabase.service';
-import { isReLeadgenEnabled } from './re-access';
-import { ReService } from './re.service';
+import { isReLeadgenEnabled, isReMetaEnrichEnabled } from './re-access';
+import { ReDedupeService } from './re-dedupe.service';
+import { ReMetaEnrichService } from './re-meta-enrich.service';
 import {
   RE_INGEST_PROVIDERS,
   NormalizedLeadInput,
@@ -48,7 +50,8 @@ function safeEqual(a: string, b: string): boolean {
 export class ReIngestService {
   constructor(
     private readonly supabaseService: SupabaseService,
-    private readonly reService: ReService,
+    private readonly dedupe: ReDedupeService,
+    private readonly metaEnrich: ReMetaEnrichService,
   ) {}
 
   private client() {
@@ -123,7 +126,7 @@ export class ReIngestService {
     const { data, error } = await this.client()
       .from('re_lead_source_configs')
       .select(
-        'id, organization_id, project_id, provider, enabled, display_name, ingest_key, verify_token, page_id, form_id_external, webhook_path_token, settings, created_at, updated_at',
+        'id, organization_id, project_id, provider, enabled, display_name, ingest_key, verify_token, page_id, form_id_external, webhook_path_token, settings, needs_reauth, reauth_reason, graph_api_version, field_mappings, created_at, updated_at',
       )
       .eq('organization_id', organizationId)
       .order('provider');
@@ -140,10 +143,14 @@ export class ReIngestService {
       displayName?: string;
       verifyToken?: string;
       accessToken?: string;
+      appSecret?: string;
       pageId?: string | null;
       formIdExternal?: string | null;
+      graphApiVersion?: string;
+      fieldMappings?: Record<string, string>;
       settings?: Record<string, unknown>;
       rotateIngestKey?: boolean;
+      clearNeedsReauth?: boolean;
     },
   ) {
     this.assertFeature();
@@ -156,10 +163,17 @@ export class ReIngestService {
     if (patch.displayName !== undefined) updates.display_name = patch.displayName;
     if (patch.verifyToken !== undefined) updates.verify_token = patch.verifyToken;
     if (patch.accessToken !== undefined) updates.access_token = patch.accessToken;
+    if (patch.appSecret !== undefined) updates.app_secret = patch.appSecret;
     if (patch.pageId !== undefined) updates.page_id = patch.pageId;
     if (patch.formIdExternal !== undefined) updates.form_id_external = patch.formIdExternal;
+    if (patch.graphApiVersion !== undefined) updates.graph_api_version = patch.graphApiVersion;
+    if (patch.fieldMappings !== undefined) updates.field_mappings = patch.fieldMappings;
     if (patch.settings !== undefined) updates.settings = patch.settings;
     if (patch.rotateIngestKey) updates.ingest_key = randomBytes(24).toString('hex');
+    if (patch.clearNeedsReauth) {
+      updates.needs_reauth = false;
+      updates.reauth_reason = null;
+    }
 
     const { data, error } = await this.client()
       .from('re_lead_source_configs')
@@ -167,7 +181,7 @@ export class ReIngestService {
       .eq('organization_id', organizationId)
       .eq('provider', provider)
       .select(
-        'id, organization_id, provider, enabled, display_name, ingest_key, verify_token, page_id, form_id_external, webhook_path_token, settings, updated_at',
+        'id, organization_id, provider, enabled, display_name, ingest_key, verify_token, page_id, form_id_external, webhook_path_token, settings, needs_reauth, reauth_reason, graph_api_version, field_mappings, updated_at',
       )
       .single();
     if (error) throw new BadRequestException(error.message);
@@ -226,8 +240,11 @@ export class ReIngestService {
     external_id?: string | null;
     payload: Record<string, unknown>;
     error_message?: string | null;
+    enrichment_status?: string | null;
+    leadgen_id?: string | null;
   }) {
-    await this.client().from('re_ingest_events').insert(row);
+    const { data } = await this.client().from('re_ingest_events').insert(row).select('id').single();
+    return data;
   }
 
   async acceptNormalized(
@@ -235,36 +252,34 @@ export class ReIngestService {
     normalized: NormalizedLeadInput,
     opts?: { projectId?: string | null; actorId?: string | null },
   ) {
-    const created = await this.reService.createLead(
-      {
-        organizationId,
-        projectId: opts?.projectId || normalized.projectId || null,
-        source: normalized.source,
-        contactName: normalized.contactName,
-        contactEmail: normalized.contactEmail,
-        contactPhone: normalized.contactPhone,
-        notesPreview: normalized.notesPreview,
-        listingId: normalized.listingId,
-        rawPayload: {
-          ...normalized.rawPayload,
-          external_id: normalized.externalId,
-        },
-      },
-      opts?.actorId || undefined,
-    );
-
-    await this.logEvent({
+    const event = await this.logEvent({
       organization_id: organizationId,
       provider: String(normalized.source),
-      status: 'accepted',
-      lead_id: created.lead?.id || null,
+      status: 'received',
       external_id: normalized.externalId || null,
       payload: normalized.rawPayload,
+      enrichment_status: 'none',
     });
 
-    // Follow-ups are scheduled inside ReService.createLead when rules exist.
+    const result = await this.dedupe.acceptLead({
+      organizationId,
+      projectId: opts?.projectId || normalized.projectId || null,
+      source: String(normalized.source),
+      contactName: normalized.contactName,
+      contactEmail: normalized.contactEmail,
+      contactPhone: normalized.contactPhone,
+      notesPreview: normalized.notesPreview,
+      listingId: normalized.listingId,
+      externalId: normalized.externalId,
+      rawPayload: {
+        ...normalized.rawPayload,
+        external_id: normalized.externalId,
+      },
+      actorId: opts?.actorId || null,
+      ingestEventId: event?.id || null,
+    });
 
-    return created;
+    return { lead: result.lead, mode: result.mode, success: true };
   }
 
   /** Website / generic JSON capture */
@@ -293,31 +308,63 @@ export class ReIngestService {
     throw new ForbiddenException('Meta verify token mismatch');
   }
 
-  async ingestMeta(pathToken: string, body: Record<string, unknown>) {
+  /**
+   * Meta POST: verify signature, persist raw event, enqueue enrichment, return 200 fast.
+   * Does not call Graph API inline.
+   */
+  async ingestMeta(
+    pathToken: string,
+    body: Record<string, unknown>,
+    opts?: { rawBody?: Buffer | string; signature?: string },
+  ) {
     this.assertFeature();
     await this.requireSchema();
     const config = await this.findConfigByPathToken(pathToken);
     if (config.provider !== 'meta_ads') throw new BadRequestException('Not a Meta source path');
     if (!config.enabled) throw new ForbiddenException('Meta source disabled');
-    // Optional shared secret header support via settings.ingest_key_required
-    if (config.settings?.require_ingest_key) {
-      // callers should pass key via query; optional
-    }
+
     try {
-      const normalized = normalizeMetaPayload(body);
-      return await this.acceptNormalized(config.organization_id, normalized, {
-        projectId: config.project_id,
-      });
+      const raw =
+        opts?.rawBody != null
+          ? opts.rawBody
+          : Buffer.from(JSON.stringify(body));
+      this.metaEnrich.verifySignature(raw, opts?.signature, config.app_secret);
     } catch (e) {
       await this.logEvent({
         organization_id: config.organization_id,
         provider: 'meta_ads',
-        status: 'error',
+        status: 'rejected',
         payload: body,
-        error_message: e instanceof Error ? e.message : 'ingest failed',
+        error_message: e instanceof Error ? e.message : 'signature failed',
+        enrichment_status: 'failed',
       });
-      throw e;
+      if (e instanceof UnauthorizedException) throw e;
+      throw new UnauthorizedException('Invalid Meta signature');
     }
+
+    const event = await this.logEvent({
+      organization_id: config.organization_id,
+      provider: 'meta_ads',
+      status: 'received',
+      payload: body,
+      enrichment_status: isReMetaEnrichEnabled() ? 'pending' : 'none',
+    });
+
+    if (isReMetaEnrichEnabled()) {
+      const queued = await this.metaEnrich.enqueueFromWebhook({
+        organizationId: config.organization_id,
+        sourceConfigId: config.id,
+        ingestEventId: event?.id,
+        body,
+      });
+      return { success: true, queued: true, ...queued };
+    }
+
+    // Enrichment flag off → sync path (still normalised + deduped)
+    const normalized = normalizeMetaPayload(body);
+    return this.acceptNormalized(config.organization_id, normalized, {
+      projectId: config.project_id,
+    });
   }
 
   async ingestGoogle(pathToken: string, ingestKey: string | undefined, body: Record<string, unknown>) {

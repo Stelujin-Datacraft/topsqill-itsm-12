@@ -52,6 +52,7 @@ export default function ReLeadsPage() {
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activities, setActivities] = useState<ReActivity[]>([]);
+  const [duplicates, setDuplicates] = useState<ReLead[]>([]);
   const [note, setNote] = useState('');
   const [busyLead, setBusyLead] = useState(false);
 
@@ -97,16 +98,55 @@ export default function ReLeadsPage() {
     }
   };
 
+  const loadDuplicates = async (leadId: string) => {
+    if (!orgId) return;
+    try {
+      const res = await reApi.listPossibleDuplicates(leadId, orgId);
+      setDuplicates(res.duplicates || []);
+    } catch {
+      setDuplicates([]);
+    }
+  };
+
   useEffect(() => {
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
   useEffect(() => {
-    if (selectedId) void loadActivities(selectedId);
-    else setActivities([]);
+    if (selectedId) {
+      void loadActivities(selectedId);
+      void loadDuplicates(selectedId);
+    } else {
+      setActivities([]);
+      setDuplicates([]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, orgId]);
+
+  const onMerge = async (mergedLeadId: string) => {
+    if (!orgId || !selectedId) return;
+    setBusyLead(true);
+    try {
+      await reApi.mergeLeads({
+        organizationId: orgId,
+        survivorLeadId: selectedId,
+        mergedLeadId,
+      });
+      toast({ title: 'Leads merged' });
+      await reload();
+      await loadActivities(selectedId);
+      await loadDuplicates(selectedId);
+    } catch (err) {
+      toast({
+        title: 'Merge failed',
+        description: err instanceof Error ? err.message : 'Request failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusyLead(false);
+    }
+  };
 
   const onCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -260,10 +300,18 @@ export default function ReLeadsPage() {
                       onClick={() => setSelectedId(lead.id)}
                     >
                       <TableCell>
-                        <div className="font-medium">{lead.contact_name || '—'}</div>
+                        <div className="font-medium flex items-center gap-2">
+                          <span>{lead.contact_name || '—'}</span>
+                          {lead.is_re_enquiry ? (
+                            <span className="text-[10px] uppercase tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                              Re-enquired
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="text-xs text-muted-foreground">
-                          {[lead.contact_email, lead.contact_phone].filter(Boolean).join(' · ') ||
-                            '—'}
+                          {[lead.contact_email, lead.phone_e164 || lead.contact_phone]
+                            .filter(Boolean)
+                            .join(' · ') || '—'}
                         </div>
                       </TableCell>
                       <TableCell>{lead.status}</TableCell>
@@ -272,7 +320,14 @@ export default function ReLeadsPage() {
                           ? assigneeMap.get(lead.assigned_to) || lead.assigned_to.slice(0, 8)
                           : '—'}
                       </TableCell>
-                      <TableCell>{lead.source}</TableCell>
+                      <TableCell>
+                        <div>{lead.latest_source || lead.source}</div>
+                        {lead.first_source && lead.first_source !== (lead.latest_source || lead.source) ? (
+                          <div className="text-[10px] text-muted-foreground">
+                            first: {lead.first_source}
+                          </div>
+                        ) : null}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -287,8 +342,27 @@ export default function ReLeadsPage() {
           ) : (
             <>
               <div>
-                <h3 className="font-semibold">{selected.contact_name || 'Lead'}</h3>
+                <h3 className="font-semibold flex items-center gap-2">
+                  <span>{selected.contact_name || 'Lead'}</span>
+                  {selected.is_re_enquiry ? (
+                    <span className="text-[10px] uppercase tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                      Re-enquired
+                    </span>
+                  ) : null}
+                </h3>
                 <p className="text-xs text-muted-foreground break-all">{selected.id}</p>
+                {(selected.first_source || selected.latest_source) && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Attribution: first {selected.first_source || '—'} · latest{' '}
+                    {selected.latest_source || selected.source}
+                  </p>
+                )}
+                {selected.campaign_name && (
+                  <p className="text-xs text-muted-foreground">
+                    Campaign: {selected.campaign_name}
+                    {selected.ad_name ? ` / ${selected.ad_name}` : ''}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -370,6 +444,43 @@ export default function ReLeadsPage() {
                   Save note
                 </Button>
               </form>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Possible duplicates</h4>
+                {duplicates.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No fuzzy matches on name + locality.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {duplicates.map((d) => (
+                      <li
+                        key={d.id}
+                        className="text-xs flex items-start justify-between gap-2 border rounded p-2"
+                      >
+                        <div>
+                          <div className="font-medium">{d.contact_name || '—'}</div>
+                          <div className="text-muted-foreground">
+                            {[d.contact_email, d.phone_e164 || d.contact_phone]
+                              .filter(Boolean)
+                              .join(' · ') || '—'}
+                          </div>
+                          <div className="font-mono text-[10px] text-muted-foreground">
+                            {d.id.slice(0, 8)}…
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={busyLead}
+                          onClick={() => void onMerge(d.id)}
+                        >
+                          Merge
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Timeline</h4>
