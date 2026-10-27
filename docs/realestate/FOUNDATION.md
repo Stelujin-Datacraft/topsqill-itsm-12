@@ -14,11 +14,17 @@
 5. **No workflow executor edits in foundation.** SMS/WhatsApp actions come in a later PR as additive executors.
 6. **Migrations are opt-in on VMs.** Applying SQL is a separate ops step; Nest availability reports `schemaReady: false` until tables exist.
 
-## First slice (this PR)
+## Slices
 
+### Foundation (merged)
 - Schema: `re_profiles`, `re_listings`, `re_leads`, `re_lead_activities` + RLS
-- Nest: `/api/re/availability`, overview counts, basic lead list/create
+- Nest: `/api/re/availability`, overview, lead list/create
 - FE: gated shell (Dashboard, Leads, Listings, Profiles)
-- Tests for access flags + controller availability
+
+### CRM CRUD (current)
+- Profiles create/update
+- Listings create/update (link owner profile)
+- Leads: pipeline stage, assignee, linked listing, notes + timeline
+- Nest: `PATCH` leads/profiles/listings, `GET` assignees/activities, `POST` notes
 
 See also: [`../realestate-integration-plan.md`](../realestate-integration-plan.md)

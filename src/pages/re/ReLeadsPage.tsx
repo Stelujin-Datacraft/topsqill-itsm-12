@@ -1,8 +1,16 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -13,29 +21,64 @@ import {
 } from '@/components/ui/table';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { reApi, type ReLead } from '@/lib/re/api';
-import { Loader2 } from 'lucide-react';
+import {
+  reApi,
+  type ReActivity,
+  type ReAssignee,
+  type ReLead,
+  type ReListing,
+} from '@/lib/re/api';
+import { RE_LEAD_STATUSES } from '@/lib/re/constants';
 import { toast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+
+function assigneeLabel(u: ReAssignee) {
+  const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+  return name || u.email || u.id.slice(0, 8);
+}
 
 export default function ReLeadsPage() {
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
   const orgId = currentOrganization?.id;
   const [leads, setLeads] = useState<ReLead[]>([]);
+  const [assignees, setAssignees] = useState<ReAssignee[]>([]);
+  const [listings, setListings] = useState<ReListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activities, setActivities] = useState<ReActivity[]>([]);
+  const [note, setNote] = useState('');
+  const [busyLead, setBusyLead] = useState(false);
+
+  const selected = useMemo(
+    () => leads.find((l) => l.id === selectedId) || null,
+    [leads, selectedId],
+  );
+
+  const assigneeMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of assignees) m.set(u.id, assigneeLabel(u));
+    return m;
+  }, [assignees]);
 
   const reload = async () => {
     if (!orgId) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await reApi.listLeads(orgId);
-      setLeads(res.leads || []);
+      const [leadsRes, assigneesRes, listingsRes] = await Promise.all([
+        reApi.listLeads(orgId),
+        reApi.listAssignees(orgId),
+        reApi.listListings(orgId),
+      ]);
+      setLeads(leadsRes.leads || []);
+      setAssignees(assigneesRes.users || []);
+      setListings(listingsRes.listings || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load leads');
       setLeads([]);
@@ -44,17 +87,33 @@ export default function ReLeadsPage() {
     }
   };
 
+  const loadActivities = async (leadId: string) => {
+    if (!orgId) return;
+    try {
+      const res = await reApi.listLeadActivities(leadId, orgId);
+      setActivities(res.activities || []);
+    } catch {
+      setActivities([]);
+    }
+  };
+
   useEffect(() => {
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
+
+  useEffect(() => {
+    if (selectedId) void loadActivities(selectedId);
+    else setActivities([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, orgId]);
 
   const onCreate = async (e: FormEvent) => {
     e.preventDefault();
     if (!orgId) return;
     setSaving(true);
     try {
-      await reApi.createLead({
+      const res = await reApi.createLead({
         organizationId: orgId,
         projectId: currentProject?.id || null,
         source: 'manual',
@@ -67,6 +126,7 @@ export default function ReLeadsPage() {
       setContactPhone('');
       toast({ title: 'Lead created' });
       await reload();
+      if (res.lead?.id) setSelectedId(res.lead.id);
     } catch (err) {
       toast({
         title: 'Could not create lead',
@@ -75,6 +135,50 @@ export default function ReLeadsPage() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const patchLead = async (patch: {
+    status?: string;
+    assignedTo?: string | null;
+    listingId?: string | null;
+  }) => {
+    if (!orgId || !selectedId) return;
+    setBusyLead(true);
+    try {
+      await reApi.updateLead(selectedId, { organizationId: orgId, ...patch });
+      toast({ title: 'Lead updated' });
+      await reload();
+      await loadActivities(selectedId);
+    } catch (err) {
+      toast({
+        title: 'Update failed',
+        description: err instanceof Error ? err.message : 'Request failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusyLead(false);
+    }
+  };
+
+  const onAddNote = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!orgId || !selectedId || !note.trim()) return;
+    setBusyLead(true);
+    try {
+      const res = await reApi.addLeadNote(selectedId, orgId, note.trim());
+      setActivities(res.activities || []);
+      setNote('');
+      toast({ title: 'Note added' });
+      await reload();
+    } catch (err) {
+      toast({
+        title: 'Could not add note',
+        description: err instanceof Error ? err.message : 'Request failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setBusyLead(false);
     }
   };
 
@@ -121,47 +225,174 @@ export default function ReLeadsPage() {
         </Alert>
       )}
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading leads…
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Contact</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {leads.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-muted-foreground">
-                  No leads yet. Create one above after the RE migration is applied.
-                </TableCell>
-              </TableRow>
-            ) : (
-              leads.map((lead) => (
-                <TableRow key={lead.id}>
-                  <TableCell>
-                    <div className="font-medium">{lead.contact_name || '—'}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {[lead.contact_email, lead.contact_phone].filter(Boolean).join(' · ') || '—'}
-                    </div>
-                  </TableCell>
-                  <TableCell>{lead.source}</TableCell>
-                  <TableCell>{lead.status}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {lead.created_at ? new Date(lead.created_at).toLocaleString() : '—'}
-                  </TableCell>
+      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div>
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading leads…
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead>Assignee</TableHead>
+                  <TableHead>Source</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      )}
+              </TableHeader>
+              <TableBody>
+                {leads.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-muted-foreground">
+                      No leads yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  leads.map((lead) => (
+                    <TableRow
+                      key={lead.id}
+                      className={
+                        selectedId === lead.id
+                          ? 'bg-muted/60 cursor-pointer'
+                          : 'cursor-pointer hover:bg-muted/40'
+                      }
+                      onClick={() => setSelectedId(lead.id)}
+                    >
+                      <TableCell>
+                        <div className="font-medium">{lead.contact_name || '—'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {[lead.contact_email, lead.contact_phone].filter(Boolean).join(' · ') ||
+                            '—'}
+                        </div>
+                      </TableCell>
+                      <TableCell>{lead.status}</TableCell>
+                      <TableCell>
+                        {lead.assigned_to
+                          ? assigneeMap.get(lead.assigned_to) || lead.assigned_to.slice(0, 8)
+                          : '—'}
+                      </TableCell>
+                      <TableCell>{lead.source}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        <div className="rounded-lg border p-4 space-y-4 min-h-[280px]">
+          {!selected ? (
+            <p className="text-sm text-muted-foreground">Select a lead to update stage, assignee, and notes.</p>
+          ) : (
+            <>
+              <div>
+                <h3 className="font-semibold">{selected.contact_name || 'Lead'}</h3>
+                <p className="text-xs text-muted-foreground break-all">{selected.id}</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Pipeline stage</Label>
+                <Select
+                  value={selected.status}
+                  disabled={busyLead}
+                  onValueChange={(status) => void patchLead({ status })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RE_LEAD_STATUSES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Assignee</Label>
+                <Select
+                  value={selected.assigned_to || 'none'}
+                  disabled={busyLead}
+                  onValueChange={(v) =>
+                    void patchLead({ assignedTo: v === 'none' ? null : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {assignees.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {assigneeLabel(u)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Linked listing</Label>
+                <Select
+                  value={selected.listing_id || 'none'}
+                  disabled={busyLead}
+                  onValueChange={(v) =>
+                    void patchLead({ listingId: v === 'none' ? null : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {listings.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <form onSubmit={onAddNote} className="space-y-2">
+                <Label htmlFor="re-lead-note">Add note</Label>
+                <Textarea
+                  id="re-lead-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  placeholder="Call summary, next step…"
+                />
+                <Button type="submit" size="sm" disabled={busyLead || !note.trim()}>
+                  Save note
+                </Button>
+              </form>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Timeline</h4>
+                {activities.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No activity yet.</p>
+                ) : (
+                  <ul className="space-y-2 max-h-64 overflow-y-auto">
+                    {activities.map((a) => (
+                      <li key={a.id} className="text-xs border-l-2 pl-2">
+                        <div className="font-medium capitalize">{a.activity_type.replace('_', ' ')}</div>
+                        <div className="text-muted-foreground">{a.body}</div>
+                        <div className="text-muted-foreground/80">
+                          {a.created_at ? new Date(a.created_at).toLocaleString() : ''}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
