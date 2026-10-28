@@ -7,6 +7,7 @@ import {
   parseAiJsonContent,
   resolveAiGatewayConfig,
 } from './shared/ai-gateway';
+import { runRegulatoryAiAction } from '../regulatory/ai-actions';
 
 
 const corsHeaders = {
@@ -84,6 +85,14 @@ export async function aiAssistant(
     const aiGateway = resolveAiGatewayConfig((key) => ctx.getEnv(key));
 
     const { action, context }: AIRequest = body;
+
+    if (typeof action === 'string' && action.startsWith('regulatory-')) {
+      const regulatory = await runRegulatoryAiAction(action, (context || {}) as Record<string, unknown>, (key) => ctx.getEnv(key));
+      return new Response(JSON.stringify({ success: regulatory.available, ...regulatory }), {
+        status: regulatory.available ? 200 : 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     let systemPrompt = '';
     let userPrompt = '';

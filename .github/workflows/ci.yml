@@ -53,6 +53,9 @@ jobs:
           npx tsx test/re/re-dedupe.test.ts
           npx tsx test/re/re-enrich-dedupe-flow.test.ts
           npx tsx test/re/re-network-policy.test.ts
+          npx tsx test/regulatory/parse-sources.test.ts
+          npx tsx test/regulatory/import-flow.test.ts
+          npx tsx test/regulatory/regulatory-access.test.ts
 
   frontend:
     name: Frontend build
