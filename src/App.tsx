@@ -169,6 +169,7 @@ const CreateTemplate = lazyWithRetry(() => import("./pages/CreateTemplate"));
 
 // Compliance, Audit, Evidence
 const CompliancePage = lazyWithRetry(() => import("./pages/CompliancePage"));
+const RegulatoryCompliancePage = lazyWithRetry(() => import("./pages/regulatory/RegulatoryCompliancePage"));
 const AuditProgramsPage = lazyWithRetry(() => import("./pages/AuditProgramsPage"));
 const EvidenceLockerPage = lazyWithRetry(() => import("./pages/EvidenceLockerPage"));
 
@@ -397,6 +398,11 @@ const App = () => (
                         <Route path="/policies/create-template" element={<CreateTemplate />} />
                         <Route path="/policy/:id" element={<PolicyDetail />} />
                         <Route path="/compliance" element={<CompliancePage />} />
+                        <Route path="/regulatory" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <RegulatoryCompliancePage />
+                          </Suspense>
+                        } />
                         <Route path="/audit-programs" element={<AuditProgramsPage />} />
                         <Route path="/evidence-locker" element={<EvidenceLockerPage />} />
                         

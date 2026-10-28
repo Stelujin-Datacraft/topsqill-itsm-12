@@ -1,0 +1,39 @@
+{
+  "retrievedAt": "2026-10-28T06:14:47Z",
+  "note": "Snapshots saved from the retrieval in this change. EUR-Lex HTML was blocked by a WAF challenge (HTTP 202, x-amzn-waf-action: challenge, empty body). The GDPR text is the Publications Office manifestation of the same CELEX.",
+  "gdpr": {
+    "citationUrl": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679",
+    "retrievedUrl": "http://publications.europa.eu/resource/celex/32016R0679",
+    "accept": "application/xhtml+xml",
+    "acceptLanguage": "eng",
+    "manifestation": "http://publications.europa.eu/resource/cellar/3e485e15-11bd-11e6-ba9a-01aa75ed71a1.0006.03/DOC_1",
+    "contentType": "application/xhtml+xml;charset=UTF-8",
+    "lastModified": "Wed, 05 Feb 2025 15:31:18 GMT",
+    "etag": "Con-20250205163118000",
+    "bytes": 806864,
+    "sha256": "962539af03738bf552319ff4ce42d69e5f95a576307c4dfed7bf87e81b646b9d",
+    "file": "gdpr.xhtml"
+  },
+  "dpdpAct": {
+    "citationUrl": "https://www.indiacode.nic.in/bitstream/123456789/22037/2/a2023-22.pdf",
+    "indiaCodeOutcome": "Timed out with no body from indiacode.nic.in",
+    "retrievedUrl": "https://www.meity.gov.in/static/uploads/2024/02/Digital-Personal-Data-Protection-Act-2023.pdf",
+    "contentType": "application/pdf",
+    "lastModified": "Sun, 16 Jun 2024 12:20:30 GMT",
+    "etag": "cf08dd3279553320b8a4f875317352f6",
+    "bytes": 182082,
+    "sha256": "4deb23981d3010c8225a2ff6149e7243dc2268455b299e283afebdd7b72a7d15",
+    "textExtract": "pdftotext -layout",
+    "file": "dpdp-act.txt"
+  },
+  "dpdpCommencement": {
+    "retrievedUrl": "https://www.meity.gov.in/static/uploads/2025/11/c56ceae6c383460ca69577428d36828b.pdf",
+    "contentType": "application/pdf",
+    "lastModified": "Fri, 14 Nov 2025 09:04:53 GMT",
+    "etag": "90b5867813ac1ffbebe66397fbc6340d",
+    "bytes": 1869005,
+    "sha256": "6df25cd8c76ac8eb18cae81835d51d51128ffbf2ed13262843395efddf0998e5",
+    "textExtract": "pdftotext -layout",
+    "file": "dpdp-commencement.txt"
+  }
+}

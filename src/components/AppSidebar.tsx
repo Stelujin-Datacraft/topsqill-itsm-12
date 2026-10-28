@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight, Building2 } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight, Building2, Scale } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -23,6 +23,7 @@ import { NotificationPanel } from "@/components/NotificationPanel"
 import { ThemeSelector } from "@/components/ThemeSelector"
 import { isPromotionalTransferUiEnabled } from "@/lib/promotion/feature"
 import { isReLeadgenUiEnabled, isReNetworkUiEnabled } from "@/lib/re/feature"
+import { isRegulatoryUiEnabled } from "@/lib/regulatory/feature"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation();
@@ -37,6 +38,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const promotionalTransferVisible =
     effectiveRole === 'admin' && isPromotionalTransferUiEnabled();
   const reLeadgenVisible = isReLeadgenUiEnabled();
+  const regulatoryVisible = isRegulatoryUiEnabled();
   const reNetworkVisible = isReNetworkUiEnabled();
 
   const data = {
@@ -142,6 +144,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isDisabled: !currentProject,
         iconColor: "text-module-knowledge",
       },
+      ...(regulatoryVisible
+        ? [{
+            title: 'Regulatory',
+            url: '/regulatory',
+            icon: Scale,
+            isDisabled: !currentProject,
+            iconColor: 'text-module-knowledge',
+          }]
+        : []),
       {
         title: t('nav.itAssets'),
         url: "/it-assets",
