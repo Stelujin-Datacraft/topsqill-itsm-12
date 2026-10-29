@@ -313,6 +313,8 @@ assert.equal(migrationSql.includes('grc.regulatory.'), false);
 assert.match(migrationSql, /Effective Date must not precede Publication Date/);
 assert.match(migrationSql, /Verification Date must not precede Last Assessment Date/);
 assert.match(migrationSql, /Related Clauses/);
+assert.match(migrationSql, /btrim\(created_by::text\)/);
+assert.match(migrationSql, /created_by::text AS created_by/);
 const embeddedSql = readFileSync(resolve('backend/src/regulatory/regulatory-forms.sql.ts'), 'utf8');
 assert.equal(
   embeddedSql.includes(`export const REGULATORY_FORMS_SQL = ${JSON.stringify(migrationSql)};`),

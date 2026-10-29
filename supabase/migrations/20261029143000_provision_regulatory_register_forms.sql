@@ -484,11 +484,11 @@ $pages$::jsonb;
 $spec$::jsonb;
 
   FOR proj IN
-    SELECT id, organization_id, created_by
+    SELECT id, organization_id, created_by::text AS created_by
     FROM public.projects
     WHERE organization_id IS NOT NULL
       AND created_by IS NOT NULL
-      AND btrim(created_by) <> ''
+      AND btrim(created_by::text) <> ''
   LOOP
     BEGIN
     v_std := pg_temp.reg_find_form(proj.id, 'grc.standard-library');
