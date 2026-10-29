@@ -11,7 +11,7 @@ import { shouldKeepFormsLoading } from '@/utils/authProjectLoadGate';
 export function useFormsData() {
   const { userProfile, session, isLoading: authLoading } = useAuth();
   const { currentProject, loading: projectsLoading } = useProject();
-  const { forms, setForms, loading, loadForms } = useFormsLoader();
+  const { forms, setForms, loading, loadForms, regulatoryNotice } = useFormsLoader();
   const { createForm: createFormMutation, updateForm: updateFormMutation, deleteForm: deleteFormMutation } = useFormMutations();
   const { 
     addField: addFieldMutation, 
@@ -150,13 +150,13 @@ export function useFormsData() {
     if (shouldKeepFormsLoading({ authLoading, projectsLoading })) {
       return;
     }
-    if (currentProject?.id && userProfile?.organization_id && session) {
-      loadForms(userProfile.organization_id, currentProject.id);
+    if (currentProject?.id && (currentProject.organization_id || userProfile?.organization_id) && session) {
+      loadForms(currentProject.organization_id || userProfile.organization_id, currentProject.id);
     } else {
       // Settled without a project: clear forms and release loading (via loadForms finally).
       void loadForms(userProfile?.organization_id || '', undefined);
     }
-  }, [currentProject?.id, userProfile?.organization_id, session, authLoading, projectsLoading, loadForms]);
+  }, [currentProject?.id, currentProject?.organization_id, userProfile?.organization_id, session, authLoading, projectsLoading, loadForms]);
 
   return {
     forms,
@@ -170,6 +170,7 @@ export function useFormsData() {
     reorderFields,
     batchSaveFields,
     batchDeleteFields,
-    loadForms: () => currentProject?.id && userProfile?.organization_id && loadForms(userProfile.organization_id, currentProject.id),
+    loadForms: () => currentProject?.id && (currentProject.organization_id || userProfile?.organization_id) && loadForms(currentProject.organization_id || userProfile.organization_id, currentProject.id),
+    regulatoryNotice,
   };
 }

@@ -7,10 +7,15 @@ import { toast } from '@/hooks/use-toast';
 import { provisionStandardLibraryIfMissing } from '@/lib/regulatory/provisionStandardLibrary';
 import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 import { provisionRegulatoryRegistersIfMissing } from '@/lib/regulatory/provisionRegulatoryRegisters';
+import {
+  REGULATORY_REGISTERS,
+  canSeeLoadedForm,
+} from '@/lib/regulatory/regulatoryFormAccess';
 
 export function useFormsLoader() {
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
+  const [regulatoryNotice, setRegulatoryNotice] = useState<string | null>(null);
  
   const safeParseJson = useCallback((jsonString: any, fallback: any = null) => {
     if (!jsonString) return fallback;
@@ -36,15 +41,18 @@ export function useFormsLoader() {
   ) => {
     try {
       setLoading(true);
+      setRegulatoryNotice(null);
 
       if (!projectId) {
         setForms([]);
+        setRegulatoryNotice(null);
         return;
       }
 
       // Use cached permissions if available, otherwise fetch fresh
       let userId: string;
       let isAnyAdmin: boolean;
+      let canProvisionRegulatory = false;
       let formPermissions: Map<string, Set<string>>;
       let isProjectMember: boolean;
       let hasRoleAssignments = false;
@@ -52,6 +60,7 @@ export function useFormsLoader() {
       if (cachedPermissions) {
         userId = cachedPermissions.userId;
         isAnyAdmin = cachedPermissions.isAnyAdmin;
+        canProvisionRegulatory = cachedPermissions.isAnyAdmin;
         formPermissions = cachedPermissions.formPermissions;
         isProjectMember = cachedPermissions.isProjectMember;
         hasRoleAssignments = cachedPermissions.hasRoleAssignments ?? false;
@@ -60,6 +69,7 @@ export function useFormsLoader() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setForms([]);
+          setRegulatoryNotice(null);
           return;
         }
         userId = user.id;
@@ -73,8 +83,10 @@ export function useFormsLoader() {
         
         const isOrgAdmin = profileResult.data?.role === 'admin';
         const isProjectAdmin = projectUserResult.data?.role === 'admin';
+        const isProjectEditor = projectUserResult.data?.role === 'editor';
         const isProjectCreator = projectResult.data?.created_by === userId;
         isAnyAdmin = isOrgAdmin || isProjectAdmin || isProjectCreator;
+        canProvisionRegulatory = isAnyAdmin || isProjectEditor;
         isProjectMember = !!projectUserResult.data;
         formPermissions = new Map();
         
@@ -112,6 +124,7 @@ export function useFormsLoader() {
       const hasAnyRoleFormPermission = formPermissions.size > 0;
       if (!isAnyAdmin && !isProjectMember && !hasAnyRoleFormPermission) {
         setForms([]);
+        setRegulatoryNotice('Select a project you belong to, then open Forms to use the regulatory registers.');
         return;
       }
  
@@ -127,7 +140,8 @@ export function useFormsLoader() {
  
       // Filter forms based on permissions
       let formsData = allForms || [];
-      if (isAnyAdmin) {
+      const provisionNotes: string[] = [];
+      if (canProvisionRegulatory) {
         try {
           const provisioned = await provisionStandardLibraryIfMissing(supabase, {
             organizationId,
@@ -139,6 +153,8 @@ export function useFormsLoader() {
             formsData = [provisioned.form, ...formsData];
           }
         } catch (provisionError) {
+          const message = provisionError instanceof Error ? provisionError.message : 'Failed to create Regulatory Standard Library';
+          provisionNotes.push(message);
           console.error('Failed to provision Regulatory Standard Library:', provisionError);
         }
         try {
@@ -148,6 +164,7 @@ export function useFormsLoader() {
             createdBy: userId,
           });
           if (registers.blockedReason) {
+            provisionNotes.push(registers.blockedReason);
             console.error(registers.blockedReason);
           }
           const createdRegisters = [registers.clauseForm, registers.requirementForm].filter(Boolean);
@@ -155,20 +172,31 @@ export function useFormsLoader() {
             formsData = [...createdRegisters, ...formsData];
           }
         } catch (registerError) {
+          const message = registerError instanceof Error ? registerError.message : 'Failed to create the regulatory registers';
+          provisionNotes.push(message);
           console.error('Failed to provision regulatory clause and requirement registers:', registerError);
         }
       }
+      const readableFormIds = {
+        has: (id: string) => formPermissions.get(id)?.has('read') ?? false,
+      };
       if (!isAnyAdmin) {
-        formsData = formsData.filter(form => {
-          if (form.is_public) return true;
-          if (form.created_by === userId) return true;
-          if (formPermissions.get(form.id)?.has('read')) return true;
-          // Preserve legacy project-member visibility only for users with no
-          // role assignments at all. Once a user is role-based, form access
-          // must come from explicit per-form permissions.
-          if (isProjectMember && !hasRoleAssignments) return true;
-          return false;
-        });
+        formsData = formsData.filter(form => canSeeLoadedForm(form, {
+          userId,
+          readableFormIds,
+          isProjectMember,
+          hasRoleAssignments,
+        }));
+      }
+      const missingRegisters = REGULATORY_REGISTERS
+        .filter((entry) => !formsData.some((form) => form.reference_id === entry.referenceId))
+        .map((entry) => entry.name);
+      if (provisionNotes.length > 0) {
+        setRegulatoryNotice(provisionNotes.join(' '));
+      } else if (!isAnyAdmin && missingRegisters.length > 0) {
+        setRegulatoryNotice(`Ask a project administrator to open Forms so ${missingRegisters.join(', ')} can be created for this project.`);
+      } else {
+        setRegulatoryNotice(null);
       }
  
       // OPTIMIZATION: Batch fetch all fields for all forms in a single query
@@ -219,7 +247,7 @@ export function useFormsLoader() {
           organizationId: form.organization_id || '',
           projectId: form.project_id || '',
           status: form.status as 'draft' | 'published',
-          createdAt: form.created_at,
+          createdAt: form.created_at || new Date().toISOString(),
           updatedAt: form.updated_at,
           createdBy: form.created_by,
           isPublic: form.is_public || false,
@@ -280,5 +308,6 @@ export function useFormsLoader() {
     setForms,
     loading,
     loadForms,
+    regulatoryNotice,
   };
 }

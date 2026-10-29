@@ -15,6 +15,10 @@ import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
+import {
+  REGULATORY_REGISTERS,
+  regulatoryRegisterSortIndex,
+} from '@/lib/regulatory/regulatoryFormAccess';
 export function FormsList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -23,7 +27,8 @@ export function FormsList() {
     loading,
     deleteForm,
     createForm,
-    addField
+    addField,
+    regulatoryNotice,
   } = useFormsData();
   const { userProfile } = useAuth();
   const {
@@ -43,6 +48,13 @@ export function FormsList() {
   const getStatusLabel = (status: string) =>
     t(`forms.status.${status}`, status.replace('_', ' '));
 
+  const formatFormDate = (value: string | undefined, pattern: string) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return format(date, pattern);
+  };
+
   if (!currentProject) {
     return <NoProjectSelected />;
   }
@@ -51,7 +63,10 @@ export function FormsList() {
   }
 
   // Filter forms based on user's permissions
-  const visibleForms = getVisibleResources('forms', forms);
+  const visibleForms = [...getVisibleResources('forms', forms)].sort((a, b) => {
+    const order = regulatoryRegisterSortIndex(a.reference_id) - regulatoryRegisterSortIndex(b.reference_id);
+    return order;
+  });
   console.log('📋 FormsList - Visible forms:', visibleForms.length, 'out of', forms.length);
   const handleViewForm = (formId: string) => {
     console.log('👁️ Viewing form:', formId);
@@ -204,8 +219,54 @@ export function FormsList() {
         };
     }
   };
+  const regulatoryPanel = (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">
+          {t('forms.regulatoryRegistersTitle', { defaultValue: 'Regulatory registers' })}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {t('forms.regulatoryRegistersHint', {
+            defaultValue: 'Open a register on this page to add a standard, clause, or requirement.',
+          })}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {REGULATORY_REGISTERS.map((entry) => {
+          const form = forms.find((item) => item.reference_id === entry.referenceId);
+          return (
+            <div key={entry.referenceId} className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium text-sm">{entry.name}</p>
+                {!form && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('forms.regulatoryRegisterMissing', { defaultValue: 'Not created for this project yet.' })}
+                  </p>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!form}
+                onClick={() => form && handleViewForm(form.id)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {t('forms.addRecord')}
+              </Button>
+            </div>
+          );
+        })}
+        {regulatoryNotice && (
+          <p className="text-sm text-destructive">{regulatoryNotice}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   if (visibleForms.length === 0) {
-    return <Card>
+    return <div className="space-y-6">
+      {regulatoryPanel}
+      <Card>
         <CardContent className="py-12">
           <div className="text-center space-y-4">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
@@ -217,7 +278,8 @@ export function FormsList() {
             </div>
           </div>
         </CardContent>
-      </Card>;
+      </Card>
+    </div>;
   }
   const renderGridView = () => <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {visibleForms.map(form => {
@@ -284,7 +346,7 @@ export function FormsList() {
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center space-x-1">
                    <Calendar className="h-3 w-3 text-module-workflows" />
-                  <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
+                  <span>{formatFormDate(form.createdAt, 'MMM d, yyyy')}</span>
                 </div>
               </div>
             </CardContent>
@@ -309,7 +371,7 @@ export function FormsList() {
                     <div className="flex items-center flex-wrap gap-2 sm:gap-4 mt-2">
                       <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3 text-module-workflows" />
-                        <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
+                        <span>{formatFormDate(form.createdAt, 'MMM d, yyyy')}</span>
                       </div>
                       <Badge {...statusBadgeProps}>
                         {getStatusLabel(form.status)}
@@ -431,7 +493,7 @@ export function FormsList() {
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3 text-module-workflows" />
-                            <span>{format(new Date(form.createdAt), 'MMM d')}</span>
+                            <span>{formatFormDate(form.createdAt, 'MMM d')}</span>
                           </div>
                         </div>
                         <div className="flex justify-between gap-1">
@@ -491,6 +553,7 @@ export function FormsList() {
       </div>;
   };
   return <div className="space-y-6">
+      {regulatoryPanel}
       {/* View Mode Selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">

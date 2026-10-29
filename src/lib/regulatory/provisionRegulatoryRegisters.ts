@@ -1,3 +1,7 @@
+import {
+  ensureRegulatoryFormFillAccess,
+  regulatoryFormPermissionsJson,
+} from '@/lib/regulatory/regulatoryFormAccess';
 import { STANDARD_LIBRARY_FORM_NAME, STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 import {
   CLAUSE_REGISTER_FORM_NAME,
@@ -62,6 +66,9 @@ export async function provisionRegulatoryRegistersIfMissing(
   }
 
   let clause = await findForm(client, input, CLAUSE_REGISTER_REFERENCE_ID);
+  if (clause) {
+    await ensureRegulatoryFormFillAccess(client, clause.id, clause.permissions);
+  }
   if (!clause) {
     clause = await insertRegister(client, input, createClauseRegisterBlueprint(() => crypto.randomUUID(), {
       targetFormId: standard.id,
@@ -86,6 +93,9 @@ export async function provisionRegulatoryRegistersIfMissing(
   });
 
   let requirement = await findForm(client, input, REQUIREMENT_REGISTER_REFERENCE_ID);
+  if (requirement) {
+    await ensureRegulatoryFormFillAccess(client, requirement.id, requirement.permissions);
+  }
   if (!requirement) {
     if (clauseColumns.length !== REQUIREMENT_CLAUSE_DISPLAY_KEYS.length) {
       result.blockedReason = 'Regulatory Clause Register is missing Clause ID, Clause Number / Reference, or Clause Title, so the requirement cross-reference was not configured.';
@@ -113,16 +123,16 @@ async function findForm(
   client: { from: (table: string) => any },
   input: ProvisionRegistersInput,
   referenceId: string,
-): Promise<{ id: string } | null> {
+): Promise<{ id: string; permissions?: unknown } | null> {
   const { data, error } = await client
     .from('forms')
-    .select('id')
+    .select('id, permissions')
     .eq('organization_id', input.organizationId)
     .eq('project_id', input.projectId)
     .eq('reference_id', referenceId);
   if (error) throw new Error(error.message || `Failed to look up ${referenceId}`);
   const row = Array.isArray(data) ? data[0] : null;
-  return row?.id ? { id: row.id } : null;
+  return row?.id ? { id: row.id, permissions: row.permissions } : null;
 }
 
 async function fieldsForForm(client: { from: (table: string) => any }, formId: string) {
@@ -162,7 +172,7 @@ async function insertRegister(
     created_by: input.createdBy,
     is_public: false,
     reference_id: blueprint.referenceId,
-    permissions: JSON.stringify({ view: [], submit: [], edit: [] }),
+    permissions: regulatoryFormPermissionsJson(),
     share_settings: JSON.stringify({ allowPublicAccess: false, sharedUsers: [] }),
     field_rules: JSON.stringify([]),
     form_rules: JSON.stringify(blueprint.formRules),

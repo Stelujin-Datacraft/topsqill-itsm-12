@@ -25,6 +25,7 @@ import {
   createRequirementRegisterBlueprint,
 } from '@/lib/regulatory/requirementRegisterForm';
 import { provisionRegulatoryRegistersIfMissing } from '@/lib/regulatory/provisionRegulatoryRegisters';
+import { canSeeLoadedForm, permissionsAllowProjectFill } from '@/lib/regulatory/regulatoryFormAccess';
 
 const clause = createClauseRegisterBlueprint((key) => key, {
   targetFormId: 'standard-form',
@@ -240,6 +241,16 @@ assert.equal(created.blockedReason, null);
 assert.equal(created.clauseCreated, true);
 assert.equal(created.requirementCreated, true);
 assert.equal(created.clauseForm.name, CLAUSE_REGISTER_FORM_NAME);
+assert.equal(permissionsAllowProjectFill(created.clauseForm.permissions), true);
+assert.equal(permissionsAllowProjectFill(created.requirementForm.permissions), true);
+assert.equal(canSeeLoadedForm(
+  { id: 'hidden', is_public: false, created_by: 'someone-else', reference_id: CLAUSE_REGISTER_REFERENCE_ID },
+  { userId: 'member', readableFormIds: new Set<string>(), isProjectMember: true, hasRoleAssignments: true },
+), true);
+assert.equal(canSeeLoadedForm(
+  { id: 'other', is_public: false, created_by: 'someone-else', reference_id: 'custom-form' },
+  { userId: 'member', readableFormIds: new Set<string>(), isProjectMember: true, hasRoleAssignments: true },
+), false);
 assert.equal(created.requirementForm.name, REQUIREMENT_REGISTER_FORM_NAME);
 assert.equal(db.tables.form_fields.filter((row) => row.form_id === standardFormId).length, standardFieldCount);
 assert.equal(db.tables.form_fields.some((row) => row.field_type === 'child-cross-reference'), false);

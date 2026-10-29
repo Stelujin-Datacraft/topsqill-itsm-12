@@ -1,4 +1,8 @@
 import {
+  ensureRegulatoryFormFillAccess,
+  regulatoryFormPermissionsJson,
+} from '@/lib/regulatory/regulatoryFormAccess';
+import {
   STANDARD_LIBRARY_REFERENCE_ID,
   createStandardLibraryBlueprint,
   libraryKeyForField,
@@ -29,12 +33,13 @@ export async function provisionStandardLibraryIfMissing(
 ): Promise<ProvisionStandardLibraryResult> {
   if (input.alreadyPresent) {
     await ensureCountryDropdown(client, input);
+    await ensureExistingFillAccess(client, input);
     return { created: false, form: null };
   }
 
   const { data: existing, error: existingError } = await client
     .from('forms')
-    .select('id')
+    .select('id, permissions')
     .eq('organization_id', input.organizationId)
     .eq('project_id', input.projectId)
     .eq('reference_id', STANDARD_LIBRARY_REFERENCE_ID);
@@ -44,6 +49,7 @@ export async function provisionStandardLibraryIfMissing(
   }
   if (Array.isArray(existing) && existing.length > 0) {
     await ensureCountryDropdown(client, input);
+    await ensureRegulatoryFormFillAccess(client, existing[0].id, existing[0].permissions);
     return { created: false, form: null };
   }
 
@@ -58,7 +64,7 @@ export async function provisionStandardLibraryIfMissing(
     created_by: input.createdBy,
     is_public: false,
     reference_id: blueprint.referenceId,
-    permissions: JSON.stringify({ view: [], submit: [], edit: [] }),
+    permissions: regulatoryFormPermissionsJson(),
     share_settings: JSON.stringify({ allowPublicAccess: false, sharedUsers: [] }),
     field_rules: JSON.stringify([]),
     form_rules: JSON.stringify(blueprint.formRules),
@@ -107,6 +113,24 @@ export async function provisionStandardLibraryIfMissing(
   }
 
   return { created: true, form: formRow };
+}
+
+async function ensureExistingFillAccess(
+  client: { from: (table: string) => any },
+  input: ProvisionStandardLibraryInput,
+): Promise<void> {
+  const { data, error } = await client
+    .from('forms')
+    .select('id, permissions')
+    .eq('organization_id', input.organizationId)
+    .eq('project_id', input.projectId)
+    .eq('reference_id', STANDARD_LIBRARY_REFERENCE_ID);
+  if (error) {
+    throw new Error(error.message || 'Failed to look up Regulatory Standard Library');
+  }
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row?.id) return;
+  await ensureRegulatoryFormFillAccess(client, row.id, row.permissions);
 }
 
 /** Point an already created Country / Region field at the country dropdown. */

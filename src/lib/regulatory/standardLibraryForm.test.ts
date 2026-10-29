@@ -306,6 +306,8 @@ assert.equal(first.created, true);
 assert.ok(first.form);
 assert.equal(first.form.name, STANDARD_LIBRARY_FORM_NAME);
 assert.equal(first.form.reference_id, STANDARD_LIBRARY_REFERENCE_ID);
+assert.equal(JSON.parse(String(first.form.permissions)).view.includes('*'), true);
+assert.equal(JSON.parse(String(first.form.permissions)).submit.includes('*'), true);
 assert.equal(JSON.parse(String(first.form.layout)).columns, 2);
 const storedPages = JSON.parse(String(first.form.pages));
 assert.deepEqual(storedPages.map((page: { name: string }) => page.name), [...STANDARD_LIBRARY_PAGE_NAMES]);
@@ -379,5 +381,6 @@ assert.equal(legacy.tables.form_fields[0].field_type, 'country');
 assert.equal(legacy.tables.form_fields[0].placeholder, 'Select a country');
 assert.equal(JSON.parse(legacy.tables.form_fields[0].custom_config).searchable, true);
 assert.equal(legacy.tables.forms.length, 1);
+assert.equal(JSON.parse(String(legacy.tables.forms[0].permissions)).view.includes('*'), true);
 
 console.log('Regulatory Standard Library form checks: ok');
