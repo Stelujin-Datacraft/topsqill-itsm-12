@@ -27,7 +27,10 @@ export async function provisionStandardLibraryIfMissing(
   client: { from: (table: string) => any },
   input: ProvisionStandardLibraryInput,
 ): Promise<ProvisionStandardLibraryResult> {
-  if (input.alreadyPresent) return { created: false, form: null };
+  if (input.alreadyPresent) {
+    await ensureCountryDropdown(client, input);
+    return { created: false, form: null };
+  }
 
   const { data: existing, error: existingError } = await client
     .from('forms')
@@ -40,6 +43,7 @@ export async function provisionStandardLibraryIfMissing(
     throw new Error(existingError.message || 'Failed to look up Regulatory Standard Library');
   }
   if (Array.isArray(existing) && existing.length > 0) {
+    await ensureCountryDropdown(client, input);
     return { created: false, form: null };
   }
 
@@ -103,4 +107,71 @@ export async function provisionStandardLibraryIfMissing(
   }
 
   return { created: true, form: formRow };
+}
+
+/** Point an already created Country / Region field at the country dropdown. */
+async function ensureCountryDropdown(
+  client: { from: (table: string) => any },
+  input: ProvisionStandardLibraryInput,
+): Promise<void> {
+  const { data: forms, error } = await client
+    .from('forms')
+    .select('id')
+    .eq('organization_id', input.organizationId)
+    .eq('project_id', input.projectId)
+    .eq('reference_id', STANDARD_LIBRARY_REFERENCE_ID);
+
+  if (error) {
+    throw new Error(error.message || 'Failed to look up Regulatory Standard Library');
+  }
+  const formId = Array.isArray(forms) ? forms[0]?.id : undefined;
+  if (!formId) return;
+
+  const { data: fields, error: fieldsError } = await client
+    .from('form_fields')
+    .select('id, field_type, label, custom_config')
+    .eq('form_id', formId);
+
+  if (fieldsError) {
+    throw new Error(fieldsError.message || 'Failed to load Regulatory Standard Library fields');
+  }
+
+  const field = (fields || []).find((row: { label?: string; custom_config?: unknown }) => {
+    const config = parseConfig(row.custom_config);
+    return config.libraryKey === 'country_region' || row.label === 'Country / Region';
+  });
+  if (!field || field.field_type === 'country') return;
+
+  const config = parseConfig(field.custom_config);
+  const { error: updateError } = await client
+    .from('form_fields')
+    .update({
+      field_type: 'country',
+      placeholder: 'Select a country',
+      custom_config: JSON.stringify({
+        ...config,
+        libraryKey: 'country_region',
+        searchable: true,
+        showFlags: true,
+      }),
+    })
+    .eq('id', field.id);
+
+  if (updateError) {
+    throw new Error(updateError.message || 'Failed to set Country / Region to the country dropdown');
+  }
+}
+
+function parseConfig(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  if (typeof raw === 'object') return raw as Record<string, unknown>;
+  return {};
 }

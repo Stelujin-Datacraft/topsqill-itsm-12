@@ -148,9 +148,14 @@ const FIELD_SPECS: FieldSpec[] = [
   {
     key: 'country_region',
     label: 'Country / Region',
-    type: 'text',
+    type: 'country',
     required: false,
     pageName: 'Classification and Jurisdiction',
+    placeholder: 'Select a country',
+    customConfig: {
+      searchable: true,
+      showFlags: true,
+    },
   },
   {
     key: 'issuing_authority',

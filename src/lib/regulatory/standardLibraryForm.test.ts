@@ -103,7 +103,11 @@ assert.deepEqual(field('Jurisdiction Type').options?.map((option) => option.valu
   'Industry-Specific',
   'Other',
 ]);
-assert.equal(field('Country / Region').type, 'text');
+assert.equal(field('Country / Region').type, 'country');
+assert.equal(field('Country / Region').required, false);
+assert.equal(field('Country / Region').customConfig?.libraryKey, 'country_region');
+assert.equal(field('Country / Region').customConfig?.searchable, true);
+assert.equal(field('Country / Region').placeholder, 'Select a country');
 assert.equal(field('Issuing Authority').required, true);
 assert.equal(field('Industry / Sector').type, 'multi-select');
 assert.deepEqual(field('Industry / Sector').options?.map((option) => option.value), [
@@ -344,5 +348,36 @@ const reopened = db.tables.form_submissions.find((row) => row.id === 'submission
 assert.equal(reopened.submission_data[standardId.id], 'LIB-100');
 assert.equal(reopened.submission_data[legalStatus.id], 'Unknown');
 assert.equal(uniqueValuesMatch('lib-100', reopened.submission_data[standardId.id]), true);
+
+const countryField = db.tables.form_fields.find((row) => row.label === 'Country / Region');
+assert.equal(countryField.field_type, 'country');
+assert.equal(JSON.parse(countryField.custom_config).libraryKey, 'country_region');
+
+const legacy = memoryClient();
+legacy.tables.forms.push({
+  id: 'form-legacy',
+  organization_id: 'org-1',
+  project_id: 'project-1',
+  reference_id: STANDARD_LIBRARY_REFERENCE_ID,
+  name: STANDARD_LIBRARY_FORM_NAME,
+});
+legacy.tables.form_fields.push({
+  id: 'field-country',
+  form_id: 'form-legacy',
+  field_type: 'text',
+  label: 'Country / Region',
+  custom_config: JSON.stringify({ libraryKey: 'country_region' }),
+});
+const upgraded = await provisionStandardLibraryIfMissing(legacy, {
+  organizationId: 'org-1',
+  projectId: 'project-1',
+  createdBy: 'user-1',
+  alreadyPresent: true,
+});
+assert.equal(upgraded.created, false);
+assert.equal(legacy.tables.form_fields[0].field_type, 'country');
+assert.equal(legacy.tables.form_fields[0].placeholder, 'Select a country');
+assert.equal(JSON.parse(legacy.tables.form_fields[0].custom_config).searchable, true);
+assert.equal(legacy.tables.forms.length, 1);
 
 console.log('Regulatory Standard Library form checks: ok');
