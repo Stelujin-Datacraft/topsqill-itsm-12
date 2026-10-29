@@ -32,6 +32,7 @@ import { FormSnapshotProvider, useFormSnapshotContext } from './FormBuilder/cont
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { Button } from '@/components/ui/button';
 import { WorkingFormProvider } from '@/hooks/useCurrentFormFields';
+import { orderedFieldsForPage } from './FormBuilder/moveFieldBetweenPages';
 const FORM_BUILDER_TABS = new Set(['details', 'builder', 'rules', 'preview', 'access', 'share']);
 
 function FormBuilderContent({
@@ -136,38 +137,7 @@ function FormBuilderContent({
       return [];
     }
     const currentPage = pages.find(p => p.id === state.currentPageId);
-    if (!currentPage) {
-      return [];
-    }
-    
-    // Get fields for this page
-    const pageFields = workingForm.fields.filter(field => {
-      if (field.pageId === state.currentPageId) return true;
-      if (currentPage.fields.includes(field.id)) return true;
-      if (state.currentPageId === 'default' && !field.pageId) return true;
-      return false;
-    });
-    
-    // Sort fields by their order in the page's fields array
-    // If a field is not in the page's fields array, put it at the end
-    const pageFieldOrder = currentPage.fields || [];
-    const sortedFields = [...pageFields].sort((a, b) => {
-      const aIndex = pageFieldOrder.indexOf(a.id);
-      const bIndex = pageFieldOrder.indexOf(b.id);
-      
-      // If both are in the page order, sort by that order
-      if (aIndex !== -1 && bIndex !== -1) {
-        return aIndex - bIndex;
-      }
-      // If only a is in the order, a comes first
-      if (aIndex !== -1) return -1;
-      // If only b is in the order, b comes first
-      if (bIndex !== -1) return 1;
-      // If neither is in the order, maintain their original array order
-      return 0;
-    });
-    
-    return sortedFields;
+    return orderedFieldsForPage(workingForm.fields, currentPage);
   };
   const currentPageFields = getCurrentPageFields();
 
@@ -184,7 +154,7 @@ function FormBuilderContent({
   };
 
   // Field operations with optimized snapshot handling
-  const fieldOperations = useOptimizedFieldOperations(state.currentPageId, pages, state.formName, state.formDescription, state.columnLayout, state.setIsCreating, state.setSelectedField, state.setShowFieldProperties, state.setHighlightedFieldId, handleCreateForm);
+  const fieldOperations = useOptimizedFieldOperations(state.currentPageId, pages, state.formName, state.formDescription, state.columnLayout, state.setIsCreating, state.setSelectedField, state.setShowFieldProperties, state.setHighlightedFieldId, handleCreateForm, state.setCurrentPageId);
 
   // Optimized save handler - saves snapshot to database
   const handleSave = async (shouldPublish = false) => {
@@ -580,7 +550,7 @@ function FormBuilderContent({
                   {/* Scrollable Form Fields */}
                   <div className="flex-1 overflow-y-auto p-4">
                     <div className="min-h-full">
-                      {currentPageFields.length > 0 ? <FieldLayoutRenderer fields={currentPageFields} columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout} selectedFieldId={state.selectedField?.id} highlightedFieldId={state.highlightedFieldId} onFieldClick={field => {
+                      {currentPageFields.length > 0 ? <FieldLayoutRenderer fields={currentPageFields} pages={pages} currentPageId={state.currentPageId} columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout} selectedFieldId={state.selectedField?.id} highlightedFieldId={state.highlightedFieldId} onFieldClick={field => {
                       state.setSelectedField(field);
                       state.setShowFieldProperties(true);
                     }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} /> : <div className="text-center py-12 text-muted-foreground">

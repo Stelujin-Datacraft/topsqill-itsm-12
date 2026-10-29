@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Form, FormField, FormPage } from '@/types/form';
 import { v4 as uuidv4 } from 'uuid';
+import { moveFieldBetweenPages, orderedFieldsForPage } from '../moveFieldBetweenPages';
 
 export interface FormSnapshot {
   form: Form | null;
@@ -285,19 +286,9 @@ export function useFormSnapshot(initialForm: Form | null) {
       const page = prev.form.pages.find(p => p.id === pageId);
       if (!page) return prev;
 
-      // Get all fields for this page, sorted by the page's field order
-      const pageFieldIds = page.fields || [];
-      const pageFields = prev.form.fields
-        .filter(field => field.pageId === pageId || pageFieldIds.includes(field.id))
-        .sort((a, b) => {
-          const aIndex = pageFieldIds.indexOf(a.id);
-          const bIndex = pageFieldIds.indexOf(b.id);
-          // If both are in the page order, sort by that
-          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-          if (aIndex !== -1) return -1;
-          if (bIndex !== -1) return 1;
-          return 0;
-        });
+      // Same visible order the builder renders, so the dragged index matches the list.
+      const pageFields = orderedFieldsForPage(prev.form.fields, page);
+      const pageFieldIds = pageFields.map(field => field.id);
 
       if (sourceIndex >= pageFields.length || destinationIndex >= pageFields.length) {
         return prev; // Invalid indices
@@ -319,17 +310,14 @@ export function useFormSnapshot(initialForm: Form | null) {
       );
 
       // Update the main fields array with new order
-      const otherFields = prev.form.fields.filter(field => 
-        field.pageId !== pageId && !pageFieldIds.includes(field.id)
-      );
+      const pageFieldIdSet = new Set(pageFieldIds);
+      const otherFields = prev.form.fields.filter(field => !pageFieldIdSet.has(field.id));
 
       // Combine other fields with reordered page fields, maintaining positions
       const updatedFields = [...otherFields];
       
       // Find where to insert the reordered fields (preserve original position block)
-      const firstPageFieldIndex = prev.form.fields.findIndex(field => 
-        field.pageId === pageId || pageFieldIds.includes(field.id)
-      );
+      const firstPageFieldIndex = prev.form.fields.findIndex(field => pageFieldIdSet.has(field.id));
       
       if (firstPageFieldIndex >= 0) {
         updatedFields.splice(firstPageFieldIndex, 0, ...reorderedPageFields);
@@ -351,6 +339,34 @@ export function useFormSnapshot(initialForm: Form | null) {
         isDirty: true,
       };
     });
+  }, [saveToLocalStorage]);
+
+  // Move one field from the current page onto another page of the same form.
+  // The field is appended on the destination page. Same-page reordering stays in reorderFieldsInSnapshot.
+  const moveFieldToPageInSnapshot = useCallback((
+    sourcePageId: string,
+    sourceIndex: number,
+    destinationPageId: string,
+  ): string | null => {
+    let movedFieldId: string | null = null;
+
+    setSnapshot(prev => {
+      if (!prev.form) return prev;
+
+      const result = moveFieldBetweenPages(prev.form, sourcePageId, sourceIndex, destinationPageId);
+      if (!result) return prev;
+
+      movedFieldId = result.movedFieldId;
+      saveToLocalStorage(result.form);
+
+      return {
+        ...prev,
+        form: result.form,
+        isDirty: true,
+      };
+    });
+
+    return movedFieldId;
   }, [saveToLocalStorage]);
 
   // Add page to snapshot
@@ -484,6 +500,7 @@ export function useFormSnapshot(initialForm: Form | null) {
     updateFieldInSnapshot,
     deleteFieldFromSnapshot,
     reorderFieldsInSnapshot,
+    moveFieldToPageInSnapshot,
     addPageToSnapshot,
     updatePageInSnapshot,
     deletePageFromSnapshot,

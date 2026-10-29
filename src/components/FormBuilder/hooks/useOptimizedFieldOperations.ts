@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import { useFormSnapshotContext } from '../contexts/FormSnapshotContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { isSystemStatusField } from '@/lib/systemStatusField';
+import { destinationPageIdFromDroppable } from '../moveFieldBetweenPages';
 
 export function useOptimizedFieldOperations(
   currentPageId: string,
@@ -18,7 +19,8 @@ export function useOptimizedFieldOperations(
   setSelectedField: (field: any) => void,
   setShowFieldProperties: (show: boolean) => void,
   setHighlightedFieldId: (fieldId: string | null) => void,
-  onCreateForm: (formData: any) => Promise<any>
+  onCreateForm: (formData: any) => Promise<any>,
+  setCurrentPageId?: (pageId: string) => void,
 ) {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
@@ -28,7 +30,8 @@ export function useOptimizedFieldOperations(
     addFieldToSnapshot,
     updateFieldInSnapshot,
     deleteFieldFromSnapshot,
-    reorderFieldsInSnapshot
+    reorderFieldsInSnapshot,
+    moveFieldToPageInSnapshot,
   } = useFormSnapshotContext();
   
   const { removeChildCrossReferenceField } = useCrossReferenceSync();
@@ -209,6 +212,35 @@ export function useOptimizedFieldOperations(
 
   const handleDragEnd = async (result: any) => {
     if (!result.destination || !snapshot.form) return;
+
+    const sourceDroppableId = result.source?.droppableId;
+    const destinationDroppableId = result.destination.droppableId;
+    const destinationPageId = destinationPageIdFromDroppable(destinationDroppableId);
+
+    if (destinationPageId) {
+      if (destinationPageId === currentPageId) return;
+
+      const sourceIndex = result.source.index;
+      const movedFieldId = moveFieldToPageInSnapshot(currentPageId, sourceIndex, destinationPageId);
+      if (!movedFieldId) return;
+
+      const movedField = snapshot.form.fields.find(field => field.id === movedFieldId);
+      const destinationPage = snapshot.form.pages.find(page => page.id === destinationPageId);
+      setCurrentPageId?.(destinationPageId);
+      setHighlightedFieldId(movedFieldId);
+      setTimeout(() => {
+        setHighlightedFieldId(null);
+      }, 5000);
+      toast({
+        title: 'Field moved',
+        description: `${movedField?.label || 'Field'} is now on ${destinationPage?.name || 'another page'}.`,
+      });
+      return;
+    }
+
+    if (sourceDroppableId && destinationDroppableId && sourceDroppableId !== destinationDroppableId) {
+      return;
+    }
 
     const sourceIndex = result.source.index;
     const destinationIndex = result.destination.index;

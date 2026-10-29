@@ -10,6 +10,7 @@ interface FormSnapshotContextType {
   updateFieldInSnapshot: (fieldId: string, updates: Partial<FormField>) => void;
   deleteFieldFromSnapshot: (fieldId: string) => void;
   reorderFieldsInSnapshot: (pageId: string, sourceIndex: number, destinationIndex: number) => void;
+  moveFieldToPageInSnapshot: (sourcePageId: string, sourceIndex: number, destinationPageId: string) => string | null;
   addPageToSnapshot: (page: FormPage) => void;
   updatePageInSnapshot: (pageId: string, updates: Partial<FormPage>) => void;
   deletePageFromSnapshot: (pageId: string) => void;

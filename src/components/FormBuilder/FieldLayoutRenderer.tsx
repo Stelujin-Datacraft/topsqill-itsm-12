@@ -1,8 +1,9 @@
 import React from 'react';
 import { DragDropContext } from 'react-beautiful-dnd';
-import { FormField } from '@/types/form';
+import { FormField, FormPage } from '@/types/form';
 import { FieldRenderer } from './FieldRenderer';
 import { StrictModeDroppable } from './StrictModeDroppable';
+import { pageTargetDroppableId } from './moveFieldBetweenPages';
 import { Plus } from 'lucide-react';
 
 interface FieldLayoutRendererProps {
@@ -13,6 +14,8 @@ interface FieldLayoutRendererProps {
   onFieldClick: (field: FormField) => void;
   onFieldDelete: (fieldId: string) => void;
   onDragEnd: (result: any) => void;
+  pages?: FormPage[];
+  currentPageId?: string;
 }
 
 export function FieldLayoutRenderer({
@@ -23,6 +26,8 @@ export function FieldLayoutRenderer({
   onFieldClick,
   onFieldDelete,
   onDragEnd,
+  pages,
+  currentPageId,
 }: FieldLayoutRendererProps) {
   if (fields.length === 0) {
     return (
@@ -43,8 +48,44 @@ export function FieldLayoutRenderer({
     }
   };
 
+  const otherPages = currentPageId
+    ? [...(pages ?? [])]
+        .filter((page) => page.id !== currentPageId)
+        .sort((a, b) => a.order - b.order)
+    : [];
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
+      {otherPages.length > 0 && (
+        <div className="mb-4 rounded-lg border border-dashed border-border bg-muted/20 p-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Drag a field onto another page
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {otherPages.map((page) => (
+              <StrictModeDroppable key={page.id} droppableId={pageTargetDroppableId(page.id)}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`min-w-[8rem] rounded-md border px-3 py-2 text-sm transition-colors ${
+                      snapshot.isDraggingOver
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-background'
+                    }`}
+                  >
+                    <span className="font-medium">{page.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {page.fields.length} {page.fields.length === 1 ? 'field' : 'fields'}
+                    </span>
+                    <div className="h-0 overflow-hidden">{provided.placeholder}</div>
+                  </div>
+                )}
+              </StrictModeDroppable>
+            ))}
+          </div>
+        </div>
+      )}
       <StrictModeDroppable droppableId="all-fields">
         {(provided, snapshot) => (
           <div
