@@ -27,6 +27,26 @@ export function prepareSubmissionData(
   return next;
 }
 
+/**
+ * Clause and requirement parent links are cross-reference arrays.
+ * The picker can select several records; these two library keys allow one parent.
+ */
+export function collectSingleParentReferenceErrors(
+  fields: Array<{ id: string; label?: string; customConfig?: { libraryKey?: string } | null }>,
+  data: Record<string, any>,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const field of fields) {
+    const key = field.customConfig?.libraryKey;
+    if (key !== 'regulatory_standard' && key !== 'regulatory_clause') continue;
+    const value = data[field.id];
+    if (Array.isArray(value) && value.length > 1) {
+      errors[field.id] = `Select one ${field.label || 'record'}.`;
+    }
+  }
+  return errors;
+}
+
 /** Submit-time URL check for the http-or-https protocol option only. */
 export function collectHttpUrlErrors(
   fields: FormField[],

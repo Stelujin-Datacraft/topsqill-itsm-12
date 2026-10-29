@@ -1,5 +1,7 @@
 import type { FormField, FormPage } from '@/types/form';
 import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
+import { CLAUSE_REGISTER_REFERENCE_ID } from '@/lib/regulatory/clauseRegisterForm';
+import { REQUIREMENT_REGISTER_REFERENCE_ID } from '@/lib/regulatory/requirementRegisterForm';
 
 export const SYSTEM_STATUS_FIELD_LABEL = 'Status';
 
@@ -141,7 +143,11 @@ export async function ensureSystemStatusField(
     throw new Error(formError?.message || 'Form not found while ensuring Status field');
   }
 
-  if (formRow.reference_id === STANDARD_LIBRARY_REFERENCE_ID) {
+  if (
+    formRow.reference_id === STANDARD_LIBRARY_REFERENCE_ID
+    || formRow.reference_id === CLAUSE_REGISTER_REFERENCE_ID
+    || formRow.reference_id === REQUIREMENT_REGISTER_REFERENCE_ID
+  ) {
     return { field: null, pages: parsePages(formRow.pages), created: false };
   }
 

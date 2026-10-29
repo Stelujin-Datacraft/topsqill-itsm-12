@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
  import { useCachedUserPermissions } from './useCachedUserPermissions';
 import { provisionStandardLibraryIfMissing } from '@/lib/regulatory/provisionStandardLibrary';
 import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
+import { provisionRegulatoryRegistersIfMissing } from '@/lib/regulatory/provisionRegulatoryRegisters';
 
 export function useFormsLoader() {
   const [forms, setForms] = useState<Form[]>([]);
@@ -139,6 +140,22 @@ export function useFormsLoader() {
           }
         } catch (provisionError) {
           console.error('Failed to provision Regulatory Standard Library:', provisionError);
+        }
+        try {
+          const registers = await provisionRegulatoryRegistersIfMissing(supabase, {
+            organizationId,
+            projectId,
+            createdBy: userId,
+          });
+          if (registers.blockedReason) {
+            console.error(registers.blockedReason);
+          }
+          const createdRegisters = [registers.clauseForm, registers.requirementForm].filter(Boolean);
+          if (createdRegisters.length > 0) {
+            formsData = [...createdRegisters, ...formsData];
+          }
+        } catch (registerError) {
+          console.error('Failed to provision regulatory clause and requirement registers:', registerError);
         }
       }
       if (!isAnyAdmin) {

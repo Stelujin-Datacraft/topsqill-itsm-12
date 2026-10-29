@@ -23,7 +23,7 @@ import {
   type MandatoryFieldIssue,
 } from '@/lib/formMandatoryValidation';
 import { getLifecycleFields } from '@/lib/lifecycleVisibility';
-import { collectHttpUrlErrors, prepareSubmissionData } from '@/lib/formSubmitChecks';
+import { collectHttpUrlErrors, collectSingleParentReferenceErrors, prepareSubmissionData } from '@/lib/formSubmitChecks';
 
 
 interface FormViewLayoutRendererProps {
@@ -261,6 +261,7 @@ export function FormViewLayoutRenderer({
     });
 
     Object.assign(newErrors, collectHttpUrlErrors(safeFields, data));
+    Object.assign(newErrors, collectSingleParentReferenceErrors(safeFields, data));
 
     safeFields.forEach(field => {
       const value = data[field.id];

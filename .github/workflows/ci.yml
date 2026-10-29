@@ -83,3 +83,6 @@ jobs:
 
       - name: Regulatory Standard Library form checks
         run: npx tsx --tsconfig tsconfig.app.json src/lib/regulatory/standardLibraryForm.test.ts
+
+      - name: Regulatory clause and requirement register checks
+        run: npx tsx --tsconfig tsconfig.app.json src/lib/regulatory/registers.test.ts
