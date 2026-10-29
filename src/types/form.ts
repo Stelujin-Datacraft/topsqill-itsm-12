@@ -87,6 +87,8 @@ export interface FormField {
     pattern?: string;
     message?: string;
     unique?: boolean;
+    /** When true, leading and trailing whitespace is removed before save. */
+    trim?: boolean;
   };
   validationRules?: ValidationRule[];
   permissions?: {
@@ -153,6 +155,8 @@ export interface FormField {
     // Validation specific
     realTimeValidation?: boolean;
     validationMessage?: string;
+    /** Stable key for bulk import. Independent of the database field id. */
+    libraryKey?: string;
     
     // Rich Text specific
     editorToolbar?: string[];

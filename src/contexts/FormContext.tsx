@@ -270,7 +270,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         const ensured = await ensureSystemStatusField(supabase, data.id);
         createdForm = {
           ...createdForm,
-          fields: [ensured.field],
+          fields: ensured.field ? [ensured.field] : (createdForm.fields || []),
           pages: ensured.pages,
         };
       } catch (statusError) {

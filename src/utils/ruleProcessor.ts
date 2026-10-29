@@ -1,6 +1,7 @@
 import { FieldRule, FormRule, FieldOperator, FieldRuleCondition } from '@/types/rules';
 import { toast } from '@/hooks/use-toast';
 import { ExpressionEvaluator, EvaluationContext } from './expressionEvaluator';
+import { compareOrdered, resolveConditionCompareValue } from '@/lib/orderedCompare';
 
 export interface FormField {
   id: string;
@@ -79,13 +80,10 @@ export class RuleProcessor {
       case '!=':
         return currentValue !== conditionValue;
       case '<':
-        return Number(currentValue) < Number(conditionValue);
       case '>':
-        return Number(currentValue) > Number(conditionValue);
       case '<=':
-        return Number(currentValue) <= Number(conditionValue);
       case '>=':
-        return Number(currentValue) >= Number(conditionValue);
+        return compareOrdered(currentValue, conditionValue, operator);
       case 'contains':
         const currentStr = this.valueToSearchableString(currentValue);
         const conditionStr = this.valueToSearchableString(conditionValue);
@@ -188,7 +186,7 @@ export class RuleProcessor {
         conditionMet = this.evaluateCondition(
           rule.condition.operator,
           currentValue,
-          rule.condition.value
+          resolveConditionCompareValue(rule.condition, formData)
         );
 
         if (conditionMet) {
@@ -241,7 +239,7 @@ export class RuleProcessor {
         evalContext[conditionId] = this.evaluateCondition(
           condition.operator,
           currentValue,
-          condition.value
+          resolveConditionCompareValue(condition, formData)
         );
       });
 
@@ -487,6 +485,28 @@ export class RuleProcessor {
     }
   }
 
+  /**
+   * Active preventSubmit form rules, without toasts or other form actions.
+   * Called from submit and record save so a blocking rule is checked at save time.
+   */
+  static preventSubmitMessages(
+    formRules: FormRule[] | undefined,
+    formData: Record<string, any>,
+    formFields: FormField[],
+  ): Array<{ fieldId: string; message: string }> {
+    const messages: Array<{ fieldId: string; message: string }> = [];
+    for (const rule of formRules || []) {
+      if (!rule?.isActive || rule.action !== 'preventSubmit') continue;
+      if (!this.evaluateFormRuleConditions(rule, formData, formFields)) continue;
+      const fieldId = rule.conditions?.find((condition) => condition.type === 'single' && condition.fieldId)?.fieldId || '';
+      messages.push({
+        fieldId,
+        message: rule.actionValue?.toString() || 'Form cannot be submitted due to rule condition.',
+      });
+    }
+    return messages;
+  }
+
   static processFormRules(
     formRules: FormRule[],
     context: RuleProcessingContext
@@ -523,7 +543,7 @@ export class RuleProcessor {
         return this.evaluateCondition(
           condition.operator,
           currentValue,
-          condition.value
+          resolveConditionCompareValue(condition, formData)
         );
       }
       return false;
@@ -561,7 +581,7 @@ export class RuleProcessor {
           evalContext[conditionId] = this.evaluateCondition(
             condition.operator,
             currentValue,
-            condition.value
+            resolveConditionCompareValue(condition, formData)
           );
         } else {
           evalContext[conditionId] = false;

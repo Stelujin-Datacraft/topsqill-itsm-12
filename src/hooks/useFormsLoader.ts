@@ -4,6 +4,8 @@ import { backend as supabase } from '@/services/api';
 import { Form, FormField } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
  import { useCachedUserPermissions } from './useCachedUserPermissions';
+import { provisionStandardLibraryIfMissing } from '@/lib/regulatory/provisionStandardLibrary';
+import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 
 export function useFormsLoader() {
   const [forms, setForms] = useState<Form[]>([]);
@@ -124,6 +126,21 @@ export function useFormsLoader() {
  
       // Filter forms based on permissions
       let formsData = allForms || [];
+      if (isAnyAdmin) {
+        try {
+          const provisioned = await provisionStandardLibraryIfMissing(supabase, {
+            organizationId,
+            projectId,
+            createdBy: userId,
+            alreadyPresent: formsData.some((form) => form.reference_id === STANDARD_LIBRARY_REFERENCE_ID),
+          });
+          if (provisioned.created && provisioned.form) {
+            formsData = [provisioned.form, ...formsData];
+          }
+        } catch (provisionError) {
+          console.error('Failed to provision Regulatory Standard Library:', provisionError);
+        }
+      }
       if (!isAnyAdmin) {
         formsData = formsData.filter(form => {
           if (form.is_public) return true;
@@ -225,6 +242,7 @@ export function useFormsLoader() {
           shareSettings: safeParseJson(form.share_settings, { allowPublicAccess: false, sharedUsers: [] }),
           layout: safeParseJson(form.layout, { columns: 1 }),
           pages: updatedPages,
+          reference_id: form.reference_id || undefined,
         } as Form;
       });
  

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FormField } from '@/types/form';
+import { urlProtocolError } from '@/lib/urlFieldValidation';
 
 /**
  * Auto-vanishing validation hint that shows both min and max limits in one message.
@@ -417,20 +418,29 @@ case 'submission-access':
               value={formData[field.id] || ''}
               onChange={(e) => {
                 onFieldChange(field.id, e.target.value);
-                // Real-time validation if enabled
                 const config = field.customConfig || {};
-                if ((config as any).realTimeValidation !== false && e.target.value) {
-                  try {
-                    const url = new URL(e.target.value);
-                    const protocol = (config as any).protocolRestriction;
-                    if (protocol && protocol !== 'any' && !url.protocol.startsWith(protocol)) {
-                      onFieldChange(field.id + '_error', `Invalid protocol, expected ${protocol}`);
-                    } else {
-                      onFieldChange(field.id + '_error', '');
-                    }
-                  } catch {
-                    onFieldChange(field.id + '_error', (config as any).validationMessage || 'Invalid URL format');
+                if ((config as any).realTimeValidation === false) return;
+                if (!e.target.value) {
+                  onFieldChange(field.id + '_error', '');
+                  return;
+                }
+                const protocol = (config as any).protocolRestriction;
+                if (protocol === 'http-or-https') {
+                  onFieldChange(
+                    field.id + '_error',
+                    urlProtocolError(e.target.value, protocol, (config as any).validationMessage),
+                  );
+                  return;
+                }
+                try {
+                  const url = new URL(e.target.value);
+                  if (protocol && protocol !== 'any' && !url.protocol.startsWith(protocol)) {
+                    onFieldChange(field.id + '_error', `Invalid protocol, expected ${protocol}`);
+                  } else {
+                    onFieldChange(field.id + '_error', '');
                   }
+                } catch {
+                  onFieldChange(field.id + '_error', (config as any).validationMessage || 'Invalid URL format');
                 }
               }}
               placeholder={field.placeholder || 'https://example.com'}

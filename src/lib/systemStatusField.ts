@@ -1,4 +1,5 @@
 import type { FormField, FormPage } from '@/types/form';
+import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 
 export const SYSTEM_STATUS_FIELD_LABEL = 'Status';
 
@@ -129,15 +130,19 @@ export function buildSystemStatusFieldInsert(formId: string, fieldOrder = 0) {
 export async function ensureSystemStatusField(
   supabase: { from: (table: string) => any },
   formId: string,
-): Promise<{ field: FormField; pages: FormPage[]; created: boolean }> {
+): Promise<{ field: FormField | null; pages: FormPage[]; created: boolean }> {
   const { data: formRow, error: formError } = await supabase
     .from('forms')
-    .select('id, pages')
+    .select('id, pages, reference_id')
     .eq('id', formId)
     .single();
 
   if (formError || !formRow) {
     throw new Error(formError?.message || 'Form not found while ensuring Status field');
+  }
+
+  if (formRow.reference_id === STANDARD_LIBRARY_REFERENCE_ID) {
+    return { field: null, pages: parsePages(formRow.pages), created: false };
   }
 
   const { data: existingFields, error: fieldsError } = await supabase

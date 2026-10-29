@@ -12,6 +12,7 @@ interface SubmissionFormRendererProps {
   formId?: string;
   currentSubmissionId?: string;
   highlightedFieldId?: string | null;
+  errors?: Record<string, string>;
 }
 
 export function SubmissionFormRenderer({
@@ -23,7 +24,8 @@ export function SubmissionFormRenderer({
   onSubmit,
   formId,
   currentSubmissionId,
-  highlightedFieldId
+  highlightedFieldId,
+  errors = {},
 }: SubmissionFormRendererProps) {
   // Get fields for current page, maintaining their original order
   const pages = form.pages && form.pages.length > 0 
@@ -32,23 +34,23 @@ export function SubmissionFormRenderer({
   
   const currentPage = pages.find(p => p.id === currentPageId);
   
-  // Get fields for the current page - if page has field references, use them, otherwise use all fields
+  // A page with an empty field list stays empty. Pages that list ids show those fields.
   let pageFields = form.fields;
   
-  if (currentPage && currentPage.fields && currentPage.fields.length > 0) {
-    // Try to match fields by ID
-    const matchedFields = form.fields.filter(f => currentPage.fields.includes(f.id));
-    
-    // If we found matching fields, use them in the specified order
-    if (matchedFields.length > 0) {
-      pageFields = matchedFields.sort((a, b) => {
-        const aIndex = currentPage.fields.indexOf(a.id);
-        const bIndex = currentPage.fields.indexOf(b.id);
-        return aIndex - bIndex;
-      });
+  if (currentPage && Array.isArray(currentPage.fields)) {
+    if (currentPage.fields.length === 0) {
+      pageFields = [];
     } else {
-      // No matching fields found - fall back to showing all fields
-      pageFields = form.fields;
+      const matchedFields = form.fields.filter(f => currentPage.fields.includes(f.id));
+      if (matchedFields.length > 0) {
+        pageFields = matchedFields.sort((a, b) => {
+          const aIndex = currentPage.fields.indexOf(a.id);
+          const bIndex = currentPage.fields.indexOf(b.id);
+          return aIndex - bIndex;
+        });
+      } else {
+        pageFields = form.fields;
+      }
     }
   }
 
@@ -85,7 +87,7 @@ export function SubmissionFormRenderer({
                 <FormFieldsRenderer
                   fields={[field]}
                   formData={formData}
-                  errors={{}}
+                  errors={errors}
                   fieldStates={fieldStates}
                   columns={1}
                   onFieldChange={onFieldChange}
@@ -124,7 +126,7 @@ export function SubmissionFormRenderer({
             <FormFieldsRenderer
               fields={[field]}
               formData={formData}
-              errors={{}}
+              errors={errors}
               fieldStates={fieldStates}
               columns={1}
               onFieldChange={onFieldChange}

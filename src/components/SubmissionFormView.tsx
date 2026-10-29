@@ -30,7 +30,10 @@ import {
   collectMandatoryFieldIssues,
   type MandatoryFieldIssue,
 } from '@/lib/formMandatoryValidation';
+import { collectHttpUrlErrors, prepareSubmissionData } from '@/lib/formSubmitChecks';
 import { getLifecycleFields } from '@/lib/lifecycleVisibility';
+import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
+import { RuleProcessor } from '@/utils/ruleProcessor';
 
 interface SubmissionFormViewProps {
   submissionId: string;
@@ -76,6 +79,8 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [showStageHistory, setShowStageHistory] = useState(false);
   const [mandatoryDialogOpen, setMandatoryDialogOpen] = useState(false);
   const [mandatoryIssues, setMandatoryIssues] = useState<MandatoryFieldIssue[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { validateUniqueFields, isValidating } = useUniqueFieldValidation();
 
   // Lifecycle/Status fields — visible immediately when the record form opens
   const lifecycleFields = useMemo(
@@ -382,6 +387,13 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       ...prev,
       [fieldId]: value
     }));
+    if (errors[fieldId]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldId];
+        return next;
+      });
+    }
   };
 
   const handleSave = async (statusOverride?: string) => {
@@ -400,14 +412,16 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       }
     }
 
+    const fields = form?.fields || [];
+    const prepared = prepareSubmissionData(fields, formData);
     if (form) {
       const formPages = form.pages && form.pages.length > 0
         ? form.pages
-        : [{ id: 'default', name: 'Form', order: 0, fields: form.fields.map((f) => f.id) }];
+        : [{ id: 'default', name: 'Form', order: 0, fields: fields.map((f) => f.id) }];
       const issues = collectMandatoryFieldIssues({
-        fields: form.fields || [],
+        fields,
         pages: formPages,
-        formData,
+        formData: prepared,
         fieldStates,
       });
       if (issues.length > 0) {
@@ -415,11 +429,48 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         setMandatoryDialogOpen(true);
         return;
       }
+
+      const urlErrors = collectHttpUrlErrors(fields, prepared);
+      const blocks = RuleProcessor.preventSubmitMessages(form.formRules, prepared, fields);
+      const blockErrors: Record<string, string> = {};
+      blocks.forEach((block) => {
+        if (block.fieldId) blockErrors[block.fieldId] = block.message;
+      });
+      const nextErrors = { ...urlErrors, ...blockErrors };
+      if (Object.keys(nextErrors).length > 0) {
+        setErrors(nextErrors);
+        const first = Object.values(nextErrors)[0];
+        toast({
+          title: 'Cannot save record',
+          description: first,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (isValidating) return;
+      const uniqueResults = await validateUniqueFields(form.id, fields, prepared, submission.id);
+      const uniqueErrors: Record<string, string> = {};
+      Object.entries(uniqueResults).forEach(([fieldId, result]) => {
+        if (!result.isValid && result.error) uniqueErrors[fieldId] = result.error;
+      });
+      if (Object.keys(uniqueErrors).length > 0) {
+        setErrors(uniqueErrors);
+        toast({
+          title: 'Cannot save record',
+          description: Object.values(uniqueErrors)[0],
+          variant: 'destructive',
+        });
+        return;
+      }
     }
+
+    setErrors({});
+    setFormData(prepared);
 
     try {
       setSaving(true);
-      const updatePayload: any = { submission_data: formData };
+      const updatePayload: any = { submission_data: prepared };
       if (statusOverride) {
         updatePayload.approval_status = statusOverride;
         if (statusOverride === 'pending') {
@@ -427,7 +478,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           updatePayload.approved_by = null;
         }
       }
-      console.log('Saving submission with data:', formData, 'status:', statusOverride);
+      console.log('Saving submission with data:', prepared, 'status:', statusOverride);
 
       const { error } = await supabase
         .from('form_submissions')
@@ -448,7 +499,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           form.fields.forEach((f) => { fieldLabels[f.id] = f.label || f.id; });
           const changes = detectRecordChanges(
             submission.submission_data || {},
-            formData,
+            prepared,
             fieldLabels,
             form.fields,
             { getUserDisplayName, getGroupDisplayName }
@@ -474,7 +525,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       // Re-trigger workflows and form rules on resubmission
       if (form && userProfile?.id) {
         const enhancedFormData = {
-          ...formData,
+          ...prepared,
           userEmail: userProfile.email || (formData as any).email,
           submittedBy: userProfile.id,
           submitterName: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
@@ -505,7 +556,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       // Update local state
       setSubmission(prev => prev ? {
         ...prev,
-        submission_data: formData,
+        submission_data: prepared,
         ...(statusOverride ? { approval_status: statusOverride } : {})
       } : null);
 
@@ -889,6 +940,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                     formId={form.id}
                     currentSubmissionId={submissionId}
                     highlightedFieldId={highlightedFieldId}
+                    errors={errors}
                   />
                 </div>
               </div>

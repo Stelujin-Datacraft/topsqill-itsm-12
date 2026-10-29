@@ -15,6 +15,7 @@ const PROTOCOL_OPTIONS = [
   { value: 'any', label: 'Any Protocol (http/https)' },
   { value: 'https', label: 'HTTPS Only' },
   { value: 'http', label: 'HTTP Only' },
+  { value: 'http-or-https', label: 'HTTP or HTTPS' },
 ];
 
 export function UrlFieldConfig({ config, onUpdate, errors }: UrlFieldConfigProps) {

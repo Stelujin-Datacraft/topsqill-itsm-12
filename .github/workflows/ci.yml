@@ -80,3 +80,6 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder
           VITE_ENVIRONMENT: development
         run: npm run build
+
+      - name: Regulatory Standard Library form checks
+        run: npx tsx --tsconfig tsconfig.app.json src/lib/regulatory/standardLibraryForm.test.ts

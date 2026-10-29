@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { backend as supabase } from '@/services/api';
 import { FormField } from '@/types/form';
+import { uniqueValuesMatch } from '@/lib/formSubmitChecks';
 
 interface ValidationResult {
   isValid: boolean;
@@ -67,18 +68,7 @@ export function useUniqueFieldValidation() {
           // Check if any submission has the same value for this field
           const isDuplicate = existingSubmissions?.some((submission) => {
             const submissionValue = submission.submission_data?.[field.id];
-            
-            // Handle different data types
-            if (typeof fieldValue === 'object' && typeof submissionValue === 'object') {
-              return JSON.stringify(fieldValue) === JSON.stringify(submissionValue);
-            }
-            
-            // Case-insensitive comparison for strings
-            if (typeof fieldValue === 'string' && typeof submissionValue === 'string') {
-              return fieldValue.toLowerCase().trim() === submissionValue.toLowerCase().trim();
-            }
-            
-            return fieldValue === submissionValue;
+            return uniqueValuesMatch(fieldValue, submissionValue);
           });
 
           if (isDuplicate) {

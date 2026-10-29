@@ -23,6 +23,7 @@ import {
   type MandatoryFieldIssue,
 } from '@/lib/formMandatoryValidation';
 import { getLifecycleFields } from '@/lib/lifecycleVisibility';
+import { collectHttpUrlErrors, prepareSubmissionData } from '@/lib/formSubmitChecks';
 
 
 interface FormViewLayoutRendererProps {
@@ -244,14 +245,14 @@ export function FormViewLayoutRenderer({
     }
   };
 
-  const validateForm = (): { ok: boolean; issues: MandatoryFieldIssue[] } => {
+  const validateForm = (data: Record<string, any> = formData): { ok: boolean; issues: MandatoryFieldIssue[] } => {
     const newErrors: Record<string, string> = {};
     const safeFields = Array.isArray(form.fields) ? form.fields : [];
 
     const issues = collectMandatoryFieldIssues({
       fields: safeFields,
       pages,
-      formData,
+      formData: data,
       fieldStates,
     });
 
@@ -259,8 +260,10 @@ export function FormViewLayoutRenderer({
       newErrors[issue.fieldId] = `${issue.fieldName} is required`;
     });
 
+    Object.assign(newErrors, collectHttpUrlErrors(safeFields, data));
+
     safeFields.forEach(field => {
-      const value = formData[field.id];
+      const value = data[field.id];
       const fieldState = fieldStates[field.id];
 
       if (!fieldState?.isVisible || !fieldState?.isEnabled) {
@@ -321,7 +324,11 @@ export function FormViewLayoutRenderer({
       return;
     }
 
-    const validation = validateForm();
+    const fields = Array.isArray(form.fields) ? form.fields : [];
+    const prepared = prepareSubmissionData(fields, submissionData);
+    setFormData(prepared);
+
+    const validation = validateForm(prepared);
     if (!validation.ok) {
       if (validation.issues.length > 0) {
         setMandatoryIssues(validation.issues);
@@ -330,11 +337,22 @@ export function FormViewLayoutRenderer({
       return;
     }
 
+    const blocks = RuleProcessor.preventSubmitMessages(form.formRules, prepared, fields);
+    if (blocks.length > 0) {
+      const blockErrors: Record<string, string> = {};
+      blocks.forEach((block) => {
+        if (block.fieldId) blockErrors[block.fieldId] = block.message;
+      });
+      setErrors((prev) => ({ ...prev, ...blockErrors }));
+      toast.error(blocks[0].message);
+      return;
+    }
+
     // Validate unique fields
     const uniqueValidationResults = await validateUniqueFields(
       form.id,
-      Array.isArray(form.fields) ? form.fields : [],
-      submissionData,
+      fields,
+      prepared,
       undefined // No submissionId when creating new submission
     );
 
@@ -357,7 +375,7 @@ export function FormViewLayoutRenderer({
 
     setIsSubmitting(true);
     try {
-      await onSubmit(submissionData);
+      await onSubmit(prepared);
       // Clear draft from localStorage after successful submission
       localStorage.removeItem(`form-draft-${form.id}`);
       console.log('🗑️ Cleared draft from localStorage after successful submission');
