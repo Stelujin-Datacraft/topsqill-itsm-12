@@ -11,7 +11,7 @@ import { shouldKeepFormsLoading } from '@/utils/authProjectLoadGate';
 export function useFormsData() {
   const { userProfile, session, isLoading: authLoading } = useAuth();
   const { currentProject, loading: projectsLoading } = useProject();
-  const { forms, setForms, loading, loadForms, regulatoryNotice } = useFormsLoader();
+  const { forms, setForms, loading, loadForms } = useFormsLoader();
   const { createForm: createFormMutation, updateForm: updateFormMutation, deleteForm: deleteFormMutation } = useFormMutations();
   const { 
     addField: addFieldMutation, 
@@ -171,6 +171,5 @@ export function useFormsData() {
     batchSaveFields,
     batchDeleteFields,
     loadForms: () => currentProject?.id && (currentProject.organization_id || userProfile?.organization_id) && loadForms(currentProject.organization_id || userProfile.organization_id, currentProject.id),
-    regulatoryNotice,
   };
 }

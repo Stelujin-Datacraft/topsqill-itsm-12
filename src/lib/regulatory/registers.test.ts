@@ -25,7 +25,9 @@ import {
   createRequirementRegisterBlueprint,
 } from '@/lib/regulatory/requirementRegisterForm';
 import { provisionRegulatoryRegistersIfMissing } from '@/lib/regulatory/provisionRegulatoryRegisters';
-import { canSeeLoadedForm, permissionsAllowProjectFill } from '@/lib/regulatory/regulatoryFormAccess';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { canSeeLoadedForm, newRegulatoryId, permissionsAllowProjectFill, regulatoryIdFromBytes } from '@/lib/regulatory/regulatoryFormAccess';
 
 const clause = createClauseRegisterBlueprint((key) => key, {
   targetFormId: 'standard-form',
@@ -296,5 +298,28 @@ const clauseRecord = {
 const reopenedClause = JSON.parse(JSON.stringify(clauseRecord));
 assert.equal(reopenedClause[standardLink.id][0].form_id, standardFormId);
 assert.equal(reopenedClause[clauseIdField.id], 'CL-9');
+
+const migrationSql = readFileSync(
+  resolve('supabase/migrations/20261029143000_provision_regulatory_register_forms.sql'),
+  'utf8',
+);
+assert.match(migrationSql, /Regulatory Standard Library/);
+assert.match(migrationSql, /Regulatory Clause Register/);
+assert.match(migrationSql, /Regulatory Requirement Register/);
+assert.match(migrationSql, /grc\.standard-library/);
+assert.match(migrationSql, /grc\.clause-register/);
+assert.match(migrationSql, /grc\.requirement-register/);
+assert.equal(migrationSql.includes('grc.regulatory.'), false);
+assert.match(migrationSql, /Effective Date must not precede Publication Date/);
+assert.match(migrationSql, /Verification Date must not precede Last Assessment Date/);
+assert.match(migrationSql, /Related Clauses/);
+const embeddedSql = readFileSync(resolve('backend/src/regulatory/regulatory-forms.sql.ts'), 'utf8');
+assert.equal(
+  embeddedSql.includes(`export const REGULATORY_FORMS_SQL = ${JSON.stringify(migrationSql)};`),
+  true,
+);
+assert.match(newRegulatoryId(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+assert.match(regulatoryIdFromBytes(new Uint8Array(16)), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+assert.match(standardIdField.id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 
 console.log('Regulatory clause and requirement register checks: ok');

@@ -13,6 +13,33 @@ export function regulatoryFormPermissionsJson(): string {
   return JSON.stringify(REGULATORY_FORM_PERMISSIONS);
 }
 
+/** UUID v4. randomUUID is missing on pages served outside a secure context. */
+export function regulatoryIdFromBytes(bytes: Uint8Array): string {
+  const next = bytes.length >= 16 ? bytes : new Uint8Array(16);
+  const value = new Uint8Array(16);
+  value.set(next.subarray(0, 16));
+  value[6] = (value[6] & 0x0f) | 0x40;
+  value[8] = (value[8] & 0x3f) | 0x80;
+  const hex = Array.from(value, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+export function newRegulatoryId(): string {
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    return cryptoObj.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    cryptoObj.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+  return regulatoryIdFromBytes(bytes);
+}
+
 export const REGULATORY_REGISTERS = [
   { referenceId: STANDARD_LIBRARY_REFERENCE_ID, name: STANDARD_LIBRARY_FORM_NAME },
   { referenceId: CLAUSE_REGISTER_REFERENCE_ID, name: CLAUSE_REGISTER_FORM_NAME },

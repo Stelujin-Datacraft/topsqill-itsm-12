@@ -1,5 +1,6 @@
 import {
   ensureRegulatoryFormFillAccess,
+  newRegulatoryId,
   regulatoryFormPermissionsJson,
 } from '@/lib/regulatory/regulatoryFormAccess';
 import {
@@ -53,7 +54,7 @@ export async function provisionStandardLibraryIfMissing(
     return { created: false, form: null };
   }
 
-  const blueprint = createStandardLibraryBlueprint(() => crypto.randomUUID());
+  const blueprint = createStandardLibraryBlueprint(() => newRegulatoryId());
 
   const formInsert = {
     name: blueprint.name,

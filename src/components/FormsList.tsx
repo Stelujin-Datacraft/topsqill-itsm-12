@@ -15,10 +15,7 @@ import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
-import {
-  REGULATORY_REGISTERS,
-  regulatoryRegisterSortIndex,
-} from '@/lib/regulatory/regulatoryFormAccess';
+import { regulatoryRegisterSortIndex } from '@/lib/regulatory/regulatoryFormAccess';
 export function FormsList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -28,7 +25,6 @@ export function FormsList() {
     deleteForm,
     createForm,
     addField,
-    regulatoryNotice,
   } = useFormsData();
   const { userProfile } = useAuth();
   const {
@@ -219,53 +215,8 @@ export function FormsList() {
         };
     }
   };
-  const regulatoryPanel = (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">
-          {t('forms.regulatoryRegistersTitle', { defaultValue: 'Regulatory registers' })}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          {t('forms.regulatoryRegistersHint', {
-            defaultValue: 'Open a register on this page to add a standard, clause, or requirement.',
-          })}
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {REGULATORY_REGISTERS.map((entry) => {
-          const form = forms.find((item) => item.reference_id === entry.referenceId);
-          return (
-            <div key={entry.referenceId} className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-medium text-sm">{entry.name}</p>
-                {!form && (
-                  <p className="text-xs text-muted-foreground">
-                    {t('forms.regulatoryRegisterMissing', { defaultValue: 'Not created for this project yet.' })}
-                  </p>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!form}
-                onClick={() => form && handleViewForm(form.id)}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {t('forms.addRecord')}
-              </Button>
-            </div>
-          );
-        })}
-        {regulatoryNotice && (
-          <p className="text-sm text-destructive">{regulatoryNotice}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-
   if (visibleForms.length === 0) {
     return <div className="space-y-6">
-      {regulatoryPanel}
       <Card>
         <CardContent className="py-12">
           <div className="text-center space-y-4">
@@ -553,7 +504,6 @@ export function FormsList() {
       </div>;
   };
   return <div className="space-y-6">
-      {regulatoryPanel}
       {/* View Mode Selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">

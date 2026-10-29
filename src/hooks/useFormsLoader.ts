@@ -7,15 +7,11 @@ import { toast } from '@/hooks/use-toast';
 import { provisionStandardLibraryIfMissing } from '@/lib/regulatory/provisionStandardLibrary';
 import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 import { provisionRegulatoryRegistersIfMissing } from '@/lib/regulatory/provisionRegulatoryRegisters';
-import {
-  REGULATORY_REGISTERS,
-  canSeeLoadedForm,
-} from '@/lib/regulatory/regulatoryFormAccess';
+import { canSeeLoadedForm } from '@/lib/regulatory/regulatoryFormAccess';
 
 export function useFormsLoader() {
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
-  const [regulatoryNotice, setRegulatoryNotice] = useState<string | null>(null);
  
   const safeParseJson = useCallback((jsonString: any, fallback: any = null) => {
     if (!jsonString) return fallback;
@@ -41,11 +37,9 @@ export function useFormsLoader() {
   ) => {
     try {
       setLoading(true);
-      setRegulatoryNotice(null);
 
       if (!projectId) {
         setForms([]);
-        setRegulatoryNotice(null);
         return;
       }
 
@@ -69,7 +63,6 @@ export function useFormsLoader() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setForms([]);
-          setRegulatoryNotice(null);
           return;
         }
         userId = user.id;
@@ -124,7 +117,6 @@ export function useFormsLoader() {
       const hasAnyRoleFormPermission = formPermissions.size > 0;
       if (!isAnyAdmin && !isProjectMember && !hasAnyRoleFormPermission) {
         setForms([]);
-        setRegulatoryNotice('Select a project you belong to, then open Forms to use the regulatory registers.');
         return;
       }
  
@@ -140,7 +132,6 @@ export function useFormsLoader() {
  
       // Filter forms based on permissions
       let formsData = allForms || [];
-      const provisionNotes: string[] = [];
       if (canProvisionRegulatory) {
         try {
           const provisioned = await provisionStandardLibraryIfMissing(supabase, {
@@ -153,8 +144,6 @@ export function useFormsLoader() {
             formsData = [provisioned.form, ...formsData];
           }
         } catch (provisionError) {
-          const message = provisionError instanceof Error ? provisionError.message : 'Failed to create Regulatory Standard Library';
-          provisionNotes.push(message);
           console.error('Failed to provision Regulatory Standard Library:', provisionError);
         }
         try {
@@ -164,7 +153,6 @@ export function useFormsLoader() {
             createdBy: userId,
           });
           if (registers.blockedReason) {
-            provisionNotes.push(registers.blockedReason);
             console.error(registers.blockedReason);
           }
           const createdRegisters = [registers.clauseForm, registers.requirementForm].filter(Boolean);
@@ -172,8 +160,6 @@ export function useFormsLoader() {
             formsData = [...createdRegisters, ...formsData];
           }
         } catch (registerError) {
-          const message = registerError instanceof Error ? registerError.message : 'Failed to create the regulatory registers';
-          provisionNotes.push(message);
           console.error('Failed to provision regulatory clause and requirement registers:', registerError);
         }
       }
@@ -188,17 +174,6 @@ export function useFormsLoader() {
           hasRoleAssignments,
         }));
       }
-      const missingRegisters = REGULATORY_REGISTERS
-        .filter((entry) => !formsData.some((form) => form.reference_id === entry.referenceId))
-        .map((entry) => entry.name);
-      if (provisionNotes.length > 0) {
-        setRegulatoryNotice(provisionNotes.join(' '));
-      } else if (!isAnyAdmin && missingRegisters.length > 0) {
-        setRegulatoryNotice(`Ask a project administrator to open Forms so ${missingRegisters.join(', ')} can be created for this project.`);
-      } else {
-        setRegulatoryNotice(null);
-      }
- 
       // OPTIMIZATION: Batch fetch all fields for all forms in a single query
       const formIds = formsData.map(form => form.id);
       let allFieldsData: any[] = [];
@@ -308,6 +283,5 @@ export function useFormsLoader() {
     setForms,
     loading,
     loadForms,
-    regulatoryNotice,
   };
 }

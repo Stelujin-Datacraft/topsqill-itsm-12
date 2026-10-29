@@ -29,6 +29,7 @@ import { VisModule } from './vis/vis.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { ReModule } from './re/re.module';
 import { HealthController } from './health.controller';
+import { RegulatoryFormsBootstrap } from './regulatory/regulatory-forms.bootstrap';
 import { resolve } from 'path';
 
 const envFilePath = [
@@ -88,6 +89,7 @@ const envFilePath = [
   ],
   controllers: [HealthController],
   providers: [
+    RegulatoryFormsBootstrap,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

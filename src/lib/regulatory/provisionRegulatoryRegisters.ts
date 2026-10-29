@@ -1,5 +1,6 @@
 import {
   ensureRegulatoryFormFillAccess,
+  newRegulatoryId,
   regulatoryFormPermissionsJson,
 } from '@/lib/regulatory/regulatoryFormAccess';
 import { STANDARD_LIBRARY_FORM_NAME, STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
@@ -70,7 +71,7 @@ export async function provisionRegulatoryRegistersIfMissing(
     await ensureRegulatoryFormFillAccess(client, clause.id, clause.permissions);
   }
   if (!clause) {
-    clause = await insertRegister(client, input, createClauseRegisterBlueprint(() => crypto.randomUUID(), {
+    clause = await insertRegister(client, input, createClauseRegisterBlueprint(() => newRegulatoryId(), {
       targetFormId: standard.id,
       targetFormName: STANDARD_LIBRARY_FORM_NAME,
       displayColumns: standardColumns,
@@ -101,7 +102,7 @@ export async function provisionRegulatoryRegistersIfMissing(
       result.blockedReason = 'Regulatory Clause Register is missing Clause ID, Clause Number / Reference, or Clause Title, so the requirement cross-reference was not configured.';
       return result;
     }
-    requirement = await insertRegister(client, input, createRequirementRegisterBlueprint(() => crypto.randomUUID(), {
+    requirement = await insertRegister(client, input, createRequirementRegisterBlueprint(() => newRegulatoryId(), {
       targetFormId: clause.id,
       targetFormName: CLAUSE_REGISTER_FORM_NAME,
       displayColumns: clauseColumns,
