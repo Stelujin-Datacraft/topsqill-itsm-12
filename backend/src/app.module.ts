@@ -28,7 +28,6 @@ import { BlogModule } from './blog/blog.module';
 import { VisModule } from './vis/vis.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { ReModule } from './re/re.module';
-import { RegulatoryModule } from './regulatory/regulatory.module';
 import { HealthController } from './health.controller';
 import { resolve } from 'path';
 
@@ -86,7 +85,6 @@ const envFilePath = [
     VisModule,
     PromotionModule,
     ReModule,
-    RegulatoryModule,
   ],
   controllers: [HealthController],
   providers: [
