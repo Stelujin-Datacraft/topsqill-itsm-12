@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Form } from '@/types/form';
+import { isGrcFoundationReference } from '@/lib/grc/foundationCatalog';
 import { isRegulatoryRegisterReference } from '@/lib/regulatory/regulatoryFormAccess';
 import { backend as supabase } from '@/services/api';
 import { useProject } from './ProjectContext';
@@ -197,7 +198,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       const hasAnyExplicitAccess = accessibleIds.size > 0;
 
       const filteredForms = (formsResult.data || []).filter(form => {
-        if (isRegulatoryRegisterReference(form.reference_id)) return true;
+        if (isRegulatoryRegisterReference(form.reference_id) || isGrcFoundationReference(form.reference_id)) return true;
         if (form.created_by === user.id) return true;
         if (form.created_by === user.email) return true;
         if (form.is_public) return true;

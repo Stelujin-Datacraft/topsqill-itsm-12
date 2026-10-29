@@ -15,7 +15,8 @@ import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
-import { regulatoryRegisterSortIndex } from '@/lib/regulatory/regulatoryFormAccess';
+import { grcFoundationSortIndex, GRC_FOUNDATION_REFERENCE_IDS } from '@/lib/grc/foundationCatalog';
+import { REGULATORY_REGISTERS, regulatoryRegisterSortIndex } from '@/lib/regulatory/regulatoryFormAccess';
 export function FormsList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -60,7 +61,14 @@ export function FormsList() {
 
   // Filter forms based on user's permissions
   const visibleForms = [...getVisibleResources('forms', forms)].sort((a, b) => {
-    const order = regulatoryRegisterSortIndex(a.reference_id) - regulatoryRegisterSortIndex(b.reference_id);
+    const libraryIndex = (referenceId: unknown) => {
+      const regulatoryIndex = regulatoryRegisterSortIndex(referenceId);
+      if (regulatoryIndex < REGULATORY_REGISTERS.length) return regulatoryIndex;
+      const foundationIndex = grcFoundationSortIndex(referenceId);
+      if (foundationIndex < GRC_FOUNDATION_REFERENCE_IDS.length) return REGULATORY_REGISTERS.length + foundationIndex;
+      return 100;
+    };
+    const order = libraryIndex(a.reference_id) - libraryIndex(b.reference_id);
     return order;
   });
   console.log('📋 FormsList - Visible forms:', visibleForms.length, 'out of', forms.length);

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { toast } from 'sonner';
+import { isGrcFoundationReference } from '@/lib/grc/foundationCatalog';
 import { isRegulatoryRegisterReference } from '@/lib/regulatory/regulatoryFormAccess';
 
 export type EntityType = 'forms' | 'workflows' | 'reports' | 'dashboards' | 'projects' | 'policies';
@@ -463,7 +464,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     // Forms: public + owned + role-granted reads
     if (entityType === 'forms') {
       return allResources.filter(resource => {
-        if (isRegulatoryRegisterReference(resource.reference_id ?? resource.referenceId)) return true;
+        if (isRegulatoryRegisterReference(resource.reference_id ?? resource.referenceId) || isGrcFoundationReference(resource.reference_id ?? resource.referenceId)) return true;
         if (resource.isPublic === true) return true;
         if (isResourceOwner(resource)) return true;
         const rolePerms = state.rolePermissions[entityType][resource.id];

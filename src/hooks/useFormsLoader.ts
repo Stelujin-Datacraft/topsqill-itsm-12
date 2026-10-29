@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast';
 import { provisionStandardLibraryIfMissing } from '@/lib/regulatory/provisionStandardLibrary';
 import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 import { provisionRegulatoryRegistersIfMissing } from '@/lib/regulatory/provisionRegulatoryRegisters';
+import { provisionGrcFoundationIfMissing } from '@/lib/grc/provisionGrcFoundation';
 import { canSeeLoadedForm } from '@/lib/regulatory/regulatoryFormAccess';
 
 export function useFormsLoader() {
@@ -161,6 +162,19 @@ export function useFormsLoader() {
           }
         } catch (registerError) {
           console.error('Failed to provision regulatory clause and requirement registers:', registerError);
+        }
+        try {
+          const foundation = await provisionGrcFoundationIfMissing(supabase, {
+            organizationId,
+            projectId,
+            createdBy: userId,
+          });
+          if (foundation.createdReferenceIds.length > 0) {
+            const createdForms = foundation.forms.filter((form) => foundation.createdReferenceIds.includes(String(form.reference_id)));
+            formsData = [...createdForms, ...formsData];
+          }
+        } catch (foundationError) {
+          console.error('Failed to provision control objective and asset foundation forms:', foundationError);
         }
       }
       const readableFormIds = {

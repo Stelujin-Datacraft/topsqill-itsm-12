@@ -64,6 +64,7 @@ import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
 
 import { RatingField } from './form-fields/RatingField';
 import { UserPickerField } from './form-fields/UserPickerField';
+import { GroupPickerField } from './form-fields/GroupPickerField';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -236,6 +237,16 @@ export function FormFieldsRenderer({
             value={formData[field.id] || (field.customConfig?.allowMultiple ? [] : '')}
             onChange={(value) => onFieldChange(field.id, value)}
             error={errors[field.id]}
+            disabled={!fieldState.isEnabled}
+          />
+        );
+
+      case 'group-picker':
+        return (
+          <GroupPickerField
+            field={field}
+            value={formData[field.id] || ''}
+            onChange={(value) => onFieldChange(field.id, value)}
             disabled={!fieldState.isEnabled}
           />
         );

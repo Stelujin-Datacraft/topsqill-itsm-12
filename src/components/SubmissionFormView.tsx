@@ -30,7 +30,7 @@ import {
   collectMandatoryFieldIssues,
   type MandatoryFieldIssue,
 } from '@/lib/formMandatoryValidation';
-import { collectHttpUrlErrors, collectSingleParentReferenceErrors, prepareSubmissionData } from '@/lib/formSubmitChecks';
+import { collectFoundationValueErrors, collectHttpUrlErrors, collectSingleParentReferenceErrors, prepareSubmissionData } from '@/lib/formSubmitChecks';
 import { getLifecycleFields } from '@/lib/lifecycleVisibility';
 import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
 import { RuleProcessor } from '@/utils/ruleProcessor';
@@ -433,6 +433,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       const urlErrors = {
         ...collectHttpUrlErrors(fields, prepared),
         ...collectSingleParentReferenceErrors(fields, prepared),
+        ...collectFoundationValueErrors(fields, prepared),
       };
       const blocks = RuleProcessor.preventSubmitMessages(form.formRules, prepared, fields);
       const blockErrors: Record<string, string> = {};

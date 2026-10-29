@@ -2,6 +2,7 @@ import type { FormField, FormPage } from '@/types/form';
 import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 import { CLAUSE_REGISTER_REFERENCE_ID } from '@/lib/regulatory/clauseRegisterForm';
 import { REQUIREMENT_REGISTER_REFERENCE_ID } from '@/lib/regulatory/requirementRegisterForm';
+import { isGrcFoundationReference } from '@/lib/grc/foundationCatalog';
 
 export const SYSTEM_STATUS_FIELD_LABEL = 'Status';
 
@@ -147,6 +148,7 @@ export async function ensureSystemStatusField(
     formRow.reference_id === STANDARD_LIBRARY_REFERENCE_ID
     || formRow.reference_id === CLAUSE_REGISTER_REFERENCE_ID
     || formRow.reference_id === REQUIREMENT_REGISTER_REFERENCE_ID
+    || isGrcFoundationReference(formRow.reference_id)
   ) {
     return { field: null, pages: parsePages(formRow.pages), created: false };
   }

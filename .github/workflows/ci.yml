@@ -89,3 +89,6 @@ jobs:
 
       - name: Form builder move field between pages
         run: npx tsx --tsconfig tsconfig.app.json src/components/FormBuilder/moveFieldBetweenPages.test.ts
+
+      - name: Control objective and asset foundation forms
+        run: npx tsx --tsconfig tsconfig.app.json src/lib/grc/foundation.test.ts

@@ -1,5 +1,6 @@
 import { CLAUSE_REGISTER_FORM_NAME, CLAUSE_REGISTER_REFERENCE_ID } from '@/lib/regulatory/clauseRegisterForm';
 import { REQUIREMENT_REGISTER_FORM_NAME, REQUIREMENT_REGISTER_REFERENCE_ID } from '@/lib/regulatory/requirementRegisterForm';
+import { isGrcFoundationReference } from '@/lib/grc/foundationCatalog';
 import { STANDARD_LIBRARY_FORM_NAME, STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryForm';
 
 /** Project members who can open the form may add records. Edit stays with administrators. */
@@ -77,7 +78,7 @@ export function canSeeLoadedForm(
     hasRoleAssignments: boolean;
   },
 ): boolean {
-  if (isRegulatoryRegisterReference(form.reference_id)) return true;
+  if (isRegulatoryRegisterReference(form.reference_id) || isGrcFoundationReference(form.reference_id)) return true;
   if (form.is_public) return true;
   if (form.created_by && form.created_by === access.userId) return true;
   if (access.readableFormIds.has(form.id)) return true;
