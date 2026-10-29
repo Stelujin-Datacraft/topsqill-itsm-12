@@ -12,7 +12,7 @@ function makeJwt(role: string): string {
   return `${header}.${payload}.sig`;
 }
 
-function main() {
+async function main() {
   console.log('health-crud');
 
   {
@@ -27,13 +27,24 @@ function main() {
         return map[key];
       },
     };
-    const supabase = { isServiceRoleKeyValid: () => true };
+    const supabase = {
+      isServiceRoleKeyValid: () => true,
+      getServiceClient: () => ({
+        from: () => ({
+          select: () => ({
+            in: async () => ({ count: 4, error: null }),
+          }),
+        }),
+      }),
+    };
     const ctl = new HealthController(config as any, supabase as any);
-    const body = ctl.crudPath();
+    const body = await ctl.crudPath();
     assert.equal(body.status, 'ok');
     assert.equal(body.supabaseHost, 'abc.supabase.co');
     assert.equal(body.serviceRoleJwtRole, 'service_role');
     assert.equal(body.serviceRoleKeyOk, true);
+    assert.equal(body.foundationForms, 4);
+    assert.equal(body.foundationFormsError, null);
     assert.match(body.sharedMutationPath, /database/);
     console.log('  ✓ ok when service_role + anon + url set');
   }
@@ -52,7 +63,7 @@ function main() {
     };
     const supabase = { isServiceRoleKeyValid: () => false };
     const ctl = new HealthController(config as any, supabase as any);
-    const body = ctl.crudPath();
+    const body = await ctl.crudPath();
     assert.equal(body.status, 'misconfigured');
     assert.equal(body.serviceRoleJwtRole, 'anon');
     assert.equal(body.serviceRoleKeyOk, false);
@@ -63,4 +74,7 @@ function main() {
   console.log('All health-crud tests passed.');
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
