@@ -100,6 +100,7 @@ jobs:
             if curl -sf http://127.0.0.1:3001/api/health/crud >/tmp/health-crud.json; then
               cat /tmp/health-crud.json
               grep -q '"status":"ok"' /tmp/health-crud.json
+              docker compose logs backend --tail 200 | grep -E 'foundation forms|Foundation SQL|app database' || true
               exit 0
             fi
             sleep 3

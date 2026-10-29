@@ -1,6 +1,6 @@
 import { GRC_CROSS_LINKS, GRC_FOUNDATION_FORMS } from '@/lib/grc/foundationCatalog';
 
-function sqlCatalog() {
+export function sqlCatalog() {
   return GRC_FOUNDATION_FORMS.map((form) => ({
     referenceId: form.referenceId,
     name: form.name,
@@ -22,7 +22,7 @@ function sqlCatalog() {
   }));
 }
 
-function sqlLinks() {
+export function sqlLinks() {
   return GRC_CROSS_LINKS.map((link) => ({
     sourceReferenceId: link.sourceReferenceId,
     libraryKey: link.libraryKey,

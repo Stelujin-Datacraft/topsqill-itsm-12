@@ -4,6 +4,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from './common/decorators/public.decorator';
 import { SupabaseService } from './supabase/supabase.service';
 import { parseSupabaseApiKeyRole } from './supabase/supabase-key-role';
+import { GRC_FOUNDATION_REFERENCE_IDS } from './grc/grc-foundation.catalog';
 
 @Controller('health')
 export class HealthController {
@@ -26,7 +27,7 @@ export class HealthController {
   @Public()
   @SkipThrottle()
   @Get('crud')
-  crudPath() {
+  async crudPath() {
     const environment = (
       this.configService.get<string>('ENVIRONMENT')
       || this.configService.get<string>('NODE_ENV')
@@ -51,6 +52,20 @@ export class HealthController {
       && (serviceRole.role === 'service_role' || !serviceRole.isJwt);
 
     const ready = Boolean(supabaseHost) && anonConfigured && serviceRoleOk;
+    let foundationForms: number | null = null;
+    let foundationFormsError: string | null = null;
+    if (serviceRoleOk) {
+      try {
+        const { count, error } = await this.supabaseService.getServiceClient()
+          .from('forms')
+          .select('id', { count: 'exact', head: true })
+          .in('reference_id', [...GRC_FOUNDATION_REFERENCE_IDS]);
+        if (error) foundationFormsError = error.message;
+        else foundationForms = count ?? 0;
+      } catch (error) {
+        foundationFormsError = error instanceof Error ? error.message : String(error);
+      }
+    }
 
     return {
       status: ready ? 'ok' : 'misconfigured',
@@ -60,6 +75,8 @@ export class HealthController {
       anonKeyConfigured: anonConfigured,
       serviceRoleJwtRole: serviceRole.role,
       serviceRoleKeyOk: serviceRoleOk,
+      foundationForms,
+      foundationFormsError,
       /**
        * All UI modules (Forms, Workflows, Reports, Dashboards, Access Control,
        * IT Assets, …) share Nest POST /database/{insert,update,delete,upsert}
