@@ -10,6 +10,16 @@ import {
   type LoopContext 
 } from './sqlLoops';
 import { userFunctionRegistry } from './sqlUserFunctions';
+import {
+  evaluateCaseExpression,
+  evaluateSelectExpression,
+  evaluateUpdateFormula,
+  evaluateWhereCondition,
+  serializeFieldValue,
+} from './sqlRowExpressions';
+import { parseUpdateFormQuery } from './sqlUpdateFormParser';
+
+export { parseUpdateFormQuery };
 
 /** 
  * The shape of our parse result 
@@ -26,6 +36,8 @@ export interface QueryResult {
   columns: string[]
   rows: any[][]
   errors: string[]
+  /** Values an UPDATE FORM query calculated for the open record. */
+  assignments?: UpdateAssignment[]
 }
 
 // List of allowed system tables
@@ -379,190 +391,6 @@ export function parseUserQuery(input: string): ParseResult {
 
   // Encode metadata in SQL comment for client-side execution
   const sql = `-- QUERY_METADATA: ${JSON.stringify(queryMetadata)}\nSELECT ${selectExpr} FROM form_submissions WHERE form_id = '${formUuid}';`;
-
-  return { sql, errors }
-}
-
-/**
- * Parse custom UPDATE FORM syntax with arithmetic and CASE WHEN support
- * Expected format: UPDATE FORM 'form_id' SET FIELD('field_id') = value WHERE submission_id = 'submission_id'
- * 
- * Supported value syntaxes:
- * 1. FIELD("source-field-id") - Copy value from another field
- * 2. VALUE_OF("source-field-id") - Alternative syntax for copying field value  
- * 3. 'static text' - Set a static text value
- * 4. FIELD("field-id") + 10 - Arithmetic with field values
- * 5. UPPER(FIELD("field-id")) - Functions applied to field values
- * 6. CASE WHEN ... - Conditional logic
- */
-export function parseUpdateFormQuery(input: string): ParseResult {
-  const errors: string[] = []
-
-  console.log('📝 UPDATE Parser - Input query:', input);
-
-  // Parse the UPDATE FORM syntax with flexible WHERE clause
-  // Supports both: WHERE submission_ref_id = 'id' and WHERE FIELD('field_id') operator 'value'
-  // Also supports subqueries with multiple lines and boolean literals (TRUE/FALSE)
-  // Strategy: Find the LAST WHERE that's not inside parentheses using iterative search (avoids regex backtracking)
-  
-  // First, extract form ID and field ID with a simple non-greedy pattern
-  const headerMatch = input.match(
-    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*/im
-  );
-  
-  if (!headerMatch) {
-    errors.push('Invalid UPDATE FORM syntax. Expected: UPDATE FORM \'form_id\' SET FIELD(\'field_id\') = value WHERE condition');
-    return { errors };
-  }
-  
-  // Find the last WHERE outside of parentheses
-  const afterHeader = input.substring(headerMatch[0].length);
-  let lastWhereIndex = -1;
-  let parenDepth = 0;
-  
-  for (let i = 0; i < afterHeader.length - 5; i++) {
-    if (afterHeader[i] === '(') parenDepth++;
-    else if (afterHeader[i] === ')') parenDepth--;
-    else if (parenDepth === 0 && afterHeader.substring(i, i + 6).toUpperCase() === 'WHERE ') {
-      lastWhereIndex = i;
-    }
-  }
-  
-  if (lastWhereIndex === -1) {
-    errors.push('Invalid UPDATE FORM syntax. Missing WHERE clause.');
-    return { errors };
-  }
-  
-  const valueExpression = afterHeader.substring(0, lastWhereIndex).trim();
-  const whereClause = afterHeader.substring(lastWhereIndex + 6).replace(/[\s;]*$/, '').trim();
-  
-  // Validate WHERE clause format
-  const whereValid = /^(?:submission_id|submission_ref_id)\s*(?:=|!=)\s*['"]?[^'";\s]+['"]?$|^TRUE$|^FALSE$/i.test(whereClause);
-  if (!whereValid) {
-    errors.push('Invalid WHERE clause. Expected: submission_id = value, submission_ref_id = value, TRUE, or FALSE');
-    return { errors };
-  }
-  
-  const formId = headerMatch[1];
-  const fieldId = headerMatch[2];
-
-  console.log('📝 UPDATE Parser - Parsed components:');
-  console.log('  - Form ID:', formId);
-  console.log('  - Target Field ID:', fieldId);
-  console.log('  - Value Expression (raw):', valueExpression);
-  console.log('  - Where Clause:', whereClause);
-
-  // Transform value expression to handle FIELD() syntax, functions, arithmetic, CASE WHEN, and SUBQUERIES
-  let transformedValue = valueExpression.trim()
-  
-  console.log('🔍 UPDATE Parser - Processing value expression:', transformedValue);
-  console.log('🔍 UPDATE Parser - Value length:', transformedValue.length);
-  console.log('🔍 UPDATE Parser - Value char codes:', [...transformedValue.slice(0, 20)].map(c => `${c}(${c.charCodeAt(0)})`).join(' '));
-  
-  // Check for subquery (SELECT statement wrapped in parentheses)
-  const hasSubquery = /^\s*\(\s*SELECT\s+/i.test(transformedValue);
-  
-  // Check for CASE WHEN expressions
-  const hasCaseWhen = /CASE\s+WHEN/i.test(transformedValue);
-  
-  // Check for arithmetic expressions (e.g., FIELD('id') + 1, value * 2)
-  // Use operators surrounded by whitespace to avoid matching hyphens inside UUIDs
-  const hasArithmetic = /\s[+\-*\/]\s/.test(transformedValue) && !/\s+AND\s+|\s+OR\s+/i.test(transformedValue);
-
-  // Store function metadata for UPDATE query execution
-  const functionPattern = /^(UPPER|LOWER|CONCAT|REPLACE|TRIM|LTRIM|RTRIM|ROUND|CEIL|FLOOR|ABS|COALESCE|NOW|CURRENT_TIMESTAMP|IF|LEFT|RIGHT|SUBSTRING|IFNULL|CASE)\s*\(/i;
-  const hasFunction = functionPattern.test(transformedValue);
-  
-  console.log('🔍 UPDATE Parser - Expression analysis:');
-  console.log('  - Has Subquery:', hasSubquery);
-  console.log('  - Has CASE WHEN:', hasCaseWhen);
-  console.log('  - Has Arithmetic:', hasArithmetic);
-  console.log('  - Has Function:', hasFunction);
-  
-  if (hasSubquery) {
-    // Store the subquery for later execution
-    transformedValue = `SUBQUERY::${transformedValue}`;
-    console.log('✅ UPDATE Parser - Storing as SUBQUERY for runtime evaluation:', transformedValue);
-  } else if (hasCaseWhen || hasFunction || hasArithmetic) {
-    // Store the original expression with FIELD() references for later evaluation
-    transformedValue = `FUNC::${transformedValue}`;
-    console.log('✅ UPDATE Parser - Storing as FUNC for runtime evaluation:', transformedValue);
-  } else {
-    // Handle FIELD() or VALUE_OF() references for simple assignments
-    console.log('🔍 UPDATE Parser - Looking for FIELD() or VALUE_OF() references');
-    console.log('  - Original value:', transformedValue);
-    
-    // Permissive pattern to match VALUE_OF() or FIELD() with any quote type (including curly quotes)
-    // Matches: VALUE_OF("uuid"), VALUE_OF('uuid'), FIELD("uuid"), FIELD('uuid'), and curly quote variants
-    const fieldRefPattern = /(?:VALUE_OF|FIELD)\s*\(\s*['"""]([0-9a-fA-F-]{36})['"""\s]*\)/gi;
-    
-    const testMatch = transformedValue.match(fieldRefPattern);
-    console.log('  - Pattern test result:', testMatch);
-    
-    if (testMatch && testMatch.length > 0) {
-      console.log('✅ Found field reference patterns:', testMatch);
-      
-      // Replace VALUE_OF() or FIELD() with FIELD_REF:: prefix
-      transformedValue = transformedValue.replace(
-        fieldRefPattern,
-        (fullMatch, uuid) => {
-          console.log('  - Replacing:', fullMatch, '-> FIELD_REF::' + uuid);
-          return `FIELD_REF::${uuid}`;
-        }
-      );
-      
-      console.log('✅ Transformed value:', transformedValue);
-    } else {
-      console.log('ℹ️ No field references found - treating as static value');
-      console.log('  - To copy a field value, use: VALUE_OF("field-id") or FIELD("field-id")');
-    }
-  }
-
-  // Parse WHERE clause
-  let sqlWhereClause = ''
-  
-  // Check for boolean literals (true, false, 1, 0)
-  const trimmedWhere = whereClause.trim();
-  if (/^(true|false|1|0)$/i.test(trimmedWhere)) {
-    const boolValue = trimmedWhere.toLowerCase();
-    if (boolValue === 'true' || boolValue === '1') {
-      sqlWhereClause = 'TRUE';  // Match all records
-    } else {
-      sqlWhereClause = 'FALSE';  // Match no records
-    }
-  } else if (whereClause.match(/(submission_id|submission_ref_id)\s*(=|!=)\s*['""]?([^'"\s]+)['""]?/i)) {
-    // Check if it's a submission_id or submission_ref_id condition
-    const submissionIdMatch = whereClause.match(/(submission_id|submission_ref_id)\s*(=|!=)\s*['""]?([^'"\s]+)['""]?/i)
-    const operator = submissionIdMatch[2]
-    const submissionId = submissionIdMatch[3]
-    sqlWhereClause = `submission_ref_id ${operator} '${submissionId}'`
-  } else {
-    // Parse FIELD() condition
-    const fieldConditionMatch = whereClause.match(
-      /FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*(=|!=|>|<|>=|<=|LIKE|ILIKE)\s*['""]?([^'"]+?)['""]?$/i
-    )
-    
-    if (fieldConditionMatch) {
-      const conditionFieldId = fieldConditionMatch[1]
-      const operator = fieldConditionMatch[2].toUpperCase()
-      const conditionValue = fieldConditionMatch[3].trim()
-      
-      // Build SQL condition based on operator
-      if (operator === 'LIKE' || operator === 'ILIKE') {
-        sqlWhereClause = `submission_data ->> '${conditionFieldId}' ${operator} '${conditionValue}'`
-      } else if (operator === '>' || operator === '<' || operator === '>=' || operator === '<=') {
-        sqlWhereClause = `(submission_data ->> '${conditionFieldId}')::numeric ${operator} ${conditionValue}`
-      } else {
-      sqlWhereClause = `submission_data ->> '${conditionFieldId}' ${operator} '${conditionValue}'`
-      }
-    } else {
-      errors.push('Invalid WHERE clause. Use: WHERE true OR WHERE submission_id/submission_ref_id = \'id\' OR WHERE FIELD(\'field_id\') operator \'value\'')
-      return { errors }
-    }
-  }
-
-  // Build the final SQL - store metadata for batch update using unique delimiter
-  const sql = `UPDATE||BATCH||${formId}||${fieldId}||${transformedValue}||${sqlWhereClause}`
 
   return { sql, errors }
 }
@@ -1067,7 +895,8 @@ async function executeSystemTableQuery(query: string): Promise<QueryResult> {
  */
 export async function executeUserQuery(
   userInput: string,
-  loopContext?: LoopContext
+  loopContext?: LoopContext,
+  options: { currentRecord?: CurrentRecordContext } = {},
 ): Promise<QueryResult> {
   // Initialize loop context if not provided
   if (!loopContext) {
@@ -1221,7 +1050,7 @@ export async function executeUserQuery(
 
     // Handle UPDATE queries differently
     if (sql?.startsWith('UPDATE')) {
-      return await executeUpdateQuery(sql)
+      return await executeUpdateQuery(sql, options.currentRecord)
     }
 
     // Check if this is a CTE query
@@ -1755,206 +1584,6 @@ function parseSelectExpressions(selectExpr: string): Array<{
   return parts;
 }
 
-/**
- * Evaluate SELECT expression for a row with CASE WHEN support
- */
-function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record<string, any>): any {
-  // Handle WEIGHTED_VALUE with single field reference
-  const weightedSingleMatch = expr.match(/WEIGHTED_VALUE\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)/i);
-  if (weightedSingleMatch) {
-    const fieldId = weightedSingleMatch[1];
-    const fieldValue = row[fieldId] ?? 0;
-    const weightage = fieldMetadata?.[fieldId]?.weightage || 1;
-    
-    console.log('=== WEIGHTED_VALUE Debug ===');
-    console.log('Field ID:', fieldId);
-    console.log('Field Value from row:', fieldValue);
-    console.log('Field Metadata:', fieldMetadata?.[fieldId]);
-    console.log('Weightage:', weightage);
-    console.log('Calculation:', fieldValue, 'x', weightage, '=', (parseFloat(fieldValue) || 0) * weightage);
-    console.log('Row keys:', Object.keys(row));
-    
-    return (parseFloat(fieldValue) || 0) * weightage;
-  }
-  
-  // Handle FIELD_WEIGHTAGE function
-  const weightageMatch = expr.match(/FIELD_WEIGHTAGE\s*\(\s*FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*\)/i);
-  if (weightageMatch) {
-    const fieldId = weightageMatch[1];
-    const weightage = fieldMetadata?.[fieldId]?.weightage || 1;
-    
-    console.log('=== FIELD_WEIGHTAGE Debug ===');
-    console.log('Field ID:', fieldId);
-    console.log('Field Metadata:', fieldMetadata?.[fieldId]);
-    console.log('Weightage:', weightage);
-    
-    return weightage;
-  }
-  
-  // Handle CASE WHEN expressions
-  const caseMatch = expr.match(/CASE\s+WHEN\s+(.+?)\s+THEN\s+(.+?)(?:\s+WHEN\s+(.+?)\s+THEN\s+(.+?))*(?:\s+ELSE\s+(.+?))?\s+END/i);
-  if (caseMatch) {
-    return evaluateCaseExpression(expr, row);
-  }
-  
-  // Handle FIELD() references - support straight and curly quotes
-  expr = expr.replace(/FIELD\s*\(\s*(['""''])([^'""'']+)(['""''])\s*\)/gi, (_, openQuote, fieldId) => {
-    return `${fieldId}`;
-  });
-  
-  // Handle system columns
-  if (expr === 'submission_id') return row.submission_id;
-  if (expr === 'submitted_by') return row.submitted_by;
-  if (expr === 'submitted_at') return row.submitted_at;
-  
-  // Check if it's a simple field reference
-  if (/^[a-zA-Z0-9_-]+$/.test(expr)) {
-    const value = row[expr] ?? null;
-    return serializeFieldValue(value);
-  }
-  
-  // Evaluate complex expressions with functions (pass fieldMetadata)
-  try {
-    return evaluateExpression(expr, row, fieldMetadata);
-  } catch (e) {
-    console.error('Expression evaluation error:', e);
-    return null;
-  }
-}
-
-/**
- * Evaluate CASE WHEN expressions
- */
-function evaluateCaseExpression(caseExpr: string, row: any): any {
-  try {
-    // Extract all WHEN ... THEN ... clauses
-    const whenMatches = [...caseExpr.matchAll(/WHEN\s+(.+?)\s+THEN\s+(.+?)(?=\s+WHEN|\s+ELSE|\s+END)/gi)];
-    
-    for (const match of whenMatches) {
-      const condition = match[1].trim();
-      const value = match[2].trim();
-      
-      // Evaluate condition
-      if (evaluateWhereCondition(condition, row)) {
-        // Evaluate and return the value
-        return evaluateSelectExpression(value, row);
-      }
-    }
-    
-    // Check for ELSE clause
-    const elseMatch = caseExpr.match(/ELSE\s+(.+?)\s+END/i);
-    if (elseMatch) {
-      const elseValue = elseMatch[1].trim();
-      return evaluateSelectExpression(elseValue, row);
-    }
-    
-    return null;
-  } catch (e) {
-    console.error('CASE expression evaluation error:', e);
-    return null;
-  }
-}
-
-/**
- * Evaluate WHERE/HAVING condition with enhanced operator support
- */
-function evaluateWhereCondition(condition: string, row: any): boolean {
-  // Replace FIELD() with actual values - support straight and curly quotes
-  // Pattern supports: FIELD("uuid"), FIELD('uuid'), FIELD("uuid"), FIELD('uuid')
-  let processedCondition = condition.replace(/FIELD\s*\(\s*(['""''])([^'""'']+)(['""''])\s*\)/gi, (match, openQuote, fieldId) => {
-    const value = row[fieldId];
-    if (value === null || value === undefined) return 'NULL';
-    if (typeof value === 'string') return `'${value.replace(/'/g, "\\'")}'`;
-    return String(value);
-  });
-  
-  // Handle system columns
-  processedCondition = processedCondition.replace(/\bsubmission_id\b/gi, () => {
-    return `'${row.submission_id}'`;
-  });
-  processedCondition = processedCondition.replace(/\bsubmission_ref_id\b/gi, () => {
-    return `'${row.submission_ref_id}'`;
-  });
-  
-  try {
-    // Handle IS NULL / IS NOT NULL
-    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+IS\s+NOT\s+NULL/gi, (match, field) => {
-      const cleanField = field.replace(/'/g, '');
-      const value = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
-      return value !== null && value !== undefined ? 'true' : 'false';
-    });
-    
-    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+IS\s+NULL/gi, (match, field) => {
-      const cleanField = field.replace(/'/g, '');
-      const value = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
-      return value === null || value === undefined ? 'true' : 'false';
-    });
-    
-    // Handle IN operator
-    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+IN\s*\(([^)]+)\)/gi, (match, field, list) => {
-      const cleanField = field.replace(/'/g, '');
-      const fieldValue = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
-      const values = list.split(',').map((v: string) => {
-        const trimmed = v.trim();
-        return trimmed.startsWith("'") && trimmed.endsWith("'") ? trimmed.slice(1, -1) : trimmed;
-      });
-      return values.includes(String(fieldValue)) ? 'true' : 'false';
-    });
-    
-    // Handle NOT IN operator
-    processedCondition = processedCondition.replace(/(\w+|'[^']+')\s+NOT\s+IN\s*\(([^)]+)\)/gi, (match, field, list) => {
-      const cleanField = field.replace(/'/g, '');
-      const fieldValue = field.startsWith("'") ? field.slice(1, -1) : row[cleanField];
-      const values = list.split(',').map((v: string) => {
-        const trimmed = v.trim();
-        return trimmed.startsWith("'") && trimmed.endsWith("'") ? trimmed.slice(1, -1) : trimmed;
-      });
-      return !values.includes(String(fieldValue)) ? 'true' : 'false';
-    });
-    
-    // Handle BETWEEN operator
-    processedCondition = processedCondition.replace(/(\w+|'[^']+'|\d+)\s+BETWEEN\s+([^\s]+)\s+AND\s+([^\s]+)/gi, (match, field, min, max) => {
-      const cleanField = field.replace(/'/g, '');
-      const fieldValue = parseFloat(field.startsWith("'") ? field.slice(1, -1) : (row[cleanField] ?? field));
-      const minVal = parseFloat(min.replace(/'/g, ''));
-      const maxVal = parseFloat(max.replace(/'/g, ''));
-      return (fieldValue >= minVal && fieldValue <= maxVal) ? 'true' : 'false';
-    });
-    
-    // Handle LIKE operator
-    processedCondition = processedCondition.replace(/([^\s]+)\s+LIKE\s+'([^']+)'/gi, (match, field, pattern) => {
-      const fieldValue = String(row[field] ?? '');
-      const regexPattern = pattern.replace(/%/g, '.*').replace(/_/g, '.');
-      const regex = new RegExp('^' + regexPattern + '$', 'i');
-      return regex.test(fieldValue) ? 'true' : 'false';
-    });
-    
-    // Handle NOT LIKE operator
-    processedCondition = processedCondition.replace(/([^\s]+)\s+NOT\s+LIKE\s+'([^']+)'/gi, (match, field, pattern) => {
-      const fieldValue = String(row[field] ?? '');
-      const regexPattern = pattern.replace(/%/g, '.*').replace(/_/g, '.');
-      const regex = new RegExp('^' + regexPattern + '$', 'i');
-      return !regex.test(fieldValue) ? 'true' : 'false';
-    });
-    
-    // Handle NOT operator (before converting other operators)
-    processedCondition = processedCondition.replace(/\bNOT\s+\(/gi, '!(');
-    
-    // Convert SQL operators to JavaScript
-    processedCondition = processedCondition.replace(/\s+AND\s+/gi, ' && ');
-    processedCondition = processedCondition.replace(/\s+OR\s+/gi, ' || ');
-    processedCondition = processedCondition.replace(/\s*<>\s*/g, ' !== ');
-    processedCondition = processedCondition.replace(/\s*!=\s*/g, ' !== ');
-    processedCondition = processedCondition.replace(/\s*=\s*/g, ' === ');
-    
-    // Safely evaluate
-    const result = new Function('return ' + processedCondition)();
-    return result;
-  } catch (e) {
-    console.error('Condition evaluation error:', e, 'Condition:', processedCondition);
-    return false;
-  }
-}
 
 /**
  * Execute a JOIN operation between two row sets
@@ -2178,69 +1807,6 @@ async function executeSubquery(subqueryStr: string, loopContext?: LoopContext): 
   };
 }
 
-/**
- * Serialize field values properly for display in query results
- */
-function serializeFieldValue(value: any): any {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  
-  // Handle arrays (like cross-reference field values)
-  if (Array.isArray(value)) {
-    // If it's an array of primitives, join with commas
-    if (value.length === 0) return null;
-    if (typeof value[0] === 'string' || typeof value[0] === 'number') {
-      return value.join(', ');
-    }
-    
-    // If it's an array of cross-reference objects, format them nicely
-    if (typeof value[0] === 'object' && value[0] !== null) {
-      const formatted = value.map(item => {
-        // Create a new object with submission_ref_id and form_id first, remove id, and flatten displayData
-        const result: any = {};
-        
-        // Add submission_ref_id first if it exists
-        if (item.submission_ref_id) {
-          result.submission_ref_id = item.submission_ref_id;
-        }
-        
-        // Add form_id after submission_ref_id
-        if (item.form_id) {
-          result.form_id = item.form_id;
-        }
-        
-        // Flatten displayData into the main object (field values)
-        if (item.displayData && typeof item.displayData === 'object') {
-          Object.assign(result, item.displayData);
-        }
-        
-        // Add any other properties except 'id', 'displayData', 'submission_ref_id', and 'form_id'
-        Object.keys(item).forEach(key => {
-          if (key !== 'id' && key !== 'displayData' && key !== 'submission_ref_id' && key !== 'form_id') {
-            result[key] = item[key];
-          }
-        });
-        
-        return result;
-      });
-      
-      // Return as formatted JSON string
-      return JSON.stringify(formatted, null, 2);
-    }
-    
-    // Otherwise stringify the array
-    return JSON.stringify(value);
-  }
-  
-  // Handle objects (like structured data)
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  
-  // Return primitive values as-is
-  return value;
-}
 
 /**
  * Replace field IDs with their labels in cross-reference data
@@ -2742,10 +2308,157 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
   }
 }
 
+interface UpdateTargetRow {
+  id?: string;
+  submission_ref_id?: string;
+  submission_data: Record<string, any>;
+  isCurrentRecord?: boolean;
+}
+
+/**
+ * The record open in the form. UPDATE FORM queries that use @submission_id are evaluated
+ * against these values, so unsaved edits and new records are calculated too.
+ */
+export interface CurrentRecordContext {
+  formId: string;
+  submissionId?: string;
+  values: Record<string, any>;
+}
+
+export interface UpdateAssignment {
+  fieldId: string;
+  value: any;
+}
+
+async function loadCurrentRecordRow(current: CurrentRecordContext): Promise<UpdateTargetRow> {
+  let stored: { id: string; submission_ref_id?: string; submission_data: Record<string, any> } | null = null;
+  if (current.submissionId) {
+    const { data } = await supabase
+      .from('form_submissions')
+      .select('id, submission_data, submission_ref_id')
+      .eq('id', current.submissionId)
+      .eq('form_id', current.formId)
+      .maybeSingle();
+    stored = data || null;
+  }
+  return {
+    id: stored?.id,
+    submission_ref_id: stored?.submission_ref_id,
+    submission_data: { ...(stored?.submission_data || {}), ...current.values },
+    isCurrentRecord: true,
+  };
+}
+
+function sameStoredValue(a: unknown, b: unknown): boolean {
+  const normalize = (value: unknown) => (value === null || value === undefined ? '' : JSON.stringify(value));
+  return normalize(a) === normalize(b) || String(a ?? '') === String(b ?? '');
+}
+
+/** Rows an UPDATE FORM statement applies to when it does not target the open record. */
+async function selectUpdateTargets(
+  formId: string,
+  whereClause: string,
+): Promise<{ rows: UpdateTargetRow[] } | { error: string }> {
+  // Fetch all matching submissions based on WHERE clause
+  let query = supabase
+    .from('form_submissions')
+    .select('id, submission_data, submission_ref_id')
+    .eq('form_id', formId);
+
+  // Apply WHERE filter for submission_ref_id or submission_id (both map to submission_ref_id column)
+  const submissionIdMatch = whereClause.match(/(?:submission_ref_id|submission_id)\s+(=|!=)\s+'([^']+)'/i);
+  console.log('  - Regex match result:', submissionIdMatch);
+  
+  if (submissionIdMatch) {
+    const operator = submissionIdMatch[1];
+    const submissionId = submissionIdMatch[2];
+    console.log('  - Matched operator:', operator);
+    console.log('  - Matched submission ID:', submissionId);
+    if (operator === '=') {
+      query = query.eq('submission_ref_id', submissionId);
+    } else {
+      query = query.neq('submission_ref_id', submissionId);
+    }
+  } else {
+    console.log('  - ⚠️ WHERE clause did not match submission_id pattern');
+  }
+
+  const { data: submissions, error: fetchError } = await query;
+
+  console.log('  - Query result:');
+  console.log('    - Error:', fetchError);
+  console.log('    - Submissions found:', submissions?.length || 0);
+  if (submissions && submissions.length > 0) {
+    console.log('    - First submission ref_id:', submissions[0].submission_ref_id);
+  }
+
+  if (fetchError) {
+    return { error: fetchError.message };
+  }
+
+  if (!submissions || submissions.length === 0) {
+    return { error: 'No submissions found matching the WHERE clause' };
+  }
+
+  // Filter submissions based on FIELD() conditions or boolean literals
+  let filteredSubmissions = submissions;
+  
+  // Check for boolean literals (TRUE/FALSE)
+  if (whereClause === 'TRUE') {
+    // Keep all submissions
+    filteredSubmissions = submissions;
+  } else if (whereClause === 'FALSE') {
+    // Filter out all submissions
+    filteredSubmissions = [];
+  } else if (!submissionIdMatch) {
+    const fieldConditionMatch = whereClause.match(
+      /submission_data ->> '([^']+)' (=|!=|>|<|>=|<=|LIKE|ILIKE) '?([^']+)'?$/i
+    );
+    
+    if (fieldConditionMatch) {
+      const conditionFieldId = fieldConditionMatch[1];
+      const operator = fieldConditionMatch[2];
+      const conditionValue = fieldConditionMatch[3];
+
+      filteredSubmissions = submissions.filter(sub => {
+        const fieldValue = sub.submission_data[conditionFieldId];
+        
+        switch (operator) {
+          case '=':
+            return fieldValue == conditionValue;
+          case '!=':
+            return fieldValue != conditionValue;
+          case '>':
+            return parseFloat(fieldValue) > parseFloat(conditionValue);
+          case '<':
+            return parseFloat(fieldValue) < parseFloat(conditionValue);
+          case '>=':
+            return parseFloat(fieldValue) >= parseFloat(conditionValue);
+          case '<=':
+            return parseFloat(fieldValue) <= parseFloat(conditionValue);
+          case 'LIKE':
+          case 'ILIKE':
+            const pattern = conditionValue.replace(/%/g, '.*');
+            const regex = new RegExp(pattern, operator === 'ILIKE' ? 'i' : '');
+            return regex.test(String(fieldValue || ''));
+          default:
+            return false;
+        }
+      });
+    }
+  }
+
+  if (filteredSubmissions.length === 0) {
+    return { error: 'No submissions matched the filter criteria' };
+  }
+
+  return { rows: filteredSubmissions };
+}
+
 /**
  * Execute UPDATE queries using Supabase client with support for SQL functions
  */
-async function executeUpdateQuery(sql: string): Promise<QueryResult> {
+async function executeUpdateQuery(sql: string, currentRecord?: CurrentRecordContext): Promise<QueryResult> {
   try {
     // Parse the batch update metadata using unique delimiter
     if (!sql.startsWith('UPDATE||BATCH||')) {
@@ -2767,98 +2480,15 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     console.log('  - WHERE clause:', whereClause);
     console.log('  - WHERE clause length:', whereClause.length);
 
-    // Fetch all matching submissions based on WHERE clause
-    let query = supabase
-      .from('form_submissions')
-      .select('id, submission_data, submission_ref_id')
-      .eq('form_id', formId);
-
-    // Apply WHERE filter for submission_ref_id or submission_id (both map to submission_ref_id column)
-    const submissionIdMatch = whereClause.match(/(?:submission_ref_id|submission_id)\s+(=|!=)\s+'([^']+)'/i);
-    console.log('  - Regex match result:', submissionIdMatch);
-    
-    if (submissionIdMatch) {
-      const operator = submissionIdMatch[1];
-      const submissionId = submissionIdMatch[2];
-      console.log('  - Matched operator:', operator);
-      console.log('  - Matched submission ID:', submissionId);
-      if (operator === '=') {
-        query = query.eq('submission_ref_id', submissionId);
-      } else {
-        query = query.neq('submission_ref_id', submissionId);
-      }
-    } else {
-      console.log('  - ⚠️ WHERE clause did not match submission_id pattern');
+    const currentRow = currentRecord && currentRecord.formId === formId
+      ? await loadCurrentRecordRow(currentRecord)
+      : null;
+    const targets = currentRow ? { rows: [currentRow] } : await selectUpdateTargets(formId, whereClause);
+    if ('error' in targets) {
+      return { columns: [], rows: [], errors: [targets.error] };
     }
-
-    const { data: submissions, error: fetchError } = await query;
-
-    console.log('  - Query result:');
-    console.log('    - Error:', fetchError);
-    console.log('    - Submissions found:', submissions?.length || 0);
-    if (submissions && submissions.length > 0) {
-      console.log('    - First submission ref_id:', submissions[0].submission_ref_id);
-    }
-
-    if (fetchError) {
-      return { columns: [], rows: [], errors: [fetchError.message] };
-    }
-
-    if (!submissions || submissions.length === 0) {
-      return { columns: [], rows: [], errors: ['No submissions found matching the WHERE clause'] };
-    }
-
-    // Filter submissions based on FIELD() conditions or boolean literals
-    let filteredSubmissions = submissions;
-    
-    // Check for boolean literals (TRUE/FALSE)
-    if (whereClause === 'TRUE') {
-      // Keep all submissions
-      filteredSubmissions = submissions;
-    } else if (whereClause === 'FALSE') {
-      // Filter out all submissions
-      filteredSubmissions = [];
-    } else if (!submissionIdMatch) {
-      const fieldConditionMatch = whereClause.match(
-        /submission_data ->> '([^']+)' (=|!=|>|<|>=|<=|LIKE|ILIKE) '?([^']+)'?$/i
-      );
-      
-      if (fieldConditionMatch) {
-        const conditionFieldId = fieldConditionMatch[1];
-        const operator = fieldConditionMatch[2];
-        const conditionValue = fieldConditionMatch[3];
-
-        filteredSubmissions = submissions.filter(sub => {
-          const fieldValue = sub.submission_data[conditionFieldId];
-          
-          switch (operator) {
-            case '=':
-              return fieldValue == conditionValue;
-            case '!=':
-              return fieldValue != conditionValue;
-            case '>':
-              return parseFloat(fieldValue) > parseFloat(conditionValue);
-            case '<':
-              return parseFloat(fieldValue) < parseFloat(conditionValue);
-            case '>=':
-              return parseFloat(fieldValue) >= parseFloat(conditionValue);
-            case '<=':
-              return parseFloat(fieldValue) <= parseFloat(conditionValue);
-            case 'LIKE':
-            case 'ILIKE':
-              const pattern = conditionValue.replace(/%/g, '.*');
-              const regex = new RegExp(pattern, operator === 'ILIKE' ? 'i' : '');
-              return regex.test(String(fieldValue || ''));
-            default:
-              return false;
-          }
-        });
-      }
-    }
-
-    if (filteredSubmissions.length === 0) {
-      return { columns: [], rows: [], errors: ['No submissions matched the filter criteria'] };
-    }
+    const filteredSubmissions = targets.rows;
+    const assignments: UpdateAssignment[] = [];
 
     // Update each matching submission
     const updatePromises = filteredSubmissions.map(async (submission) => {
@@ -3060,7 +2690,7 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
           
           // Handle CASE WHEN expressions
           if (/CASE\s+WHEN/i.test(funcExpr)) {
-            newValue = evaluateCaseExpression(funcExpr, row);
+            newValue = evaluateUpdateFormula(funcExpr, row);
           } else if (/[+\-*\/]/.test(funcExpr)) {
             // Handle arithmetic expressions
             const arithmeticExpr = funcExpr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, (_, fieldId) => {
@@ -3193,6 +2823,12 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
           }
         }
 
+        if (submission.isCurrentRecord) {
+          const previous = submission.submission_data[fieldId];
+          assignments.push({ fieldId, value: finalValue });
+          if (!submission.id || sameStoredValue(previous, finalValue)) return true;
+        }
+
         // Update the submission
         const updatedSubmissionData = {
           ...(submission.submission_data as Record<string, any>),
@@ -3219,6 +2855,18 @@ async function executeUpdateQuery(sql: string): Promise<QueryResult> {
     const results = await Promise.all(updatePromises);
     const successCount = results.filter(r => r).length;
     const failureCount = results.filter(r => !r).length;
+
+    if (currentRow) {
+      if (failureCount > 0) {
+        return { columns: [], rows: [], errors: ['The calculated value could not be saved to this record'] };
+      }
+      return {
+        columns: ['Calculated value'],
+        rows: assignments.map((item) => [serializeFieldValue(item.value)]),
+        errors: [],
+        assignments,
+      };
+    }
 
     if (failureCount > 0) {
       return {

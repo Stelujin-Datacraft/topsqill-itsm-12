@@ -92,3 +92,6 @@ jobs:
 
       - name: Control objective and asset foundation forms
         run: npx tsx --tsconfig tsconfig.app.json src/lib/grc/foundation.test.ts
+
+      - name: Asset scoring query field calculations
+        run: npx tsx --tsconfig tsconfig.app.json src/lib/grc/assetScoring.test.ts
