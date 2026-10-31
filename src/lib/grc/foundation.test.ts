@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { collectFoundationValueErrors, collectSingleParentReferenceErrors } from '@/lib/formSubmitChecks';
+import { GRC_FOUNDATION_CALCULATIONS } from '@/lib/grc/assetScoring';
+import { ASSESSMENT_OUTPUT_TOOLTIPS, LEGACY_SCORING_PENDING_TOOLTIP } from '@/lib/grc/assetScoringRule';
 import { createFoundationBlueprint } from '@/lib/grc/createFoundationBlueprint';
 import {
   ASSET_ASSESSMENT_FORM_NAME,
@@ -188,6 +190,65 @@ assert.equal(JSON.parse(assetLink.custom_config).targetFormId, assetForm.id);
 const again = await provisionGrcFoundationIfMissing(db, input);
 assert.deepEqual(again.createdReferenceIds, []);
 assert.equal(db.tables.forms.filter((row) => row.reference_id === ASSET_REGISTER_REFERENCE_ID).length, 1);
+
+const configOf = (row: any) => (typeof row.custom_config === 'string' ? JSON.parse(row.custom_config) : row.custom_config || {});
+const pagesOf = (form: any) => (typeof form.pages === 'string' ? JSON.parse(form.pages) : form.pages);
+const queryFields = (formId: string) =>
+  db.tables.form_fields.filter((row) => row.form_id === formId && row.field_type === 'query-field');
+const fieldByKey = (formId: string, key: string) =>
+  db.tables.form_fields.find((row) => row.form_id === formId && configOf(row).libraryKey === key);
+
+for (const [form, count] of [[assessmentForm, 6], [assetForm, 7]] as const) {
+  assert.equal(queryFields(form.id).length, count);
+  const pageFieldIds = pagesOf(form).flatMap((page: any) => page.fields);
+  for (const calc of GRC_FOUNDATION_CALCULATIONS.filter((item) => item.formReferenceId === form.reference_id)) {
+    const row = fieldByKey(form.id, calc.key);
+    assert.ok(row, calc.key);
+    const config = configOf(row);
+    assert.equal(config.executeOn, calc.executeOn);
+    assert.equal(config.targetFieldId, calc.watchKey ? fieldByKey(form.id, calc.watchKey).id : '');
+    assert.equal(config.query.includes('{{'), false);
+    assert.ok(config.query.includes(`UPDATE FORM "${form.id}"`));
+    assert.ok(config.query.includes(`FIELD("${fieldByKey(form.id, calc.outputKey).id}")`));
+    const outputIndex = pageFieldIds.indexOf(fieldByKey(form.id, calc.outputKey).id);
+    assert.ok(outputIndex >= 0 && pageFieldIds.indexOf(row.id) > outputIndex, `${calc.key} placed after its output`);
+  }
+}
+const assetCopy = configOf(fieldByKey(assetForm.id, 'calc_asset_value_score')).query;
+assert.ok(assetCopy.includes(`FROM "${assessmentForm.id}"`));
+assert.ok(assetCopy.includes(`FIELD("${fieldByKey(assetForm.id, 'latest_approved_assessment').id}")`));
+assert.equal(fieldByKey(assessmentForm.id, 'asset_value_score').tooltip, ASSESSMENT_OUTPUT_TOOLTIPS.asset_value_score);
+assert.equal(queryFields(assessmentForm.id).length + queryFields(assetForm.id).length, 13);
+
+const editedScore = fieldByKey(assessmentForm.id, 'calc_asset_value_score');
+editedScore.custom_config = JSON.stringify({ ...configOf(editedScore), query: 'UPDATE FORM "x" SET FIELD("y") = 1 WHERE submission_id = @submission_id' });
+const customTooltip = fieldByKey(assessmentForm.id, 'asset_criticality');
+customTooltip.tooltip = 'Set by our risk team';
+await provisionGrcFoundationIfMissing(db, input);
+assert.equal(queryFields(assessmentForm.id).length, 6);
+assert.match(configOf(fieldByKey(assessmentForm.id, 'calc_asset_value_score')).query, /FIELD\("y"\) = 1/);
+assert.equal(fieldByKey(assessmentForm.id, 'asset_criticality').tooltip, 'Set by our risk team');
+
+const legacyDb = memoryClient();
+await provisionStandardLibraryIfMissing(legacyDb, input);
+await provisionRegulatoryRegistersIfMissing(legacyDb, input);
+await provisionGrcFoundationIfMissing(legacyDb, input);
+const legacyAssessment = legacyDb.tables.forms.find((row) => row.reference_id === ASSET_ASSESSMENT_REFERENCE_ID);
+const legacyQueryIds = new Set(legacyDb.tables.form_fields.filter((row) => row.field_type === 'query-field').map((row) => row.id));
+legacyDb.tables.form_fields = legacyDb.tables.form_fields.filter((row) => !legacyQueryIds.has(row.id));
+for (const form of legacyDb.tables.forms) {
+  if (!form.pages) continue;
+  form.pages = JSON.stringify(pagesOf(form).map((page: any) => ({ ...page, fields: page.fields.filter((id: string) => !legacyQueryIds.has(id)) })));
+}
+const legacyScore = legacyDb.tables.form_fields.find(
+  (row) => row.form_id === legacyAssessment.id && configOf(row).libraryKey === 'asset_value_score',
+);
+legacyScore.tooltip = LEGACY_SCORING_PENDING_TOOLTIP;
+await provisionGrcFoundationIfMissing(legacyDb, input);
+assert.equal(legacyDb.tables.form_fields.filter((row) => row.field_type === 'query-field').length, 13);
+assert.equal(legacyScore.tooltip, ASSESSMENT_OUTPUT_TOOLTIPS.asset_value_score);
+assert.ok(pagesOf(legacyAssessment).flatMap((page: any) => page.fields).some((id: string) =>
+  legacyDb.tables.form_fields.find((row) => row.id === id)?.field_type === 'query-field'));
 
 const assetFields = assessment.fields;
 assert.deepEqual(collectSingleParentReferenceErrors(assetFields, {
