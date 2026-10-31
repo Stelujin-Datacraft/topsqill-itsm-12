@@ -1,10 +1,17 @@
 import { randomUUID } from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { GRC_FOUNDATION_CATALOG, GRC_FOUNDATION_LINKS } from './grc-foundation.catalog';
+import {
+  GRC_FOUNDATION_CALCULATIONS,
+  GRC_FOUNDATION_CATALOG,
+  GRC_FOUNDATION_LINKS,
+  GRC_FOUNDATION_OUTPUT_TOOLTIPS,
+  GRC_LEGACY_SCORING_TOOLTIP,
+} from './grc-foundation.catalog';
 
 type CatalogForm = (typeof GRC_FOUNDATION_CATALOG)[number];
 type CatalogField = CatalogForm['fields'][number];
 type CatalogLink = (typeof GRC_FOUNDATION_LINKS)[number];
+type CatalogCalculation = (typeof GRC_FOUNDATION_CALCULATIONS)[number];
 
 interface ProjectRow {
   id: string;
@@ -22,6 +29,15 @@ interface FieldRow {
   id: string;
   form_id: string;
   custom_config: unknown;
+  tooltip?: string | null;
+  field_order?: number | null;
+}
+
+interface PageRow {
+  id: string;
+  name?: string;
+  order?: number;
+  fields: string[];
 }
 
 export interface FoundationProvisionResult {
@@ -128,6 +144,12 @@ export async function provisionGrcFoundationRecords(
       await wireLinks(client, known);
     } catch (error) {
       result.errors.push(`cross-reference (${project.id}): ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    try {
+      await wireCalculations(client, known);
+    } catch (error) {
+      result.errors.push(`calculation query fields (${project.id}): ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -254,5 +276,150 @@ async function wireLinks(client: SupabaseClient, known: Map<string, string>) {
       })
       .eq('id', sourceField.id);
     if (error) throw new Error(error.message);
+  }
+}
+
+const TEMPLATE_TOKEN = /\{\{(form|field)(?::([^}]+))?\}\}/g;
+
+function resolveTemplate(
+  template: string,
+  formId: (referenceId?: string) => string | undefined,
+  fieldId: (key: string, referenceId?: string) => string | undefined,
+): string | null {
+  let missing = false;
+  const resolved = template.replace(TEMPLATE_TOKEN, (_token, kind: string, body?: string) => {
+    const parts = (body || '').split(':');
+    const id = kind === 'form'
+      ? formId(body)
+      : parts.length > 1 ? fieldId(parts[1], parts[0]) : fieldId(parts[0]);
+    if (!id) missing = true;
+    return id || '';
+  });
+  return missing ? null : resolved;
+}
+
+function calculationConfig(calc: CatalogCalculation, query: string, watchFieldId: string) {
+  return {
+    libraryKey: calc.key,
+    query,
+    executeOn: calc.executeOn,
+    targetFieldId: watchFieldId,
+    displayMode: 'data',
+    showResults: true,
+    maxResults: 10,
+    refreshInterval: 0,
+    enableValidation: true,
+  };
+}
+
+async function fieldsOf(client: SupabaseClient, formId: string): Promise<FieldRow[]> {
+  const { data, error } = await client
+    .from('form_fields')
+    .select('id, form_id, custom_config, tooltip, field_order')
+    .eq('form_id', formId);
+  if (error) throw new Error(error.message);
+  return (data || []) as FieldRow[];
+}
+
+/**
+ * Adds the asset calculation query fields (UPDATE FORM ... WHERE submission_id = @submission_id)
+ * to new and existing Asset Assessment Questionnaire and Asset Register forms.
+ * A query field that already has SQL is left alone, so builder edits are kept.
+ */
+async function wireCalculations(client: SupabaseClient, known: Map<string, string>) {
+  const fieldCache = new Map<string, FieldRow[]>();
+  const cachedFields = async (formId: string) => {
+    if (!fieldCache.has(formId)) fieldCache.set(formId, await fieldsOf(client, formId));
+    return fieldCache.get(formId)!;
+  };
+  const idsByKey = async (formId: string) =>
+    new Map((await cachedFields(formId)).map((row) => [libraryKeyOf(row.custom_config), row.id]));
+
+  for (const referenceId of new Set(GRC_FOUNDATION_CALCULATIONS.map((calc) => calc.formReferenceId))) {
+    const formId = known.get(referenceId);
+    if (!formId) continue;
+    const fields = await cachedFields(formId);
+    const own = await idsByKey(formId);
+    const others = new Map<string, Map<string | undefined, string>>();
+    for (const [otherReference, otherId] of known) {
+      if (otherReference !== referenceId) others.set(otherReference, await idsByKey(otherId));
+    }
+
+    const { data: formRow, error: formError } = await client.from('forms').select('pages').eq('id', formId).single();
+    if (formError) throw new Error(formError.message);
+    const rawPages = (formRow as { pages?: unknown } | null)?.pages;
+    const pages = (typeof rawPages === 'string' ? JSON.parse(rawPages) : rawPages || []) as PageRow[];
+    let pagesChanged = false;
+    let nextOrder = fields.reduce((max, row) => Math.max(max, Number(row.field_order) || 0), 0) + 1;
+
+    for (const calc of GRC_FOUNDATION_CALCULATIONS.filter((item) => item.formReferenceId === referenceId)) {
+      const query = resolveTemplate(
+        calc.query,
+        (ref) => (ref ? known.get(ref) : formId),
+        (key, ref) => (ref && ref !== referenceId ? others.get(ref)?.get(key) : own.get(key)),
+      );
+      const watchKey = 'watchKey' in calc ? calc.watchKey : undefined;
+      const watchId = watchKey ? own.get(watchKey) : '';
+      if (!query || watchId === undefined) continue;
+      const config = calculationConfig(calc, query, watchId);
+
+      const existing = fields.find((row) => libraryKeyOf(row.custom_config) === calc.key);
+      if (existing) {
+        const current = parseConfig(existing.custom_config);
+        if (String(current.query || '').trim()) continue;
+        const { error } = await client
+          .from('form_fields')
+          .update({ custom_config: { ...current, ...config } })
+          .eq('id', existing.id);
+        if (error) throw new Error(error.message);
+        continue;
+      }
+
+      const id = randomUUID();
+      const { error } = await client.from('form_fields').insert({
+        id,
+        form_id: formId,
+        field_type: 'query-field',
+        label: calc.label,
+        placeholder: '',
+        required: false,
+        default_value: null,
+        options: null,
+        validation: null,
+        permissions: { read: ['*'], write: ['*'] },
+        triggers: [],
+        is_visible: true,
+        is_enabled: true,
+        current_value: '',
+        tooltip: calc.tooltip,
+        error_message: '',
+        field_order: nextOrder++,
+        custom_config: config,
+      });
+      if (error) throw new Error(`${calc.label}: ${error.message}`);
+      fields.push({ id, form_id: formId, custom_config: config, tooltip: calc.tooltip });
+
+      const outputId = own.get(calc.outputKey);
+      const page = pages.find((item) => Array.isArray(item.fields) && !!outputId && item.fields.includes(outputId))
+        || pages[pages.length - 1];
+      if (page) {
+        const after = outputId ? page.fields.indexOf(outputId) : -1;
+        page.fields.splice(after === -1 ? page.fields.length : after + 1, 0, id);
+        pagesChanged = true;
+      }
+    }
+
+    if (pagesChanged) {
+      const { error } = await client.from('forms').update({ pages }).eq('id', formId);
+      if (error) throw new Error(error.message);
+    }
+
+    for (const [key, tooltip] of Object.entries(GRC_FOUNDATION_OUTPUT_TOOLTIPS[referenceId] || {})) {
+      const row = fields.find((item) => libraryKeyOf(item.custom_config) === key);
+      if (!row || (row.tooltip && row.tooltip !== GRC_LEGACY_SCORING_TOOLTIP)) continue;
+      const { error } = await client.from('form_fields').update({ tooltip }).eq('id', row.id);
+      if (error) throw new Error(error.message);
+      row.tooltip = tooltip;
+    }
   }
 }

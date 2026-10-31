@@ -9,6 +9,7 @@ import {
   type FoundationCrossLink,
 } from '@/lib/grc/foundationCatalog';
 import { createFoundationBlueprint } from '@/lib/grc/createFoundationBlueprint';
+import { wireGrcCalculations } from '@/lib/grc/wireGrcCalculations';
 
 type DbError = { message?: string } | null;
 type DbClient = { from: (table: string) => any };
@@ -28,6 +29,7 @@ export interface ProvisionFoundationResult {
  * Creates the four foundation forms when they are missing.
  * Does not edit Regulatory Standard Library, Clause Register, or Requirement Register fields.
  * Does not insert child cross-reference fields.
+ * Adds the asset calculation query fields to new and existing forms.
  */
 export async function provisionGrcFoundationIfMissing(
   client: DbClient,
@@ -66,6 +68,7 @@ export async function provisionGrcFoundationIfMissing(
       displayColumns,
     });
   }
+  await wireGrcCalculations(client, formsByReference);
 
   return { createdReferenceIds, forms };
 }

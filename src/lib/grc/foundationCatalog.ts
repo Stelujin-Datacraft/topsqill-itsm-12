@@ -1,4 +1,5 @@
 import { REQUIREMENT_REGISTER_FORM_NAME, REQUIREMENT_REGISTER_REFERENCE_ID } from '@/lib/regulatory/requirementRegisterForm';
+import { ASSESSMENT_OUTPUT_TOOLTIPS, ASSET_REGISTER_OUTPUT_TOOLTIPS } from '@/lib/grc/assetScoringRule';
 
 export const CONTROL_OBJECTIVE_REFERENCE_ID = 'grc.control-objective-register';
 export const ASSET_TYPE_REFERENCE_ID = 'grc.asset-type-register';
@@ -45,7 +46,6 @@ export const ASSESSMENT_STATUS_OPTIONS = [
 ] as const;
 
 export const DURATION_PLACEHOLDER = 'Include a unit, for example 4 hours';
-export const SCORING_PENDING_TOOLTIP = 'No approved scoring rule is configured. This value stays blank until scoring weights are approved. It is not entered by hand and is not a SQL result.';
 
 /** One parent record. The cross-reference picker can still select several until submit. */
 export const SINGLE_PARENT_LIBRARY_KEYS = [
@@ -74,10 +74,10 @@ export const GRC_FOUNDATION_LIMITATIONS = [
   'Asset Category is stored on the Asset Type Register and shown through the Asset Type cross-reference. The Asset Register does not store a second category.',
   'Cross-reference links are stored on the source record. Target forms do not receive an automatic child cross-reference.',
   'Applicable Asset Types and Asset Assessments accept multiple records. Regulatory Requirement, Asset Type, Parent Asset, Latest Approved Assessment, and the questionnaire Asset field accept one record.',
-  'No scoring weights are configured. Asset Value Score, Asset Criticality, Suggested RTO, and Suggested RPO stay blank and are not written by SQL.',
-  'The query-field type is not in the form_fields type check, so calculations are not attached to the SQL Query module.',
+  'Asset scoring weights (Asset scoring v1) are a starting rule, not an approved policy. They live in the SQL of the calculation query fields and can be edited in the form builder.',
+  'Calculation query fields run in the browser when the record is open. Records that are never opened again keep their stored values.',
   'No workflow definition is created, because approver identities must not be hardcoded. Assessment Status records Draft, Submitted for Review, Changes Required, Approved, and Rejected.',
-  'Approved assessment values are not copied onto the Asset Register automatically.',
+  'Asset Register values are copied from the record selected in Latest Approved Assessment. The copy does not check that assessment\'s status.',
   'Support Team uses the group picker and organization groups. Submission Access Control is not used for ownership.',
   'Location, department, vendor, business service, and dependency fields are text. No location, vendor, or business-service form exists to reference.',
 ] as const;
@@ -176,14 +176,14 @@ function recoveryFields(page: string, enabled: boolean): FoundationFieldSpec[] {
   ];
 }
 
-function calculatedFields(page: string): FoundationFieldSpec[] {
+function calculatedFields(page: string, tooltips: Readonly<Record<string, string>>): FoundationFieldSpec[] {
   return [
-    { key: 'asset_value_score', label: 'Asset Value Score', type: 'number', required: false, page, enabled: false, tooltip: SCORING_PENDING_TOOLTIP },
-    { key: 'asset_criticality', label: 'Asset Criticality', type: 'select', required: false, page, options: ASSET_CRITICALITY_OPTIONS, enabled: false, tooltip: SCORING_PENDING_TOOLTIP },
-    { key: 'suggested_rto', label: 'Suggested RTO', type: 'text', required: false, page, ...duration, enabled: false, tooltip: SCORING_PENDING_TOOLTIP },
-    { key: 'suggested_rpo', label: 'Suggested RPO', type: 'text', required: false, page, ...duration, enabled: false, tooltip: SCORING_PENDING_TOOLTIP },
-    { key: 'calculation_timestamp', label: 'Calculation Timestamp', type: 'datetime', required: false, page, enabled: false, tooltip: SCORING_PENDING_TOOLTIP },
-    { key: 'calculation_rule_version', label: 'Calculation Rule Version', type: 'text', required: false, page, enabled: false, tooltip: SCORING_PENDING_TOOLTIP },
+    { key: 'asset_value_score', label: 'Asset Value Score', type: 'number', required: false, page, enabled: false, tooltip: tooltips.asset_value_score },
+    { key: 'asset_criticality', label: 'Asset Criticality', type: 'select', required: false, page, options: ASSET_CRITICALITY_OPTIONS, enabled: false, tooltip: tooltips.asset_criticality },
+    { key: 'suggested_rto', label: 'Suggested RTO', type: 'text', required: false, page, ...duration, enabled: false, tooltip: tooltips.suggested_rto },
+    { key: 'suggested_rpo', label: 'Suggested RPO', type: 'text', required: false, page, ...duration, enabled: false, tooltip: tooltips.suggested_rpo },
+    { key: 'calculation_timestamp', label: 'Calculation Timestamp', type: 'datetime', required: false, page, enabled: false, tooltip: tooltips.calculation_timestamp },
+    { key: 'calculation_rule_version', label: 'Calculation Rule Version', type: 'text', required: false, page, enabled: false, tooltip: tooltips.calculation_rule_version },
   ];
 }
 
@@ -291,8 +291,8 @@ const assetRegister: FoundationFormSpec = {
     { key: 'retirement_date', label: 'Retirement Date', type: 'date', required: false, page: assetLifecycle },
     { key: 'asset_assessments', label: 'Asset Assessments', type: 'cross-reference', required: false, page: assetLifecycle },
     { key: 'latest_approved_assessment', label: 'Latest Approved Assessment', type: 'cross-reference', required: false, page: assetLifecycle },
-    ...calculatedFields(assetLifecycle),
-    { key: 'last_assessment_date', label: 'Last Assessment Date', type: 'date', required: false, page: assetLifecycle, enabled: false },
+    ...calculatedFields(assetLifecycle, ASSET_REGISTER_OUTPUT_TOOLTIPS),
+    { key: 'last_assessment_date', label: 'Last Assessment Date', type: 'date', required: false, page: assetLifecycle, enabled: false, tooltip: ASSET_REGISTER_OUTPUT_TOOLTIPS.last_assessment_date },
     { key: 'next_review_date', label: 'Next Review Date', type: 'date', required: false, page: assetLifecycle, enabled: false },
   ],
 };
@@ -330,7 +330,7 @@ const assetAssessment: FoundationFormSpec = {
     { key: 'assessment_findings', label: 'Assessment Findings', type: 'textarea', required: false, page: assessmentEvidence },
     { key: 'recommended_actions', label: 'Recommended Actions', type: 'textarea', required: false, page: assessmentEvidence },
     { key: 'supporting_evidence', label: 'Supporting Evidence / Notes', type: 'textarea', required: false, page: assessmentEvidence },
-    ...calculatedFields(assessmentResults),
+    ...calculatedFields(assessmentResults, ASSESSMENT_OUTPUT_TOOLTIPS),
     { key: 'reviewing_asset_manager', label: 'Reviewing Asset Manager', type: 'user-picker', required: false, page: assessmentResults },
     { key: 'review_comments', label: 'Review Comments', type: 'textarea', required: false, page: assessmentResults },
     { key: 'approval_date', label: 'Approval Date', type: 'date', required: false, page: assessmentResults },
