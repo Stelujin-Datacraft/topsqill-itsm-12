@@ -9,6 +9,7 @@ import { Loader2, Play, Database, Eye, EyeOff, AlertCircle, BarChart3 } from 'lu
 import { executeUserQuery, QueryResult } from '@/services/sqlParser';
 import { useToast } from '@/hooks/use-toast';
 import { replaceQueryVariables, extractQueryVariables } from '@/utils/queryVariables';
+import { hasFieldValue, isCurrentRecordUpdate, sameFieldValue, updateFormTarget } from '@/utils/currentRecordQuery';
 import { validateQuery, validateFieldFunctions } from '@/utils/queryValidator';
 import { QueryResultChart } from '@/components/query/QueryResultChart';
 import { QueryResultPagination } from '@/components/query/QueryResultPagination';
@@ -29,6 +30,9 @@ interface QueryFieldProps {
   formData?: Record<string, any>;
   onFieldChange?: (fieldId: string, value: any) => void;
   onSubmitTrigger?: () => Promise<void>;
+  /** Form and submission open in the renderer; used by UPDATE FORM ... WHERE submission_id = @submission_id. */
+  currentFormId?: string;
+  currentSubmissionId?: string;
 }
 
 export function QueryField({ 
@@ -39,7 +43,9 @@ export function QueryField({
   disabled = false,
   formData = {},
   onFieldChange,
-  onSubmitTrigger
+  onSubmitTrigger,
+  currentFormId,
+  currentSubmissionId,
 }: QueryFieldProps) {
   const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -52,6 +58,9 @@ export function QueryField({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [hasSavedResults, setHasSavedResults] = useState(false);
   const lastTargetValueRef = useRef<any>(undefined);
+  const observedTargetRef = useRef(false);
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
   const { toast } = useToast();
 
   const customConfig = field.customConfig || {};
@@ -68,6 +77,7 @@ export function QueryField({
     formId = '',
     submissionId = ''
   } = customConfig;
+  const writesCurrentRecord = isCurrentRecordUpdate(query);
 
   // Validate query on change
   useEffect(() => {
@@ -113,11 +123,21 @@ export function QueryField({
       
       if (usedVariables.length > 0) {
         console.log('🔄 Replacing query variables:', usedVariables);
-        processedQuery = await replaceQueryVariables(query, { formId, submissionId });
+        processedQuery = await replaceQueryVariables(query, {
+          formId: writesCurrentRecord ? currentFormId || formId : formId,
+          submissionId: writesCurrentRecord ? currentSubmissionId : submissionId,
+        });
         console.log('   Processed query:', processedQuery);
       }
 
-      const result = await executeUserQuery(processedQuery);
+      const currentRecord = writesCurrentRecord
+        ? {
+            formId: currentFormId || updateFormTarget(query)?.formId || '',
+            submissionId: currentSubmissionId,
+            values: formDataRef.current || {},
+          }
+        : undefined;
+      const result = await executeUserQuery(processedQuery, undefined, { currentRecord });
       console.log(`✅ QueryField: Query executed successfully in ${Date.now() - startTime}ms`);
       console.log('   Rows returned:', result.rows.length);
       console.log('   Columns:', result.columns);
@@ -126,7 +146,16 @@ export function QueryField({
       setLastExecuted(new Date().toISOString());
       setCurrentPage(1); // Reset to first page
       
-      if (result.errors.length > 0) {
+      if (writesCurrentRecord) {
+        if (result.errors.length > 0) {
+          console.error('❌ QueryField: Calculation returned errors:', result.errors);
+        }
+        for (const assignment of result.assignments || []) {
+          if (!sameFieldValue(formDataRef.current?.[assignment.fieldId], assignment.value)) {
+            onFieldChange?.(assignment.fieldId, assignment.value);
+          }
+        }
+      } else if (result.errors.length > 0) {
         console.error('❌ QueryField: Query returned errors:', result.errors);
         toast({
           title: "Query Execution Error",
@@ -162,7 +191,7 @@ export function QueryField({
     } finally {
       setIsExecuting(false);
     }
-  }, [query, onChange, toast, executeOn, targetFieldId, validationErrors, enableValidation, formId, submissionId]);
+  }, [query, onChange, onFieldChange, toast, executeOn, targetFieldId, validationErrors, enableValidation, formId, submissionId, writesCurrentRecord, currentFormId, currentSubmissionId]);
 
   // Initialize hasExecutedOnLoad for field-change mode (needs to be ready before changes occur)
   useEffect(() => {
@@ -187,6 +216,16 @@ export function QueryField({
   useEffect(() => {
     if (executeOn === 'field-change' && targetFieldId && hasExecutedOnLoad) {
       // Only execute if the target field value actually changed (not just formData reference)
+      if (writesCurrentRecord && !observedTargetRef.current) {
+        observedTargetRef.current = true;
+        lastTargetValueRef.current = targetFieldValue;
+        // Fill a blank result on open; after that, recalculate only when the watched field changes.
+        const writtenFieldId = updateFormTarget(query)?.fieldId;
+        if (writtenFieldId && hasFieldValue(formDataRef.current?.[writtenFieldId])) return;
+        executeQuery();
+        return;
+      }
+
       const hasValueChanged = lastTargetValueRef.current !== targetFieldValue;
       
       if (hasValueChanged) {
@@ -199,7 +238,7 @@ export function QueryField({
         executeQuery();
       }
     }
-  }, [targetFieldValue, executeOn, targetFieldId, hasExecutedOnLoad, executeQuery]);
+  }, [targetFieldValue, executeOn, targetFieldId, hasExecutedOnLoad, executeQuery, writesCurrentRecord, query]);
 
   // Auto-refresh interval - only if not submit mode
   useEffect(() => {

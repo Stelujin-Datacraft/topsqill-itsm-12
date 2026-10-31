@@ -105,6 +105,17 @@ import { SubmissionAccessField } from './form-fields/SubmissionAccessField';
 import { SelectFieldWithSearch } from './form-fields/SelectFieldWithSearch';
 import { RadioFieldWithSearch } from './form-fields/RadioFieldWithSearch';
 
+// datetime-local inputs reject values with seconds or a zone, which calculated
+// timestamps (NOW()) carry, so those are shown in local time to the minute.
+function toDateTimeLocalValue(value: any): string {
+  if (typeof value !== 'string' || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return value || '';
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 interface FormFieldsRendererProps {
   fields: FormField[];
   formData: Record<string, any>;
@@ -614,7 +625,7 @@ case 'submission-access':
         const datetimeConfig = field.customConfig || {};
         const datetimeValue = datetimeConfig.autoPopulate && !formData[field.id] 
           ? new Date().toISOString().slice(0, 16)
-          : formData[field.id] || '';
+          : toDateTimeLocalValue(formData[field.id]);
         
         return (
           <div className="space-y-2">
@@ -1219,6 +1230,8 @@ case 'query-field':
         disabled={!fieldState.isEnabled}
         formData={formData}
         onFieldChange={onFieldChange}
+        currentFormId={formId}
+        currentSubmissionId={currentSubmissionId}
       />
       {errors[field.id] && (
         <p className="text-sm text-red-500">{errors[field.id]}</p>
