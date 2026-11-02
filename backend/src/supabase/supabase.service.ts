@@ -137,6 +137,13 @@ export class SupabaseService {
     return raw;
   }
 
+  /** A user whose token was already verified and is still cached; never calls Supabase. */
+  getCachedUserForToken(authHeader?: string): User | null {
+    if (!authHeader) return null;
+    const cached = this.userTokenCache.get(authHeader);
+    return cached && cached.expiresAt > Date.now() ? cached.value : null;
+  }
+
   async getUserFromToken(authHeader?: string): Promise<User | null> {
     if (!authHeader) return null;
 

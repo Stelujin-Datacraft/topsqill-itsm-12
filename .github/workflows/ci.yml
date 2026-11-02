@@ -42,6 +42,7 @@ jobs:
           npx tsx test/supabase/supabase-key-role.test.ts
           npx tsx test/supabase/get-user-from-token.test.ts
           npx tsx test/health/health-crud.test.ts
+          npx tsx test/common/user-throttler.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-persistence-config.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-schema-guard.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.rls-policy-security.test.ts
