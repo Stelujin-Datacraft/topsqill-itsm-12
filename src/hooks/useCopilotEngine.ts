@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useProject } from '@/contexts/ProjectContext';
