@@ -97,5 +97,8 @@ jobs:
       - name: Asset scoring query field calculations
         run: npx tsx --tsconfig tsconfig.app.json src/lib/grc/assetScoring.test.ts
 
+      - name: Solutions board grouping and form moves
+        run: npx tsx --tsconfig tsconfig.app.json src/lib/solutions/solutionBoard.test.ts
+
       - name: API rate limit retry and one-time provisioning
         run: npx tsx --tsconfig tsconfig.app.json src/services/api/rateLimitRetry.test.ts
