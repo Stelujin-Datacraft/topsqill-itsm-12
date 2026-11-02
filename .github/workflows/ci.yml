@@ -101,5 +101,8 @@ jobs:
       - name: Solutions board grouping and form moves
         run: npx tsx --tsconfig tsconfig.app.json src/lib/solutions/solutionBoard.test.ts
 
+      - name: Module entitlements catalogue and subscriptions console
+        run: npx tsx --tsconfig tsconfig.app.json src/lib/entitlements/entitlements.test.ts
+
       - name: API rate limit retry and one-time provisioning
         run: npx tsx --tsconfig tsconfig.app.json src/services/api/rateLimitRetry.test.ts
