@@ -10,64 +10,10 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "12.2.3"
   }
   public: {
     Tables: {
-      blog_posts: {
-        Row: {
-          id: string
-          slug: string
-          title: string
-          description: string | null
-          content_html: string
-          cover_image_url: string | null
-          author_name: string
-          author_title: string | null
-          tags: string[]
-          faqs: Json
-          published: boolean
-          published_at: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          slug: string
-          title: string
-          description?: string | null
-          content_html?: string
-          cover_image_url?: string | null
-          author_name?: string
-          author_title?: string | null
-          tags?: string[]
-          faqs?: Json
-          published?: boolean
-          published_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          slug?: string
-          title?: string
-          description?: string | null
-          content_html?: string
-          cover_image_url?: string | null
-          author_name?: string
-          author_title?: string | null
-          tags?: string[]
-          faqs?: Json
-          published?: boolean
-          published_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       api_keys: {
         Row: {
           allowed_ips: string[] | null
@@ -549,39 +495,66 @@ export type Database = {
       }
       asset_software: {
         Row: {
+          architecture: string | null
           asset_id: string
           collected_at: string
+          edition: string | null
+          first_seen_at: string | null
           id: string
           install_date: string | null
           install_path: string | null
           is_system_component: boolean | null
+          last_seen_at: string | null
+          normalized_version: string | null
           publisher: string | null
+          raw_name: string | null
+          raw_version: string | null
           size_mb: number | null
           software_name: string
+          software_product_id: string | null
+          source: string | null
           version: string | null
         }
         Insert: {
+          architecture?: string | null
           asset_id: string
           collected_at?: string
+          edition?: string | null
+          first_seen_at?: string | null
           id?: string
           install_date?: string | null
           install_path?: string | null
           is_system_component?: boolean | null
+          last_seen_at?: string | null
+          normalized_version?: string | null
           publisher?: string | null
+          raw_name?: string | null
+          raw_version?: string | null
           size_mb?: number | null
           software_name: string
+          software_product_id?: string | null
+          source?: string | null
           version?: string | null
         }
         Update: {
+          architecture?: string | null
           asset_id?: string
           collected_at?: string
+          edition?: string | null
+          first_seen_at?: string | null
           id?: string
           install_date?: string | null
           install_path?: string | null
           is_system_component?: boolean | null
+          last_seen_at?: string | null
+          normalized_version?: string | null
           publisher?: string | null
+          raw_name?: string | null
+          raw_version?: string | null
           size_mb?: number | null
           software_name?: string
+          software_product_id?: string | null
+          source?: string | null
           version?: string | null
         }
         Relationships: [
@@ -2592,22 +2565,30 @@ export type Database = {
           asset_tag: string | null
           asset_type: string
           assigned_to: string | null
+          bios_uuid: string | null
           category: string | null
+          cloud_instance_id: string | null
           condition: Database["public"]["Enums"]["asset_condition"] | null
           created_at: string
           created_by: string
           custom_fields: Json | null
           department: string | null
+          discovery_confidence: string | null
+          discovery_lifecycle: string | null
           display_name: string
+          first_seen_at: string | null
           hostname: string | null
           id: string
           ip_address: string | null
+          last_seen_at: string | null
           location: string | null
           mac_address: string | null
+          machine_guid: string | null
           manufacturer: string | null
           model: string | null
           notes: string | null
           organization_id: string
+          primary_discovery_source: string | null
           project_id: string | null
           purchase_cost: number | null
           purchase_date: string | null
@@ -2621,22 +2602,30 @@ export type Database = {
           asset_tag?: string | null
           asset_type?: string
           assigned_to?: string | null
+          bios_uuid?: string | null
           category?: string | null
+          cloud_instance_id?: string | null
           condition?: Database["public"]["Enums"]["asset_condition"] | null
           created_at?: string
           created_by: string
           custom_fields?: Json | null
           department?: string | null
+          discovery_confidence?: string | null
+          discovery_lifecycle?: string | null
           display_name: string
+          first_seen_at?: string | null
           hostname?: string | null
           id?: string
           ip_address?: string | null
+          last_seen_at?: string | null
           location?: string | null
           mac_address?: string | null
+          machine_guid?: string | null
           manufacturer?: string | null
           model?: string | null
           notes?: string | null
           organization_id: string
+          primary_discovery_source?: string | null
           project_id?: string | null
           purchase_cost?: number | null
           purchase_date?: string | null
@@ -2650,22 +2639,30 @@ export type Database = {
           asset_tag?: string | null
           asset_type?: string
           assigned_to?: string | null
+          bios_uuid?: string | null
           category?: string | null
+          cloud_instance_id?: string | null
           condition?: Database["public"]["Enums"]["asset_condition"] | null
           created_at?: string
           created_by?: string
           custom_fields?: Json | null
           department?: string | null
+          discovery_confidence?: string | null
+          discovery_lifecycle?: string | null
           display_name?: string
+          first_seen_at?: string | null
           hostname?: string | null
           id?: string
           ip_address?: string | null
+          last_seen_at?: string | null
           location?: string | null
           mac_address?: string | null
+          machine_guid?: string | null
           manufacturer?: string | null
           model?: string | null
           notes?: string | null
           organization_id?: string
+          primary_discovery_source?: string | null
           project_id?: string | null
           purchase_cost?: number | null
           purchase_date?: string | null
@@ -2695,6 +2692,682 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_asset_identities: {
+        Row: {
+          asset_id: string
+          confidence: Database["public"]["Enums"]["discovery_confidence"]
+          first_seen_at: string
+          id: string
+          identity_type: string
+          identity_value: string
+          last_seen_at: string
+          organization_id: string
+          source: Database["public"]["Enums"]["inventory_source"]
+        }
+        Insert: {
+          asset_id: string
+          confidence?: Database["public"]["Enums"]["discovery_confidence"]
+          first_seen_at?: string
+          id?: string
+          identity_type: string
+          identity_value: string
+          last_seen_at?: string
+          organization_id: string
+          source?: Database["public"]["Enums"]["inventory_source"]
+        }
+        Update: {
+          asset_id?: string
+          confidence?: Database["public"]["Enums"]["discovery_confidence"]
+          first_seen_at?: string
+          id?: string
+          identity_type?: string
+          identity_value?: string
+          last_seen_at?: string
+          organization_id?: string
+          source?: Database["public"]["Enums"]["inventory_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_asset_identities_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_asset_identities_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_asset_services: {
+        Row: {
+          asset_id: string
+          banner: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          organization_id: string
+          port: number
+          protocol: string
+          service: string | null
+          source: Database["public"]["Enums"]["inventory_source"]
+        }
+        Insert: {
+          asset_id: string
+          banner?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          organization_id: string
+          port: number
+          protocol?: string
+          service?: string | null
+          source?: Database["public"]["Enums"]["inventory_source"]
+        }
+        Update: {
+          asset_id?: string
+          banner?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          organization_id?: string
+          port?: number
+          protocol?: string
+          service?: string | null
+          source?: Database["public"]["Enums"]["inventory_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_asset_services_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_asset_services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_discovered_hosts: {
+        Row: {
+          asset_id: string | null
+          bios_uuid: string | null
+          confidence: Database["public"]["Enums"]["discovery_confidence"]
+          created_at: string
+          device_type: string | null
+          discovery_methods: string[] | null
+          dns_name: string | null
+          field_provenance: Json | null
+          first_seen_at: string
+          hostname: string | null
+          id: string
+          ip_address: string | null
+          job_id: string | null
+          last_seen_at: string
+          mac_address: string | null
+          machine_guid: string | null
+          manufacturer: string | null
+          model: string | null
+          organization_id: string
+          os_family: string | null
+          os_name: string | null
+          os_version: string | null
+          raw_evidence: Json | null
+          response_time_ms: number | null
+          run_id: string | null
+          serial_number: string | null
+          services: Json | null
+          software: Json | null
+          status: Database["public"]["Enums"]["discovered_asset_status"]
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          bios_uuid?: string | null
+          confidence?: Database["public"]["Enums"]["discovery_confidence"]
+          created_at?: string
+          device_type?: string | null
+          discovery_methods?: string[] | null
+          dns_name?: string | null
+          field_provenance?: Json | null
+          first_seen_at?: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          job_id?: string | null
+          last_seen_at?: string
+          mac_address?: string | null
+          machine_guid?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          organization_id: string
+          os_family?: string | null
+          os_name?: string | null
+          os_version?: string | null
+          raw_evidence?: Json | null
+          response_time_ms?: number | null
+          run_id?: string | null
+          serial_number?: string | null
+          services?: Json | null
+          software?: Json | null
+          status?: Database["public"]["Enums"]["discovered_asset_status"]
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          bios_uuid?: string | null
+          confidence?: Database["public"]["Enums"]["discovery_confidence"]
+          created_at?: string
+          device_type?: string | null
+          discovery_methods?: string[] | null
+          dns_name?: string | null
+          field_provenance?: Json | null
+          first_seen_at?: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          job_id?: string | null
+          last_seen_at?: string
+          mac_address?: string | null
+          machine_guid?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          organization_id?: string
+          os_family?: string | null
+          os_name?: string | null
+          os_version?: string | null
+          raw_evidence?: Json | null
+          response_time_ms?: number | null
+          run_id?: string | null
+          serial_number?: string | null
+          services?: Json | null
+          software?: Json | null
+          status?: Database["public"]["Enums"]["discovered_asset_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_discovered_hosts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_discovered_hosts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "itam_discovery_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_discovered_hosts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_discovered_hosts_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "itam_discovery_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_discovery_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          detail: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_discovery_audit_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_discovery_diffs: {
+        Row: {
+          asset_id: string | null
+          change_type: string
+          created_at: string
+          detail: Json | null
+          id: string
+          organization_id: string
+          run_id: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          change_type: string
+          created_at?: string
+          detail?: Json | null
+          id?: string
+          organization_id: string
+          run_id?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          change_type?: string
+          created_at?: string
+          detail?: Json | null
+          id?: string
+          organization_id?: string
+          run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_discovery_diffs_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_discovery_diffs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_discovery_diffs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "itam_discovery_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_discovery_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          credential_reference_id: string | null
+          description: string | null
+          discovery_mode: Database["public"]["Enums"]["discovery_mode"]
+          enable_credentialed: boolean
+          enable_icmp: boolean
+          enable_snmp: boolean
+          enable_tcp: boolean
+          environment_id: string
+          excluded_ranges: Json
+          host_timeout_ms: number
+          id: string
+          job_timeout_ms: number
+          last_error: string | null
+          last_run_at: string | null
+          max_concurrency: number
+          max_hosts: number
+          metrics: Json | null
+          name: string
+          network_ranges: Json
+          next_run_at: string | null
+          organization_id: string
+          progress: Json | null
+          rate_limit_per_sec: number
+          schedule: string | null
+          schedule_cron: string | null
+          status: Database["public"]["Enums"]["discovery_job_status"]
+          tcp_ports: Json | null
+          timeout_ms: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          credential_reference_id?: string | null
+          description?: string | null
+          discovery_mode?: Database["public"]["Enums"]["discovery_mode"]
+          enable_credentialed?: boolean
+          enable_icmp?: boolean
+          enable_snmp?: boolean
+          enable_tcp?: boolean
+          environment_id?: string
+          excluded_ranges?: Json
+          host_timeout_ms?: number
+          id?: string
+          job_timeout_ms?: number
+          last_error?: string | null
+          last_run_at?: string | null
+          max_concurrency?: number
+          max_hosts?: number
+          metrics?: Json | null
+          name: string
+          network_ranges?: Json
+          next_run_at?: string | null
+          organization_id: string
+          progress?: Json | null
+          rate_limit_per_sec?: number
+          schedule?: string | null
+          schedule_cron?: string | null
+          status?: Database["public"]["Enums"]["discovery_job_status"]
+          tcp_ports?: Json | null
+          timeout_ms?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          credential_reference_id?: string | null
+          description?: string | null
+          discovery_mode?: Database["public"]["Enums"]["discovery_mode"]
+          enable_credentialed?: boolean
+          enable_icmp?: boolean
+          enable_snmp?: boolean
+          enable_tcp?: boolean
+          environment_id?: string
+          excluded_ranges?: Json
+          host_timeout_ms?: number
+          id?: string
+          job_timeout_ms?: number
+          last_error?: string | null
+          last_run_at?: string | null
+          max_concurrency?: number
+          max_hosts?: number
+          metrics?: Json | null
+          name?: string
+          network_ranges?: Json
+          next_run_at?: string | null
+          organization_id?: string
+          progress?: Json | null
+          rate_limit_per_sec?: number
+          schedule?: string | null
+          schedule_cron?: string | null
+          status?: Database["public"]["Enums"]["discovery_job_status"]
+          tcp_ports?: Json | null
+          timeout_ms?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_discovery_jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_discovery_runs: {
+        Row: {
+          assets_created: number | null
+          assets_unmanaged: number | null
+          assets_updated: number | null
+          error_summary: Json | null
+          errors: number | null
+          finished_at: string | null
+          hosts_discovered: number | null
+          hosts_scanned: number | null
+          hosts_targeted: number | null
+          id: string
+          job_id: string
+          metrics: Json | null
+          organization_id: string
+          software_discovered: number | null
+          started_at: string
+          status: Database["public"]["Enums"]["discovery_job_status"]
+        }
+        Insert: {
+          assets_created?: number | null
+          assets_unmanaged?: number | null
+          assets_updated?: number | null
+          error_summary?: Json | null
+          errors?: number | null
+          finished_at?: string | null
+          hosts_discovered?: number | null
+          hosts_scanned?: number | null
+          hosts_targeted?: number | null
+          id?: string
+          job_id: string
+          metrics?: Json | null
+          organization_id: string
+          software_discovered?: number | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["discovery_job_status"]
+        }
+        Update: {
+          assets_created?: number | null
+          assets_unmanaged?: number | null
+          assets_updated?: number | null
+          error_summary?: Json | null
+          errors?: number | null
+          finished_at?: string | null
+          hosts_discovered?: number | null
+          hosts_scanned?: number | null
+          hosts_targeted?: number | null
+          id?: string
+          job_id?: string
+          metrics?: Json | null
+          organization_id?: string
+          software_discovered?: number | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["discovery_job_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_discovery_runs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "itam_discovery_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_discovery_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_field_provenance: {
+        Row: {
+          asset_id: string
+          field_name: string
+          field_value: string | null
+          id: string
+          observed_at: string
+          organization_id: string
+          source: Database["public"]["Enums"]["inventory_source"]
+        }
+        Insert: {
+          asset_id: string
+          field_name: string
+          field_value?: string | null
+          id?: string
+          observed_at?: string
+          organization_id: string
+          source: Database["public"]["Enums"]["inventory_source"]
+        }
+        Update: {
+          asset_id?: string
+          field_name?: string
+          field_value?: string | null
+          id?: string
+          observed_at?: string
+          organization_id?: string
+          source?: Database["public"]["Enums"]["inventory_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_field_provenance_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "itam_field_provenance_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_network_scopes: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          authorization_status: Database["public"]["Enums"]["network_scope_auth_status"]
+          cidr: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          enabled: boolean
+          environment: string
+          id: string
+          name: string
+          organization_id: string
+          scope_kind: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          authorization_status?: Database["public"]["Enums"]["network_scope_auth_status"]
+          cidr: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          environment?: string
+          id?: string
+          name: string
+          organization_id: string
+          scope_kind?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          authorization_status?: Database["public"]["Enums"]["network_scope_auth_status"]
+          cidr?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          enabled?: boolean
+          environment?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          scope_kind?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_network_scopes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_software_aliases: {
+        Row: {
+          alias_name: string
+          created_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          alias_name: string
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          alias_name?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_software_aliases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "itam_software_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itam_software_catalog: {
+        Row: {
+          canonical_name: string
+          category: string | null
+          created_at: string
+          id: string
+          organization_id: string | null
+          publisher: string | null
+        }
+        Insert: {
+          canonical_name: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          publisher?: string | null
+        }
+        Update: {
+          canonical_name?: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          publisher?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itam_software_catalog_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -3482,6 +4155,54 @@ export type Database = {
           id?: string
           password_hash?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      pending_signups: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          first_name: string
+          id: string
+          last_name: string
+          organization_domain: string | null
+          organization_name: string
+          otp_attempts: number
+          otp_code: string
+          password_encrypted: string
+          verification_token: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          first_name: string
+          id?: string
+          last_name: string
+          organization_domain?: string | null
+          organization_name: string
+          otp_attempts?: number
+          otp_code: string
+          password_encrypted: string
+          verification_token?: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          organization_domain?: string | null
+          organization_name?: string
+          otp_attempts?: number
+          otp_code?: string
+          password_encrypted?: string
+          verification_token?: string
+          verified_at?: string | null
         }
         Relationships: []
       }
@@ -6238,6 +6959,66 @@ export type Database = {
         }
         Relationships: []
       }
+      vis_documents: {
+        Row: {
+          collection: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          logical_id: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          collection: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          logical_id: string
+          payload: Json
+          updated_at?: string
+        }
+        Update: {
+          collection?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          logical_id?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vis_secret_blobs: {
+        Row: {
+          ciphertext: string
+          created_at: string
+          id: string
+          provider: string
+          ref_id: string
+          rotated_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          ciphertext: string
+          created_at?: string
+          id?: string
+          provider?: string
+          ref_id: string
+          rotated_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ciphertext?: string
+          created_at?: string
+          id?: string
+          provider?: string
+          ref_id?: string
+          rotated_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       workflow_connections: {
         Row: {
           condition_type: string | null
@@ -6894,6 +7675,21 @@ export type Database = {
         Args: { creator_id: string; org_id: string }
         Returns: undefined
       }
+      create_pending_signup: {
+        Args: {
+          p_email: string
+          p_expires_at: string
+          p_first_name: string
+          p_last_name: string
+          p_organization_domain: string
+          p_organization_name: string
+          p_otp_code: string
+          p_password_encrypted: string
+          p_verification_token?: string
+        }
+        Returns: string
+      }
+      delete_form_authorized: { Args: { _form_id: string }; Returns: string }
       generate_reference_id: {
         Args: { name_text: string; table_name: string }
         Returns: string
@@ -6909,6 +7705,7 @@ export type Database = {
           include_approvals: boolean
         }[]
       }
+      get_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
       get_chart_data: {
         Args: {
           p_aggregation?: string
@@ -7266,7 +8063,38 @@ export type Database = {
         | "lost"
         | "stolen"
       delegation_scope: "all" | "form" | "project" | "submission"
+      discovered_asset_status:
+        | "DISCOVERED"
+        | "UNVERIFIED"
+        | "VERIFIED"
+        | "MANAGED"
+        | "IGNORED"
+        | "RETIRED"
+      discovery_confidence: "HIGH" | "MEDIUM" | "LOW"
+      discovery_job_status:
+        | "DRAFT"
+        | "VALIDATING"
+        | "READY"
+        | "RUNNING"
+        | "PAUSING"
+        | "PAUSED"
+        | "COMPLETED"
+        | "PARTIAL"
+        | "FAILED"
+        | "CANCELLED"
+      discovery_mode: "PASSIVE" | "ACTIVE" | "CREDENTIALED" | "AGENT" | "HYBRID"
       escalation_level: "L1" | "L2" | "L3" | "L4"
+      inventory_source:
+        | "AGENT"
+        | "NETWORK_DISCOVERY"
+        | "CREDENTIALED"
+        | "MANAGEMENT_API"
+        | "SNMP"
+        | "MANUAL"
+        | "DNS"
+        | "DHCP"
+        | "ARP"
+      network_scope_auth_status: "PENDING" | "APPROVED" | "REVOKED" | "EXPIRED"
       sla_status: "on_track" | "warning" | "breached" | "completed" | "paused"
     }
     CompositeTypes: {
@@ -7283,12 +8111,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7312,11 +8140,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7337,11 +8165,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7362,11 +8190,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7379,11 +8207,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -7407,7 +8235,41 @@ export const Constants = {
         "stolen",
       ],
       delegation_scope: ["all", "form", "project", "submission"],
+      discovered_asset_status: [
+        "DISCOVERED",
+        "UNVERIFIED",
+        "VERIFIED",
+        "MANAGED",
+        "IGNORED",
+        "RETIRED",
+      ],
+      discovery_confidence: ["HIGH", "MEDIUM", "LOW"],
+      discovery_job_status: [
+        "DRAFT",
+        "VALIDATING",
+        "READY",
+        "RUNNING",
+        "PAUSING",
+        "PAUSED",
+        "COMPLETED",
+        "PARTIAL",
+        "FAILED",
+        "CANCELLED",
+      ],
+      discovery_mode: ["PASSIVE", "ACTIVE", "CREDENTIALED", "AGENT", "HYBRID"],
       escalation_level: ["L1", "L2", "L3", "L4"],
+      inventory_source: [
+        "AGENT",
+        "NETWORK_DISCOVERY",
+        "CREDENTIALED",
+        "MANAGEMENT_API",
+        "SNMP",
+        "MANUAL",
+        "DNS",
+        "DHCP",
+        "ARP",
+      ],
+      network_scope_auth_status: ["PENDING", "APPROVED", "REVOKED", "EXPIRED"],
       sla_status: ["on_track", "warning", "breached", "completed", "paused"],
     },
   },
