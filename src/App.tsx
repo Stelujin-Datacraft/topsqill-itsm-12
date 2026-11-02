@@ -106,6 +106,8 @@ import { MARKET_CODES } from "@/content/markets";
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
 const FormEdit = lazyWithRetry(() => import("./pages/FormEdit"));
+const FormSolutions = lazyWithRetry(() => import("./pages/FormSolutions"));
+const FormSolutionDetail = lazyWithRetry(() => import("./pages/FormSolutionDetail"));
 const FormView = lazyWithRetry(() => import("./pages/FormView"));
 const FormSubmission = lazyWithRetry(() => import("./pages/FormSubmission"));
 const PublicFormView = lazyWithRetry(() => import("./pages/PublicFormView"));
@@ -364,6 +366,8 @@ const App = () => (
                         
                         {/* Forms */}
                         <Route path="/forms" element={<Forms />} />
+                        <Route path="/form-solutions" element={<FormSolutions />} />
+                        <Route path="/form-solutions/:id" element={<FormSolutionDetail />} />
                         <Route path="/form-builder" element={<FormBuilder />} />
                         <Route path="/form-builder/:id" element={<FormBuilder />} />
                         <Route path="/form-edit/:id" element={<FormEdit />} />

@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight, Building2 } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight, Building2, Boxes } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -88,6 +88,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: t('nav.formBuilder'),
         url: "/forms",
         icon: Calendar,
+        isDisabled: !currentProject,
+        iconColor: "text-module-forms",
+      },
+      {
+        title: t('nav.solutions'),
+        url: "/form-solutions",
+        icon: Boxes,
         isDisabled: !currentProject,
         iconColor: "text-module-forms",
       },
