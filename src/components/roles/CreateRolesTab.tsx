@@ -21,6 +21,8 @@ import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { useReports } from '@/hooks/useReports';
 import { usePolicies } from '@/hooks/usePolicies';
 import { useDashboards } from '@/hooks/useDashboards';
+import { useSolutions } from '@/hooks/useSolutions';
+import { groupFormsBySolution, groupSelectionState, solutionColor } from '@/lib/solutions/solutionBoard';
 import { toast } from '@/hooks/use-toast';
 import { backend as supabase } from '@/services/api';
 
@@ -57,6 +59,7 @@ export function CreateRolesTab() {
   const { reports } = useReports();
   const { policies } = usePolicies();
   const { dashboards } = useDashboards();
+  const { solutions, links: solutionLinks } = useSolutions();
   const handleStartCreate = () => {
     setIsCreating(true);
     setEditingRole(null);
@@ -256,6 +259,56 @@ export function CreateRolesTab() {
         </div>
       </div>
     );
+  };
+
+  const setFormsRead = (formIds: string[], checked: boolean) => {
+    setResourcePermissions(prev => {
+      const updated = { ...prev };
+      for (const formId of formIds) {
+        const key = `forms:${formId}`;
+        if (checked) {
+          if (!updated[key]?.includes('read')) updated[key] = [...(updated[key] || []), 'read'];
+        } else {
+          delete updated[key];
+        }
+      }
+      return updated;
+    });
+  };
+
+  const renderFormsBySolution = (projectForms: { id: string; name: string }[]) => {
+    const groups = groupFormsBySolution(solutions, solutionLinks, projectForms).filter(group => group.forms.length > 0);
+    return groups.map(group => {
+      const formIds = group.forms.map(form => form.id);
+      const state = groupSelectionState(formIds, formId => isPermissionChecked('forms', formId, 'read'));
+      const title = group.solution ? group.solution.name : 'Not in a solution';
+      return (
+        <div key={group.id} className="space-y-2">
+          <div className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {group.solution && (
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${solutionColor(group.solution.color).dot}`} />
+              )}
+              <span className="truncate text-sm font-medium">{title}</span>
+              <Badge variant="secondary" className="text-xs">{group.forms.length}</Badge>
+            </div>
+            <div className="flex shrink-0 items-center space-x-2">
+              <Checkbox
+                id={`solution-read-${group.id}`}
+                checked={state}
+                onCheckedChange={(checked) => setFormsRead(formIds, checked === true)}
+              />
+              <Label htmlFor={`solution-read-${group.id}`} className="text-sm">
+                Read all {group.forms.length} form{group.forms.length === 1 ? '' : 's'}
+              </Label>
+            </div>
+          </div>
+          <div className="ml-4 space-y-1 border-l-2 border-muted pl-4">
+            {group.forms.map(form => renderPermissionRow('forms', form))}
+          </div>
+        </div>
+      );
+    });
   };
 
   const handleSubmit = async () => {
@@ -582,8 +635,15 @@ export function CreateRolesTab() {
   );
 })()}
 
+{selectedAssetType === 'forms' && solutions.length > 0 && (
+  <p className="text-xs text-muted-foreground">
+    Forms are grouped by solution. A user sees a solution in the Solutions tab when this role gives them access to at least one of its forms. Selecting all forms of a solution grants those forms only; forms added to the solution later are not included. Clearing it removes every permission on those forms.
+  </p>
+)}
+{selectedAssetType === 'forms' && solutions.length > 0 && renderFormsBySolution(assets)}
+
 {/* Flat rendering for Forms & Workflows */}
-{selectedAssetType !== 'dashboards' && selectedAssetType !== 'policies' && assets.map(asset =>
+{selectedAssetType !== 'dashboards' && selectedAssetType !== 'policies' && !(selectedAssetType === 'forms' && solutions.length > 0) && assets.map(asset =>
   renderPermissionRow(selectedAssetType, asset)
 )}
 
