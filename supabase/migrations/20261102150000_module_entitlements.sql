@@ -17,6 +17,10 @@
 -- Every existing organisation is seeded on the "all-modules" plan so nobody loses access
 -- when this is applied. New organisations get the plan marked is_default.
 -- Safe to run more than once. Apply in the Supabase SQL Editor for each environment.
+--
+-- To let someone open the Subscriptions console (Prod and Dev separately):
+--   INSERT INTO public.platform_admins (user_id, note)
+--   SELECT id, 'Topsqill platform team' FROM auth.users WHERE email = 'you@example.com';
 
 CREATE TABLE IF NOT EXISTS public.platform_modules (
   key text PRIMARY KEY CHECK (key ~ '^[a-z][a-z0-9-]{1,48}$'),
