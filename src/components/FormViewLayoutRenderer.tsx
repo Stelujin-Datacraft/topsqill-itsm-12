@@ -245,7 +245,7 @@ export function FormViewLayoutRenderer({
     }
   };
 
-  const validateForm = (data: Record<string, any> = formData): { ok: boolean; issues: MandatoryFieldIssue[] } => {
+  const validateForm = (data: Record<string, any> = formData): { ok: boolean; issues: MandatoryFieldIssue[]; errors: Record<string, string> } => {
     const newErrors: Record<string, string> = {};
     const safeFields = Array.isArray(form.fields) ? form.fields : [];
 
@@ -297,7 +297,18 @@ export function FormViewLayoutRenderer({
     });
 
     setErrors(newErrors);
-    return { ok: Object.keys(newErrors).length === 0, issues };
+    return { ok: Object.keys(newErrors).length === 0, issues, errors: newErrors };
+  };
+
+  const showFirstFieldError = (fieldErrors: Record<string, string>) => {
+    const [fieldId, message] = Object.entries(fieldErrors)[0] || [];
+    if (!fieldId) return;
+    const field = (Array.isArray(form.fields) ? form.fields : []).find((item) => item.id === fieldId);
+    const pageId = pages.find((page) => Array.isArray(page.fields) && page.fields.includes(fieldId))?.id;
+    const others = Object.keys(fieldErrors).length - 1;
+    toast.error(`${field?.label || 'A field'}: ${message}${others > 0 ? ` (and ${others} more)` : ''}`);
+    if (pageId && pageId !== currentPageId) setCurrentPageId(pageId);
+    setTimeout(() => handleFieldHighlight(fieldId), 100);
   };
 
   const navigateToMandatoryField = (issue: MandatoryFieldIssue) => {
@@ -335,6 +346,8 @@ export function FormViewLayoutRenderer({
       if (validation.issues.length > 0) {
         setMandatoryIssues(validation.issues);
         setMandatoryDialogOpen(true);
+      } else {
+        showFirstFieldError(validation.errors);
       }
       return;
     }
@@ -371,7 +384,7 @@ export function FormViewLayoutRenderer({
 
     if (hasUniqueFieldErrors) {
       setErrors(prev => ({ ...prev, ...uniqueFieldErrors }));
-      toast.error('Please fix the duplicate value errors before submitting.');
+      showFirstFieldError(uniqueFieldErrors);
       return;
     }
 
