@@ -15,11 +15,13 @@ import { Public } from '../common/decorators/public.decorator';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
 import { ReLeadgenAccessGuard } from './re-access.guard';
 import { ReIngestService } from './re-ingest.service';
+import { RequiresModule } from '../entitlements/requires-module.decorator';
 
 /**
  * Public webhook endpoints for lead sources.
  * Auth is via path token + ingest key / verify token — not user JWT.
  */
+@RequiresModule('real-estate')
 @Controller('re/ingest')
 export class ReIngestController {
   constructor(private readonly ingest: ReIngestService) {}

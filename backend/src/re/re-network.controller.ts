@@ -14,9 +14,11 @@ import { Request } from 'express';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
 import { ReLeadgenAccessGuard } from './re-access.guard';
 import { ReNetworkService } from './re-network.service';
+import { RequiresModule } from '../entitlements/requires-module.decorator';
 
 type AuthedRequest = Request & { user?: { id: string } };
 
+@RequiresModule('real-estate')
 @Controller('re/network')
 @UseGuards(SupabaseAuthGuard, ReLeadgenAccessGuard)
 export class ReNetworkController {

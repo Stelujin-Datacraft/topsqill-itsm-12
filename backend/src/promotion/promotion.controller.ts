@@ -16,9 +16,11 @@ import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
 import { PromotionService } from './promotion.service';
 import { PromotionalTransferEnabledGuard } from './promotion-access.guard';
 import { getPromotionAccessState } from './promotion-access';
+import { RequiresModule } from '../entitlements/requires-module.decorator';
 
 type AuthedRequest = Request & { user?: { id: string }; authHeader?: string };
 
+@RequiresModule('promotional-transfer')
 @Controller('promotion')
 @UseGuards(SupabaseAuthGuard)
 export class PromotionController {

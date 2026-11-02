@@ -1,7 +1,9 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
+import { RequiresModule } from '../entitlements/requires-module.decorator';
 
+@RequiresModule('ai-builder', { need: 'use', consume: 'ai_requests' })
 @Controller('ai')
 @UseGuards(SupabaseAuthGuard)
 export class AiController {

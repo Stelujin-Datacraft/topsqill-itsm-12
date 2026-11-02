@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ItamDiscoveryService, type ItamPrincipal } from './discovery.service';
+import { RequiresModule } from '../../entitlements/requires-module.decorator';
 
 function principalFrom(req: any, headers: Record<string, string | undefined>): ItamPrincipal {
   const user = req?.user || {};
@@ -24,6 +25,7 @@ function principalFrom(req: any, headers: Record<string, string | undefined>): I
   return { userId: String(userId), organizationId: String(organizationId), roles: roles.map(String) };
 }
 
+@RequiresModule('asset-discovery')
 @Controller('itam')
 export class ItamDiscoveryController {
   constructor(private readonly discovery: ItamDiscoveryService) {}
@@ -64,6 +66,7 @@ export class ItamDiscoveryController {
   }
 
   @Post('discovery/jobs')
+  @RequiresModule('asset-discovery', { consume: 'discovery_jobs' })
   createJob(@Req() req: any, @Headers() headers: Record<string, string>, @Body() body: any) {
     return this.discovery.createJob(principalFrom(req, headers), body);
   }
