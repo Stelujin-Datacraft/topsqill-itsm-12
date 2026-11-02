@@ -21,6 +21,8 @@ import { DelegationBanner } from "@/components/DelegationBanner";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { canUse as canUseModule } from "@/lib/entitlements/modules";
 import { RouteLoader } from "./components/RouteLoader";
 import { PromotionalTransferGate } from "./components/PromotionalTransferGate";
 import { ReLeadgenGate } from "./components/re/ReLeadgenGate";
@@ -107,6 +109,7 @@ import { MARKET_CODES } from "@/content/markets";
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
 const FormEdit = lazyWithRetry(() => import("./pages/FormEdit"));
 const FormSolutions = lazyWithRetry(() => import("./pages/FormSolutions"));
+const PlatformSubscriptions = lazyWithRetry(() => import("./pages/PlatformSubscriptions"));
 const FormSolutionDetail = lazyWithRetry(() => import("./pages/FormSolutionDetail"));
 const FormView = lazyWithRetry(() => import("./pages/FormView"));
 const FormSubmission = lazyWithRetry(() => import("./pages/FormSubmission"));
@@ -206,10 +209,11 @@ const CHATBOT_HIDDEN_PATHS = ['/', '/about', '/contact', '/solutions', '/privacy
 
 const ChatbotGate = () => {
   const location = useLocation();
+  const { levelOf } = useEntitlements();
   const hidden =
     CHATBOT_HIDDEN_PATHS.includes(location.pathname) ||
     location.pathname.startsWith('/solutions');
-  if (hidden) return null;
+  if (hidden || !canUseModule(levelOf('ai-builder'))) return null;
   return <AIChatbot />;
 };
 
@@ -491,6 +495,7 @@ const App = () => (
                         } />
                         <Route path="/api-docs" element={<ApiDocs />} />
                         <Route path="/it-assets" element={<ITAssets />} />
+                        <Route path="/platform/subscriptions" element={<PlatformSubscriptions />} />
                         <Route path="/project-performance" element={<ProjectPerformance />} />
                       </Route>
                       

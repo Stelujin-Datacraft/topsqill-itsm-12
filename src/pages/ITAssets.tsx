@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Monitor, Cpu, Download, History, BarChart3, ShieldCheck, FileText, Radar, Cloud, Radio, Network, Link2 } from 'lucide-react';
+import { Monitor, Cpu, Download, History, BarChart3, ShieldCheck, FileText, Radar, Cloud, Radio, Network, Link2, Lock } from 'lucide-react';
 import { AssetDashboard } from '@/components/itam/AssetDashboard';
 import { AssetList } from '@/components/itam/AssetList';
 import { AgentManagement } from '@/components/itam/AgentManagement';
@@ -13,9 +13,14 @@ import { CloudDiscoveryPanel } from '@/components/itam/CloudDiscoveryPanel';
 import { NetworkIntelligencePanel, TopologyPanel } from '@/components/itam/NetworkIntelligencePanel';
 import { FormSyncPanel } from '@/components/itam/FormSyncPanel';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { ModuleGate } from '@/components/entitlements/ModuleGate';
+import { useEntitlements } from '@/hooks/useEntitlements';
 
 const ITAssets = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const discoveryLocked = useEntitlements().levelOf('asset-discovery') === 'none';
+  const lockMark = discoveryLocked ? <Lock aria-label="Not in your plan" className="h-3 w-3 text-muted-foreground" /> : null;
+  const discovery = (panel: React.ReactNode) => <ModuleGate module="asset-discovery" compact>{panel}</ModuleGate>;
 
   return (
     <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
@@ -43,18 +48,22 @@ const ITAssets = () => {
             <TabsTrigger value="discovery" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Radar className="icon-md shrink-0" />
               Network Discovery
+              {lockMark}
             </TabsTrigger>
             <TabsTrigger value="cloud" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Cloud className="icon-md shrink-0" />
               Cloud Discovery
+              {lockMark}
             </TabsTrigger>
             <TabsTrigger value="intelligence" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Radio className="icon-md shrink-0" />
               Network Intelligence
+              {lockMark}
             </TabsTrigger>
             <TabsTrigger value="topology" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Network className="icon-md shrink-0" />
               Topology
+              {lockMark}
             </TabsTrigger>
             <TabsTrigger value="form-sync" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Link2 className="icon-md shrink-0" />
@@ -71,6 +80,7 @@ const ITAssets = () => {
             <TabsTrigger value="agents" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <Download className="icon-md shrink-0" />
               Agents
+              {lockMark}
             </TabsTrigger>
             <TabsTrigger value="reports" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
               <FileText className="icon-md shrink-0" />
@@ -85,14 +95,14 @@ const ITAssets = () => {
 
         <TabsContent value="dashboard"><AssetDashboard /></TabsContent>
         <TabsContent value="assets"><AssetList /></TabsContent>
-        <TabsContent value="discovery"><NetworkDiscoveryPanel /></TabsContent>
-        <TabsContent value="cloud"><CloudDiscoveryPanel /></TabsContent>
-        <TabsContent value="intelligence"><NetworkIntelligencePanel /></TabsContent>
-        <TabsContent value="topology"><TopologyPanel /></TabsContent>
+        <TabsContent value="discovery">{discovery(<NetworkDiscoveryPanel />)}</TabsContent>
+        <TabsContent value="cloud">{discovery(<CloudDiscoveryPanel />)}</TabsContent>
+        <TabsContent value="intelligence">{discovery(<NetworkIntelligencePanel />)}</TabsContent>
+        <TabsContent value="topology">{discovery(<TopologyPanel />)}</TabsContent>
         <TabsContent value="form-sync"><FormSyncPanel /></TabsContent>
         <TabsContent value="software"><SoftwareInventory /></TabsContent>
         <TabsContent value="warranty"><WarrantyLicenseTracker /></TabsContent>
-        <TabsContent value="agents"><AgentManagement /></TabsContent>
+        <TabsContent value="agents">{discovery(<AgentManagement />)}</TabsContent>
         <TabsContent value="reports"><AssetExport /></TabsContent>
         <TabsContent value="history"><AssetHistoryView /></TabsContent>
       </Tabs>

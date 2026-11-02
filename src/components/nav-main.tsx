@@ -1,4 +1,4 @@
-import { LucideIcon } from "lucide-react"
+import { Lock, LucideIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { AppIcon } from "@/components/icons"
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
@@ -14,6 +14,7 @@ export function NavMain({
     isActive?: boolean
     isDisabled?: boolean
     iconColor?: string
+    locked?: boolean
   }[]
 }) {
   const location = useLocation()
@@ -44,6 +45,9 @@ export function NavMain({
                     />
                   )}
                   <span>{item.title}</span>
+                  {item.locked && (
+                    <Lock aria-label="Not in your plan" className="ms-auto h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50" />
+                  )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

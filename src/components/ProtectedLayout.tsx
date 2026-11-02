@@ -12,6 +12,7 @@ import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { backend as supabase } from '@/services/api';
 import { RouteLoader } from '@/components/RouteLoader';
+import { ModulePathGate } from '@/components/entitlements/ModuleGate';
 
 // Context to signal that we're inside ProtectedLayout
 // DashboardLayout checks this to avoid double-wrapping
@@ -301,7 +302,7 @@ const ProtectedLayout: React.FC = () => {
           <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
             <main className="flex-1 flex flex-col overflow-hidden min-h-0">
               <Suspense fallback={<ContentLoader />}>
-                <Outlet />
+                <ModulePathGate><Outlet /></ModulePathGate>
               </Suspense>
             </main>
           </div>
@@ -318,7 +319,7 @@ const ProtectedLayout: React.FC = () => {
           <main className="flex-1 flex flex-col overflow-hidden min-h-0">
             {/* Suspense wraps only the content, sidebar stays visible */}
             <Suspense fallback={<ContentLoader />}>
-              <Outlet />
+              <ModulePathGate><Outlet /></ModulePathGate>
             </Suspense>
           </main>
         </div>
