@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
+import { trustProxySetting } from './common/guards/user-throttler.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -11,6 +12,10 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3001);
   const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:8080');
   const bodyLimit = configService.get<string>('REQUEST_BODY_LIMIT', '2mb');
+
+  // Behind nginx, req.ip is the proxy's address unless the proxy is trusted, and
+  // rate limits for signed-out requests are keyed on req.ip.
+  app.getHttpAdapter().getInstance().set('trust proxy', trustProxySetting(configService.get('TRUST_PROXY')));
 
   // Preserve raw body for Meta X-Hub-Signature-256 verification on RE ingest.
   app.use(
@@ -26,6 +31,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [corsOrigin, 'http://localhost:8080', 'http://localhost:5173'],
     credentials: true,
+    exposedHeaders: ['Retry-After'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'authorization',

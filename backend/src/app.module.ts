@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
+import { throttleSettings, UserThrottlerGuard } from './common/guards/user-throttler.guard';
 import { SupabaseModule } from './supabase/supabase.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
@@ -58,10 +59,10 @@ const envFilePath = [
           process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       })],
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 300,
-    }]),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [throttleSettings((key) => config.get(key))],
+    }),
     ScheduleModule.forRoot(),
     SupabaseModule,
     DatabaseModule,
@@ -94,7 +95,7 @@ const envFilePath = [
     GrcFoundationBootstrap,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: UserThrottlerGuard,
     },
     {
       provide: APP_GUARD,

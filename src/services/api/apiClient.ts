@@ -2,6 +2,7 @@
  * NestJS API client — replaces direct Supabase Edge Function invocations.
  */
 import { isNestOnlyAiFunction, mapNestAiInvokeResult } from './aiNestInvoke';
+import { rateLimitRetryDelayMs } from './rateLimitRetry';
 
 function resolveNestApiBase(): string {
   const configured = String(import.meta.env?.VITE_API_URL || '').replace(/\/$/, '');
@@ -96,17 +97,24 @@ async function request<T = unknown>(
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutMs = 60000;
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let response: Response;
+    for (let attempt = 0; ; attempt++) {
+      const controller = new AbortController();
+      const timeoutMs = 60000;
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
+      response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
 
-    clearTimeout(timer);
+      clearTimeout(timer);
+      if (response.status !== 429) break;
+      const delayMs = rateLimitRetryDelayMs(response.headers.get('retry-after'), attempt);
+      if (delayMs === null) break;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
 
     let data: T;
     const contentType = response.headers.get('content-type') || '';

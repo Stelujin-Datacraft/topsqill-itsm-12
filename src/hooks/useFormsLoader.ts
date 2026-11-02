@@ -9,6 +9,63 @@ import { STANDARD_LIBRARY_REFERENCE_ID } from '@/lib/regulatory/standardLibraryF
 import { provisionRegulatoryRegistersIfMissing } from '@/lib/regulatory/provisionRegulatoryRegisters';
 import { provisionGrcFoundationIfMissing } from '@/lib/grc/provisionGrcFoundation';
 import { canSeeLoadedForm } from '@/lib/regulatory/regulatoryFormAccess';
+import { createRunOncePerKey } from '@/lib/runOncePerKey';
+
+type LoadedForm = Record<string, unknown>;
+
+// Every screen using forms data reloads them; provisioning checks cost dozens of
+// API calls, so they run once per project per page load.
+const provisionProjectOnce = createRunOncePerKey<LoadedForm[]>();
+
+async function provisionProjectForms(input: {
+  organizationId: string;
+  projectId: string;
+  userId: string;
+  loadedForms: LoadedForm[];
+}): Promise<{ value: LoadedForm[]; retry: boolean }> {
+  const { organizationId, projectId, userId, loadedForms } = input;
+  const created: LoadedForm[] = [];
+  let retry = false;
+  try {
+    const provisioned = await provisionStandardLibraryIfMissing(supabase, {
+      organizationId,
+      projectId,
+      createdBy: userId,
+      alreadyPresent: loadedForms.some((form) => form.reference_id === STANDARD_LIBRARY_REFERENCE_ID),
+    });
+    if (provisioned.created && provisioned.form) created.push(provisioned.form);
+  } catch (provisionError) {
+    retry = true;
+    console.error('Failed to provision Regulatory Standard Library:', provisionError);
+  }
+  try {
+    const registers = await provisionRegulatoryRegistersIfMissing(supabase, {
+      organizationId,
+      projectId,
+      createdBy: userId,
+    });
+    if (registers.blockedReason) {
+      retry = true;
+      console.error(registers.blockedReason);
+    }
+    created.push(...[registers.clauseForm, registers.requirementForm].filter(Boolean));
+  } catch (registerError) {
+    retry = true;
+    console.error('Failed to provision regulatory clause and requirement registers:', registerError);
+  }
+  try {
+    const foundation = await provisionGrcFoundationIfMissing(supabase, {
+      organizationId,
+      projectId,
+      createdBy: userId,
+    });
+    created.push(...foundation.forms.filter((form) => foundation.createdReferenceIds.includes(String(form.reference_id))));
+  } catch (foundationError) {
+    retry = true;
+    console.error('Failed to provision control objective and asset foundation forms:', foundationError);
+  }
+  return { value: created, retry };
+}
 
 export function useFormsLoader() {
   const [forms, setForms] = useState<Form[]>([]);
@@ -134,48 +191,12 @@ export function useFormsLoader() {
       // Filter forms based on permissions
       let formsData = allForms || [];
       if (canProvisionRegulatory) {
-        try {
-          const provisioned = await provisionStandardLibraryIfMissing(supabase, {
-            organizationId,
-            projectId,
-            createdBy: userId,
-            alreadyPresent: formsData.some((form) => form.reference_id === STANDARD_LIBRARY_REFERENCE_ID),
-          });
-          if (provisioned.created && provisioned.form) {
-            formsData = [provisioned.form, ...formsData];
-          }
-        } catch (provisionError) {
-          console.error('Failed to provision Regulatory Standard Library:', provisionError);
-        }
-        try {
-          const registers = await provisionRegulatoryRegistersIfMissing(supabase, {
-            organizationId,
-            projectId,
-            createdBy: userId,
-          });
-          if (registers.blockedReason) {
-            console.error(registers.blockedReason);
-          }
-          const createdRegisters = [registers.clauseForm, registers.requirementForm].filter(Boolean);
-          if (createdRegisters.length > 0) {
-            formsData = [...createdRegisters, ...formsData];
-          }
-        } catch (registerError) {
-          console.error('Failed to provision regulatory clause and requirement registers:', registerError);
-        }
-        try {
-          const foundation = await provisionGrcFoundationIfMissing(supabase, {
-            organizationId,
-            projectId,
-            createdBy: userId,
-          });
-          if (foundation.createdReferenceIds.length > 0) {
-            const createdForms = foundation.forms.filter((form) => foundation.createdReferenceIds.includes(String(form.reference_id)));
-            formsData = [...createdForms, ...formsData];
-          }
-        } catch (foundationError) {
-          console.error('Failed to provision control objective and asset foundation forms:', foundationError);
-        }
+        const loadedForms = formsData;
+        const createdForms = await provisionProjectOnce(`${organizationId}:${projectId}`, () =>
+          provisionProjectForms({ organizationId, projectId, userId, loadedForms }),
+        );
+        const loadedIds = new Set(formsData.map((form) => form.id));
+        formsData = [...createdForms.filter((form) => !loadedIds.has(form.id)), ...formsData];
       }
       const readableFormIds = {
         has: (id: string) => formPermissions.get(id)?.has('read') ?? false,
