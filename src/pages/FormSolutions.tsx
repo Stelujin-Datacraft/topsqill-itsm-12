@@ -39,6 +39,7 @@ import { useSolutions } from '@/hooks/useSolutions';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { cn } from '@/lib/utils';
 import {
+  columnsVisibleToViewer,
   groupFormsBySolution,
   solutionColor,
   UNASSIGNED_COLUMN_ID,
@@ -82,9 +83,10 @@ const Solutions = () => {
   const canManage = isOrgAdmin || isProjectAdmin || hasPermission('forms', 'update');
   const visibleForms = useMemo(() => getVisibleResources('forms', forms), [getVisibleResources, forms]);
   const columns = useMemo(
-    () => groupFormsBySolution(solutions, links, visibleForms),
-    [solutions, links, visibleForms],
+    () => columnsVisibleToViewer(groupFormsBySolution(solutions, links, visibleForms), canManage),
+    [solutions, links, visibleForms, canManage],
   );
+  const hasSolutions = columns.some((column) => column.solution);
   const unassignedCount = columns.find((column) => column.id === UNASSIGNED_COLUMN_ID)?.forms.length ?? 0;
   const term = query.trim().toLowerCase();
   const solutionColumns = columns.filter(
@@ -260,14 +262,16 @@ const Solutions = () => {
         </div>
       );
     }
-    if (solutions.length === 0) {
+    if (!hasSolutions) {
       return (
         <div className="space-y-4 py-12 text-center">
           <Boxes className="mx-auto h-12 w-12 text-muted-foreground" />
           <div>
             <h3 className="text-lg font-semibold">{t('solutions.noneTitle', 'No solutions yet')}</h3>
             <p className="mx-auto max-w-md text-muted-foreground">
-              {t('solutions.noneDescription', 'Create a solution to group related forms, then add forms to it or drag them between solutions.')}
+              {canManage
+                ? t('solutions.noneDescription', 'Create a solution to group related forms, then add forms to it or drag them between solutions.')
+                : t('solutions.noneVisibleDescription', 'You will see a solution here once your role gives you access to one of its forms.')}
             </p>
           </div>
           {canManage && (
@@ -319,7 +323,7 @@ const Solutions = () => {
             </Button>
           </div>
           <div className="flex items-center gap-3">
-            {!loading && !error && solutions.length > 0 && (
+            {!loading && !error && hasSolutions && (
               <span className="flex items-center gap-1.5 whitespace-nowrap text-sm text-muted-foreground">
                 <FileText className="h-4 w-4" />
                 {t('solutions.unassignedCount', '{{count}} form(s) not in a solution', { count: unassignedCount })}
@@ -336,7 +340,7 @@ const Solutions = () => {
             </div>
           </div>
         </div>
-        {viewMode === 'kanban' && canManage && solutions.length > 0 && !loading && !error && (
+        {viewMode === 'kanban' && canManage && hasSolutions && !loading && !error && (
           <p className="text-sm text-muted-foreground">
             {t('solutions.kanbanHint', 'Drag a form to another column to move it to that solution.')}
           </p>

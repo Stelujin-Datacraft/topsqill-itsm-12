@@ -84,7 +84,7 @@ const SolutionDetail = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const canManage = isOrgAdmin || isProjectAdmin || hasPermission('forms', 'update');
-  const solution = solutions.find((item) => item.id === id) || null;
+  const loadedSolution = solutions.find((item) => item.id === id) || null;
   const visibleForms = useMemo(() => getVisibleResources('forms', forms), [getVisibleResources, forms]);
   const solutionForms = useMemo(
     () =>
@@ -93,6 +93,7 @@ const SolutionDetail = () => {
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
     [visibleForms, formSolutionIds, id],
   );
+  const solution = loadedSolution && (canManage || solutionForms.length > 0) ? loadedSolution : null;
   const otherSolutions = solutions.filter((item) => item.id !== id).sort((a, b) => a.name.localeCompare(b.name));
 
   const statusLabel = (status: string) => t(`forms.status.${status}`, status.replace('_', ' '));

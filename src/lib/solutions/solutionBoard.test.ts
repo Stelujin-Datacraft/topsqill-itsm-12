@@ -6,7 +6,9 @@ import {
   UNASSIGNED_COLUMN_ID,
   applyFormMove,
   columnIdToSolutionId,
+  columnsVisibleToViewer,
   groupFormsBySolution,
+  groupSelectionState,
   planFormMove,
   solutionColor,
   solutionIdByForm,
@@ -76,5 +78,25 @@ assert.match(solutionNameError('x'.repeat(121), solutions)!, /120/);
 assert.match(solutionNameError(' risk management ', solutions)!, /already exists/);
 assert.equal(solutionNameError('Risk Management', solutions, 's-risk'), null, 'renaming a solution to itself is allowed');
 assert.equal(solutionNameError('Compliance', solutions), null);
+
+const viewerForms = forms.filter((form) => form.id === 'f-risk');
+const viewerColumns = groupFormsBySolution([...solutions, solution('s-empty', 'Empty')], links, viewerForms);
+assert.deepEqual(
+  columnsVisibleToViewer(viewerColumns, false).map((column) => column.id),
+  ['s-risk'],
+  'a viewer only sees solutions holding a form their role grants',
+);
+assert.equal(columnsVisibleToViewer(viewerColumns, true).length, 4, 'managers see every solution, including empty ones');
+assert.deepEqual(
+  columnsVisibleToViewer(viewerColumns, false)[0].forms.map((form) => form.id),
+  ['f-risk'],
+  'other forms of the same solution stay hidden',
+);
+
+const granted = new Set(['f-register']);
+assert.equal(groupSelectionState(['f-register', 'f-assess'], (id) => granted.has(id)), 'indeterminate');
+granted.add('f-assess');
+assert.equal(groupSelectionState(['f-register', 'f-assess'], (id) => granted.has(id)), true);
+assert.equal(groupSelectionState(['f-risk'], (id) => granted.has(id)), false);
 
 console.log('solutionBoard tests passed');
