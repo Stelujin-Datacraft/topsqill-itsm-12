@@ -226,7 +226,10 @@ export function QueryField({
         return;
       }
 
-      const hasValueChanged = lastTargetValueRef.current !== targetFieldValue;
+      // Cross-reference values are arrays that can be rebuilt with the same contents.
+      const hasValueChanged = writesCurrentRecord
+        ? !sameFieldValue(lastTargetValueRef.current, targetFieldValue)
+        : lastTargetValueRef.current !== targetFieldValue;
       
       if (hasValueChanged) {
         console.log('🎯 QueryField: Target field changed');
