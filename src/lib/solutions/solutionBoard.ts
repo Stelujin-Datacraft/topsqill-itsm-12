@@ -93,6 +93,22 @@ export function groupFormsBySolution<F extends { id: string; name: string }>(
   return [...columns, unassigned];
 }
 
+/**
+ * Solutions carry no permissions of their own: they follow form access.
+ * Without manage rights a user only sees columns that hold a form they can see
+ * (pass columns built from the forms visible to that user).
+ */
+export function columnsVisibleToViewer<F>(columns: SolutionColumn<F>[], canManage: boolean): SolutionColumn<F>[] {
+  return canManage ? columns : columns.filter((column) => column.forms.length > 0);
+}
+
+/** Header checkbox state for "select every form in this group". */
+export function groupSelectionState(ids: string[], isSelected: (id: string) => boolean): boolean | 'indeterminate' {
+  const selected = ids.filter(isSelected).length;
+  if (selected === 0) return false;
+  return selected === ids.length ? true : 'indeterminate';
+}
+
 export type FormMove =
   | { kind: 'none' }
   | { kind: 'assign'; formId: string; solutionId: string }
