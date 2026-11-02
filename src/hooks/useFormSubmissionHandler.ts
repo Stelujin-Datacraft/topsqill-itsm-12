@@ -99,7 +99,7 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
 
       if (submissionError) {
         console.error('❌ Error saving submission:', submissionError);
-        throw new Error('Failed to save submission');
+        throw new Error(submissionError.message || 'Failed to save submission');
       }
 
       console.log('✅ Form submission saved with ID:', submission.id);
@@ -149,7 +149,9 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
       console.error('❌ Error submitting form:', error);
       toast({
         title: "Submission Failed",
-        description: "There was an error submitting your form. Please try again.",
+        description: error instanceof Error && error.message
+          ? `The record was not saved: ${error.message}`
+          : "There was an error submitting your form. Please try again.",
         variant: "destructive",
       });
       throw error;

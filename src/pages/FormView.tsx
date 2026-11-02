@@ -251,6 +251,7 @@ const FormView = () => {
         setSubmissionResult(result);
       } catch (error) {
         console.error('Form submission failed:', error);
+        throw error;
       }
     };
 
@@ -397,6 +398,7 @@ const FormView = () => {
       setSubmissionResult(result);
     } catch (error) {
       console.error('Form submission failed:', error);
+      throw error;
     }
   };
 
