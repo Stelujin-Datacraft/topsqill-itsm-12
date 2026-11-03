@@ -99,13 +99,16 @@ function main() {
   const ids = collectSourceIds(pkg).sort();
   assert.deepEqual(ids, [FORM, FIELD, WORKFLOW, NODE, SOLUTION].sort());
   const idMap = { [FORM]: 'aaaaaaaa-0000-4000-8000-000000000001', [FIELD]: 'aaaaaaaa-0000-4000-8000-000000000002' };
-  const remapped = remapIds(pkg.objects[1].data, idMap) as any;
+  const remapped = remapIds(pkg.objects[1].data, idMap) as {
+    form: { id: string; pages: { fields: string[] }[] };
+    fields: { custom_config: { query: string } }[];
+  };
   assert.equal(remapped.form.id, idMap[FORM]);
   assert.deepEqual(remapped.form.pages[0].fields, [idMap[FIELD]]);
   assert.ok(remapped.fields[0].custom_config.query.includes(idMap[FORM]) && remapped.fields[0].custom_config.query.includes(idMap[FIELD]), 'ids inside SQL are remapped');
   assert.ok(!JSON.stringify(remapped).includes(FORM));
   assert.equal(remapIds({ page: 'page-1' }, idMap).page, 'page-1', 'non-UUID strings are untouched');
-  assert.equal((remapIds(pkg.objects[2].data, idMap) as any).nodes[0].config.lookup.targetFormId, OTHER_FORM, 'unmapped ids stay as they are');
+  assert.equal((remapIds(pkg.objects[2].data, idMap) as { nodes: { config: { lookup: { targetFormId: string } } }[] }).nodes[0].config.lookup.targetFormId, OTHER_FORM, 'unmapped ids stay as they are');
 
   assert.deepEqual(externalFormReferences(pkg), [{ objectKey: `workflow:${WORKFLOW}`, formId: OTHER_FORM }]);
 
