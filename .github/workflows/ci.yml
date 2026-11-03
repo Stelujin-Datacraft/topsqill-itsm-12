@@ -106,6 +106,7 @@ jobs:
         run: |
           npx tsx packages/package-spec/test/package-spec.test.ts
           node scripts/sync-package-spec.mjs --check
+          npx tsx --tsconfig tsconfig.app.json src/lib/packages/exportForm.test.ts
 
       - name: Module entitlements catalogue and subscriptions console
         run: npx tsx --tsconfig tsconfig.app.json src/lib/entitlements/entitlements.test.ts
