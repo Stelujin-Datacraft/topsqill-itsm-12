@@ -16,6 +16,7 @@ import {
   List,
   MinusCircle,
   MoreVertical,
+  PackageOpen,
   Pencil,
   Plus,
   Trash2,
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AddFormsDialog } from '@/components/solutions/AddFormsDialog';
 import { DeleteSolutionDialog } from '@/components/solutions/DeleteSolutionDialog';
+import { ExportPackageDialog } from '@/components/solutions/ExportPackageDialog';
 import { SolutionDialog } from '@/components/solutions/SolutionDialog';
 import { useProject } from '@/contexts/ProjectContext';
 import { useFormsData } from '@/hooks/useFormsData';
@@ -82,6 +84,7 @@ const SolutionDetail = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const canManage = isOrgAdmin || isProjectAdmin || hasPermission('forms', 'update');
   const loadedSolution = solutions.find((item) => item.id === id) || null;
@@ -321,6 +324,12 @@ const SolutionDetail = () => {
           </Button>
         </>
       )}
+      {isOrgAdmin && (
+        <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+          <PackageOpen className="me-2 h-4 w-4" />
+          {t('solutions.exportPackage', 'Export as package')}
+        </Button>
+      )}
     </div>
   );
 
@@ -396,6 +405,9 @@ const SolutionDetail = () => {
           navigate('/form-solutions');
         }}
       />
+      {isOrgAdmin && exportOpen && (
+        <ExportPackageDialog open={exportOpen} onOpenChange={setExportOpen} solution={solution} />
+      )}
     </DashboardLayout>
   );
 };
