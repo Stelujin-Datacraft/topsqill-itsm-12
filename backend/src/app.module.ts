@@ -30,6 +30,7 @@ import { VisModule } from './vis/vis.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { ReModule } from './re/re.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
+import { PackagesModule } from './packages/packages.module';
 import { ModuleEntitlementGuard } from './entitlements/module-entitlement.guard';
 import { HealthController } from './health.controller';
 import { RegulatoryFormsBootstrap } from './regulatory/regulatory-forms.bootstrap';
@@ -91,6 +92,7 @@ const envFilePath = [
     PromotionModule,
     ReModule,
     EntitlementsModule,
+    PackagesModule,
   ],
   controllers: [HealthController],
   providers: [

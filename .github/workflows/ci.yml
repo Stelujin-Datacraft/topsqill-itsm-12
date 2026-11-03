@@ -44,6 +44,7 @@ jobs:
           npx tsx test/health/health-crud.test.ts
           npx tsx test/common/user-throttler.test.ts
           npx tsx test/entitlements/module-entitlements.test.ts
+          npx tsx test/packages/solution-export.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-persistence-config.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-schema-guard.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.rls-policy-security.test.ts
@@ -100,6 +101,11 @@ jobs:
 
       - name: Solutions board grouping and form moves
         run: npx tsx --tsconfig tsconfig.app.json src/lib/solutions/solutionBoard.test.ts
+
+      - name: Package format (package-spec) and backend copy in sync
+        run: |
+          npx tsx packages/package-spec/test/package-spec.test.ts
+          node scripts/sync-package-spec.mjs --check
 
       - name: Module entitlements catalogue and subscriptions console
         run: npx tsx --tsconfig tsconfig.app.json src/lib/entitlements/entitlements.test.ts
