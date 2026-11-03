@@ -43,6 +43,7 @@ jobs:
           npx tsx test/supabase/get-user-from-token.test.ts
           npx tsx test/health/health-crud.test.ts
           npx tsx test/common/user-throttler.test.ts
+          npx tsx test/entitlements/module-entitlements.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-persistence-config.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.discovery-schema-guard.test.ts
           ITAM_DISCOVERY_UNIT_TEST=1 npx tsx test/itam/itam.rls-policy-security.test.ts
@@ -99,6 +100,9 @@ jobs:
 
       - name: Solutions board grouping and form moves
         run: npx tsx --tsconfig tsconfig.app.json src/lib/solutions/solutionBoard.test.ts
+
+      - name: Module entitlements catalogue and subscriptions console
+        run: npx tsx --tsconfig tsconfig.app.json src/lib/entitlements/entitlements.test.ts
 
       - name: API rate limit retry and one-time provisioning
         run: npx tsx --tsconfig tsconfig.app.json src/services/api/rateLimitRetry.test.ts

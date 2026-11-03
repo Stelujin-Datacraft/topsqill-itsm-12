@@ -23,9 +23,11 @@ import {
   ReUpdateListingDto,
   ReUpdateProfileDto,
 } from './re.service';
+import { RequiresModule } from '../entitlements/requires-module.decorator';
 
 type AuthedRequest = Request & { user?: { id: string } };
 
+@RequiresModule('real-estate')
 @Controller('re')
 export class ReController {
   constructor(private readonly reService: ReService) {}

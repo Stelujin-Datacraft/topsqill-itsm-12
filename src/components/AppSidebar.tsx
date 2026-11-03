@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight, Building2, Boxes } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2, Newspaper, Cable, ArrowLeftRight, Building2, Boxes, BadgeCheck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -23,6 +23,7 @@ import { NotificationPanel } from "@/components/NotificationPanel"
 import { ThemeSelector } from "@/components/ThemeSelector"
 import { isPromotionalTransferUiEnabled } from "@/lib/promotion/feature"
 import { isReLeadgenUiEnabled, isReNetworkUiEnabled } from "@/lib/re/feature"
+import { useEntitlements } from "@/hooks/useEntitlements"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation();
@@ -38,6 +39,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     effectiveRole === 'admin' && isPromotionalTransferUiEnabled();
   const reLeadgenVisible = isReLeadgenUiEnabled();
   const reNetworkVisible = isReNetworkUiEnabled();
+  const entitlements = useEntitlements();
+  const locked = (module: Parameters<typeof entitlements.levelOf>[0]) => entitlements.levelOf(module) === 'none';
 
   const data = {
     user: {
@@ -71,6 +74,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/build",
         icon: Wand2,
         iconColor: "text-primary",
+        locked: locked('ai-builder'),
       },
       {
         title: t('nav.accessControl'),
@@ -131,6 +135,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/vis",
         icon: Cable,
         iconColor: "text-module-api",
+        locked: locked('integration-studio'),
       },
       ...(reLeadgenVisible
         ? [
@@ -139,6 +144,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               url: reNetworkVisible ? '/re/home' : '/re',
               icon: Building2,
               iconColor: 'text-module-projects',
+              locked: locked('real-estate'),
             },
           ]
         : []),
@@ -187,6 +193,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 url: '/promotional-transfer',
                 icon: ArrowLeftRight,
                 iconColor: 'text-module-access',
+                locked: locked('promotional-transfer'),
               },
             ]
           : []),
@@ -197,6 +204,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           iconColor: 'text-module-knowledge',
         },
       ] : []),
+      ...(entitlements.isPlatformAdmin
+        ? [
+            {
+              title: 'Subscriptions',
+              url: '/platform/subscriptions',
+              icon: BadgeCheck,
+              iconColor: 'text-primary',
+            },
+          ]
+        : []),
     ],
     projects: projects.map(project => ({
       name: project.name,

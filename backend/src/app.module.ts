@@ -29,6 +29,8 @@ import { BlogModule } from './blog/blog.module';
 import { VisModule } from './vis/vis.module';
 import { PromotionModule } from './promotion/promotion.module';
 import { ReModule } from './re/re.module';
+import { EntitlementsModule } from './entitlements/entitlements.module';
+import { ModuleEntitlementGuard } from './entitlements/module-entitlement.guard';
 import { HealthController } from './health.controller';
 import { RegulatoryFormsBootstrap } from './regulatory/regulatory-forms.bootstrap';
 import { GrcFoundationBootstrap } from './grc/grc-foundation.bootstrap';
@@ -88,6 +90,7 @@ const envFilePath = [
     VisModule,
     PromotionModule,
     ReModule,
+    EntitlementsModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -100,6 +103,10 @@ const envFilePath = [
     {
       provide: APP_GUARD,
       useClass: SupabaseAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useExisting: ModuleEntitlementGuard,
     },
   ],
 })

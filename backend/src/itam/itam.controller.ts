@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Headers } from '@nestjs/common';
 import { ItamService } from './itam.service';
 import { Public } from '../common/decorators/public.decorator';
 
@@ -8,7 +8,7 @@ export class ItamController {
 
   @Public()
   @Post('agent-report')
-  agentReport(@Body() body: Record<string, unknown>) {
-    return this.itamService.handleAgentReport(body);
+  agentReport(@Body() body: Record<string, unknown>, @Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.itamService.handleAgentReport(body, headers);
   }
 }

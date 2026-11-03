@@ -17,9 +17,11 @@ import { ReIngestService } from './re-ingest.service';
 import { ReFollowupService } from './re-followup.service';
 import { ReMetaEnrichService } from './re-meta-enrich.service';
 import { ReDedupeService } from './re-dedupe.service';
+import { RequiresModule } from '../entitlements/requires-module.decorator';
 
 type AuthedRequest = Request & { user?: { id: string } };
 
+@RequiresModule('real-estate')
 @Controller('re')
 @UseGuards(SupabaseAuthGuard, ReLeadgenAccessGuard)
 export class ReSourcesController {
