@@ -12,7 +12,19 @@ import {
   openSnapshot,
   usageLines,
 } from '@/lib/entitlements/modules';
-import { auditToCsv, describeAudit, levelOfRow, limitsFromInputs, summarizeOrgs, type AuditRow, type PlatformOverview } from '@/lib/entitlements/console';
+import {
+  activeModuleCount,
+  auditToCsv,
+  describeAudit,
+  filterOrgs,
+  levelOfRow,
+  limitsFromInputs,
+  orgAttention,
+  paginate,
+  summarizeOrgs,
+  type AuditRow,
+  type PlatformOverview,
+} from '@/lib/entitlements/console';
 
 assert.equal(moduleForPath('/build'), 'ai-builder');
 assert.equal(moduleForPath('/vis/integrations/42'), 'integration-studio');
@@ -78,3 +90,26 @@ assert.equal(describeAudit(audit[0]), 'Asset Discovery added');
 assert.equal(describeAudit({ ...audit[0], action: 'access_denied' }), 'Access denied to Asset Discovery');
 
 console.log('entitlements tests passed');
+
+{
+  const base = summarizeOrgs(overview, now)[0];
+  const org = (patch: Partial<typeof base>) => ({ ...base, ...patch });
+  assert.equal(orgAttention(base, now), null);
+  assert.equal(orgAttention(org({ modules: [{ ...base.modules[0], level: 'grace' }] }), now), 'grace');
+  assert.equal(orgAttention(org({ modules: [{ ...base.modules[0], level: 'grace' }, { ...base.modules[1], level: 'read_only' }] }), now), 'read_only', 'read-only outranks grace');
+  assert.equal(orgAttention(org({ subscription: { ...base.subscription!, current_period_end: '2026-11-20T00:00:00Z' } }), now), 'expiring');
+  assert.equal(orgAttention(org({ subscription: { ...base.subscription!, current_period_end: '2027-06-01T00:00:00Z' } }), now), null);
+
+  const orgs = [org({ id: 'b', name: 'Beta' }), org({ id: 'a', name: 'Alpha', subscription: { ...base.subscription!, plan_key: 'pro', status: 'trial' } })];
+  assert.deepEqual(filterOrgs(orgs, { term: '', plan: 'all', status: 'all' }, now).map((o) => o.name), ['Alpha', 'Beta'], 'sorted by name');
+  assert.deepEqual(filterOrgs(orgs, { term: 'bet', plan: 'all', status: 'all' }, now).map((o) => o.name), ['Beta']);
+  assert.deepEqual(filterOrgs(orgs, { term: '', plan: 'pro', status: 'all' }, now).map((o) => o.name), ['Alpha']);
+  assert.deepEqual(filterOrgs(orgs, { term: '', plan: 'all', status: 'trial' }, now).map((o) => o.name), ['Alpha']);
+  assert.deepEqual(filterOrgs(orgs, { term: '', plan: 'all', status: 'attention' }, now), []);
+  assert.equal(activeModuleCount(base), 1);
+
+  assert.deepEqual(paginate([1, 2, 3, 4, 5], 2, 2), { rows: [3, 4], page: 2, pages: 3 });
+  assert.deepEqual(paginate([1, 2, 3], 9, 2), { rows: [3], page: 2, pages: 2 }, 'page is clamped after filtering');
+  assert.deepEqual(paginate([], 1, 20), { rows: [], page: 1, pages: 1 });
+  console.log('organisation list helpers passed');
+}

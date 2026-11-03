@@ -165,3 +165,52 @@ export function describeAudit(row: AuditRow): string {
   const verb = op === 'insert' ? 'added' : op === 'delete' ? 'removed' : op === 'update' ? 'changed' : '';
   return verb ? `${subject} ${verb}` : subject;
 }
+
+export type OrgAttention = 'read_only' | 'grace' | 'expiring' | null;
+
+/** The most urgent thing about an organisation's subscription, for the list badge and filter. */
+export function orgAttention(org: OrgSummary, at: Date = new Date(), expiringWithinDays = 30): OrgAttention {
+  if (org.modules.some((m) => m.level === 'read_only')) return 'read_only';
+  if (org.modules.some((m) => m.level === 'grace')) return 'grace';
+  const ends = [org.subscription?.current_period_end, ...org.modules.map((m) => (m.level === 'full' ? m.entitlement?.ends_at : null))]
+    .filter((value): value is string => !!value)
+    .map((value) => new Date(value).getTime());
+  const soonest = ends.length ? Math.min(...ends) : null;
+  if (soonest !== null && soonest >= at.getTime() && soonest - at.getTime() <= expiringWithinDays * 86_400_000) return 'expiring';
+  return null;
+}
+
+export const ATTENTION_LABEL: Record<Exclude<OrgAttention, null>, string> = {
+  read_only: 'Read-only module',
+  grace: 'In grace period',
+  expiring: 'Renews within 30 days',
+};
+
+export interface OrgFilter {
+  term: string;
+  plan: string;
+  status: string;
+}
+
+export function filterOrgs(orgs: OrgSummary[], filter: OrgFilter, at: Date = new Date()): OrgSummary[] {
+  const term = filter.term.trim().toLowerCase();
+  return orgs
+    .filter((org) => !term || org.name.toLowerCase().includes(term) || org.planName.toLowerCase().includes(term) || org.id.startsWith(term))
+    .filter((org) => filter.plan === 'all' || (org.subscription?.plan_key ?? 'none') === filter.plan)
+    .filter((org) => {
+      if (filter.status === 'all') return true;
+      if (filter.status === 'attention') return orgAttention(org, at) !== null;
+      return (org.subscription?.status ?? 'none') === filter.status;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function activeModuleCount(org: OrgSummary): number {
+  return org.modules.filter((m) => m.level === 'full' || m.level === 'grace').length;
+}
+
+export function paginate<T>(items: T[], page: number, pageSize: number): { rows: T[]; page: number; pages: number } {
+  const pages = Math.max(1, Math.ceil(items.length / pageSize));
+  const current = Math.min(Math.max(1, page), pages);
+  return { rows: items.slice((current - 1) * pageSize, current * pageSize), page: current, pages };
+}
