@@ -1,0 +1,11 @@
+{
+  "name": "@topsqill/package-spec",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Topsqill configuration package format: manifest, validation, checksum, Ed25519 signing and id remapping.",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "npx tsx test/package-spec.test.ts",
+    "sync": "node ../../scripts/sync-package-spec.mjs"
+  }
+}
