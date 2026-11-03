@@ -52,13 +52,22 @@ const dateInput = (value: string | null | undefined) => (value ? value.slice(0, 
 const showDate = (value: string | null | undefined) => (value ? format(new Date(value), 'd MMM yyyy') : '—');
 
 function ReasonField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const missing = value.trim().length < 3;
   return (
     <div className="space-y-1.5">
-      <Label>Reason (saved in the audit log)</Label>
+      <Label>Reason (required, saved in the audit log)</Label>
       <Textarea rows={2} value={value} onChange={(event) => onChange(event.target.value)} placeholder="e.g. Annual renewal, invoice INV-2026-104" />
+      {missing && <p className="text-xs text-muted-foreground">Enter a reason of at least 3 characters to save.</p>}
     </div>
   );
 }
+
+function SaveError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">Not saved: {message}</p>;
+}
+
+const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 function PlanDialog({
   org,
@@ -77,10 +86,12 @@ function PlanDialog({
   const [graceDays, setGraceDays] = useState(String(org.subscription?.grace_days ?? 14));
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const plan = plans.find((p) => p.key === planKey);
 
   const save = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       await call(`/platform/orgs/${org.id}/plan`, 'POST', {
         planKey,
@@ -92,7 +103,8 @@ function PlanDialog({
       toast.success(`${org.name} is now on ${plan?.name || planKey}`);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      setSaveError(errorText(err));
+      toast.error(errorText(err));
     } finally {
       setSaving(false);
     }
@@ -143,6 +155,7 @@ function PlanDialog({
           </div>
           <ReasonField value={reason} onChange={setReason} />
         </div>
+        <SaveError message={saveError} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving || reason.trim().length < 3}>Save plan</Button>
@@ -175,14 +188,17 @@ function ModuleDialog({
   );
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const save = async () => {
     const { limits, error } = limitsFromInputs(limitInputs);
     if (error) {
+      setSaveError(error);
       toast.error(error);
       return;
     }
     setSaving(true);
+    setSaveError(null);
     try {
       await call(`/platform/orgs/${org.id}/modules/${module}`, 'PUT', {
         source,
@@ -195,7 +211,8 @@ function ModuleDialog({
       toast.success(`${MODULES[module].name} updated for ${org.name}`);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      setSaveError(errorText(err));
+      toast.error(errorText(err));
     } finally {
       setSaving(false);
     }
@@ -252,6 +269,7 @@ function ModuleDialog({
           ))}
           <ReasonField value={reason} onChange={setReason} />
         </div>
+        <SaveError message={saveError} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving || reason.trim().length < 3}>Save</Button>
@@ -274,14 +292,17 @@ function RemoveModuleDialog({
 }) {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const remove = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       await call(`/platform/orgs/${org.id}/modules/${module}?reason=${encodeURIComponent(reason)}`, 'DELETE');
       toast.success(`${MODULES[module].name} removed from ${org.name}`);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      setSaveError(errorText(err));
+      toast.error(errorText(err));
     } finally {
       setSaving(false);
     }
@@ -296,6 +317,7 @@ function RemoveModuleDialog({
           </DialogDescription>
         </DialogHeader>
         <ReasonField value={reason} onChange={setReason} />
+        <SaveError message={saveError} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button variant="destructive" onClick={remove} disabled={saving || reason.trim().length < 3}>Remove</Button>
@@ -331,18 +353,21 @@ function PlanEditor({
   const [applyToSubscribers, setApplyToSubscribers] = useState(true);
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const save = async () => {
     const limits: Record<string, Record<string, number>> = {};
     for (const module of modules) {
       const parsed = limitsFromInputs(limitInputs[module] || {});
       if (parsed.error) {
+        setSaveError(parsed.error);
         toast.error(parsed.error);
         return;
       }
       if (Object.keys(parsed.limits).length) limits[module] = parsed.limits;
     }
     setSaving(true);
+    setSaveError(null);
     try {
       const result = await call<{ organizationsUpdated: number }>(`/platform/plans/${key.trim()}`, 'PUT', {
         name,
@@ -356,7 +381,8 @@ function PlanEditor({
       toast.success(`Plan saved${result.organizationsUpdated ? `; ${result.organizationsUpdated} organisation(s) updated` : ''}`);
       onSaved();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      setSaveError(errorText(err));
+      toast.error(errorText(err));
     } finally {
       setSaving(false);
     }
@@ -429,6 +455,7 @@ function PlanEditor({
           )}
           <ReasonField value={reason} onChange={setReason} />
         </div>
+        <SaveError message={saveError} />
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving || !key.trim() || !name.trim() || reason.trim().length < 3}>Save plan</Button>
