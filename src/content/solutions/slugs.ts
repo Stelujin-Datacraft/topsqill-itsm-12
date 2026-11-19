@@ -1,7 +1,7 @@
 /** URL slug for each Solutions tab: /solutions/<slug> (and /<market>/solutions/<slug>). */
 export const SOLUTION_SLUGS = {
   onboarding: 'employee-onboarding',
-  grc: 'grc',
+  grc: 'governance-risk-compliance',
   itsm: 'itsm',
   vendor: 'vendor-management',
   security: 'security',
@@ -9,6 +9,9 @@ export const SOLUTION_SLUGS = {
 } as const;
 
 export type SolutionId = keyof typeof SOLUTION_SLUGS;
+
+/** Earlier slugs that still resolve; the page redirects them to the current slug. */
+const LEGACY_SLUGS: Record<string, SolutionId> = { grc: 'grc' };
 
 export const SOLUTION_IDS = Object.keys(SOLUTION_SLUGS) as SolutionId[];
 
@@ -20,10 +23,11 @@ export function isSolutionId(value: string | null | undefined): value is Solutio
 
 export function solutionIdFromSlug(slug: string | undefined): SolutionId | null {
   if (!slug) return null;
-  return SOLUTION_IDS.find((id) => SOLUTION_SLUGS[id] === slug.toLowerCase()) ?? null;
+  const normalized = slug.toLowerCase();
+  return SOLUTION_IDS.find((id) => SOLUTION_SLUGS[id] === normalized) ?? LEGACY_SLUGS[normalized] ?? null;
 }
 
-/** `/solutions/grc`, or `/ae/solutions/grc` when browsing a market. */
+/** `/solutions/itsm`, or `/ae/solutions/itsm` when browsing a market. */
 export function solutionPath(id: SolutionId, market?: string): string {
   return `${market ? `/${market}` : ''}/solutions/${SOLUTION_SLUGS[id]}`;
 }

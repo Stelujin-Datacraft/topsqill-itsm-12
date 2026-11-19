@@ -18,7 +18,10 @@ for (const id of SOLUTION_IDS) {
   assert.ok(sitemapPaths().includes(solutionPath(id)), `${id} is in the sitemap`);
 }
 
-assert.equal(solutionIdFromSlug('GRC'), 'grc');
+assert.equal(solutionPath('grc'), '/solutions/governance-risk-compliance');
+assert.equal(solutionIdFromSlug('GOVERNANCE-RISK-COMPLIANCE'), 'grc');
+assert.equal(solutionIdFromSlug('grc'), 'grc', 'old GRC slug still resolves');
+assert.ok(!isKnownPublicPath('/solutions/grc'), 'old GRC slug is not a separate SEO page');
 assert.equal(solutionIdFromSlug('vendor'), null, 'tab ids are not slugs');
 assert.equal(solutionIdFromSlug('unknown'), null);
 assert.equal(solutionIdFromSlug(undefined), null);

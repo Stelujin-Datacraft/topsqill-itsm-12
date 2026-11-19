@@ -17,7 +17,7 @@ https://topsqill.com/ae/roadmap
 https://topsqill.com/ae/showcase
 https://topsqill.com/ae/solutions
 https://topsqill.com/ae/solutions/employee-onboarding
-https://topsqill.com/ae/solutions/grc
+https://topsqill.com/ae/solutions/governance-risk-compliance
 https://topsqill.com/ae/solutions/hr
 https://topsqill.com/ae/solutions/itsm
 https://topsqill.com/ae/solutions/security
@@ -40,7 +40,7 @@ https://topsqill.com/ar/roadmap
 https://topsqill.com/ar/showcase
 https://topsqill.com/ar/solutions
 https://topsqill.com/ar/solutions/employee-onboarding
-https://topsqill.com/ar/solutions/grc
+https://topsqill.com/ar/solutions/governance-risk-compliance
 https://topsqill.com/ar/solutions/hr
 https://topsqill.com/ar/solutions/itsm
 https://topsqill.com/ar/solutions/security
@@ -71,7 +71,7 @@ https://topsqill.com/in/roadmap
 https://topsqill.com/in/showcase
 https://topsqill.com/in/solutions
 https://topsqill.com/in/solutions/employee-onboarding
-https://topsqill.com/in/solutions/grc
+https://topsqill.com/in/solutions/governance-risk-compliance
 https://topsqill.com/in/solutions/hr
 https://topsqill.com/in/solutions/itsm
 https://topsqill.com/in/solutions/security
@@ -98,7 +98,7 @@ https://topsqill.com/sa/roadmap
 https://topsqill.com/sa/showcase
 https://topsqill.com/sa/solutions
 https://topsqill.com/sa/solutions/employee-onboarding
-https://topsqill.com/sa/solutions/grc
+https://topsqill.com/sa/solutions/governance-risk-compliance
 https://topsqill.com/sa/solutions/hr
 https://topsqill.com/sa/solutions/itsm
 https://topsqill.com/sa/solutions/security
@@ -121,7 +121,7 @@ https://topsqill.com/sg/roadmap
 https://topsqill.com/sg/showcase
 https://topsqill.com/sg/solutions
 https://topsqill.com/sg/solutions/employee-onboarding
-https://topsqill.com/sg/solutions/grc
+https://topsqill.com/sg/solutions/governance-risk-compliance
 https://topsqill.com/sg/solutions/hr
 https://topsqill.com/sg/solutions/itsm
 https://topsqill.com/sg/solutions/security
@@ -130,7 +130,7 @@ https://topsqill.com/sg/terms
 https://topsqill.com/showcase
 https://topsqill.com/solutions
 https://topsqill.com/solutions/employee-onboarding
-https://topsqill.com/solutions/grc
+https://topsqill.com/solutions/governance-risk-compliance
 https://topsqill.com/solutions/hr
 https://topsqill.com/solutions/itsm
 https://topsqill.com/solutions/security

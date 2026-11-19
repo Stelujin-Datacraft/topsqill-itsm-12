@@ -87,6 +87,9 @@ const Solutions: React.FC = () => {
   }
   const slugId = solutionIdFromSlug(slug);
   if (slug && !slugId) return <Navigate to={basePath} replace />;
+  if (slugId && solutionPath(slugId, market) !== pathname.replace(/\/$/, '')) {
+    return <Navigate to={solutionPath(slugId, market)} replace />;
+  }
   const activeTab = slugId ?? DEFAULT_SOLUTION_ID;
 
   const handleTabChange = (value: string) => {

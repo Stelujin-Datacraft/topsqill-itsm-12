@@ -111,7 +111,7 @@ TopSqill helps organizations build forms, automate approvals and workflows, quer
 
 - [Home](https://topsqill.com/): Product overview and platform capabilities
 - [Solutions](https://topsqill.com/solutions): Industry and operational solution scenarios
-- [GRC](https://topsqill.com/solutions/grc): Governance, risk and compliance software for connected, accountable workflows
+- [GRC](https://topsqill.com/solutions/governance-risk-compliance): Governance, risk and compliance software for connected, accountable workflows
 - [About](https://topsqill.com/about): Company and platform overview
 - [Contact](https://topsqill.com/contact): Talk to the TopSqill team
 - [Docs](https://topsqill.com/docs): API documentation
