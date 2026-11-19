@@ -1,5 +1,5 @@
 import { FormEvent, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CalendarCheck, CheckCircle2, ChevronRight, Clock, Hand, X } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { marketingHref } from '@/lib/marketingNav';
 import { cn } from '@/lib/utils';
 import {
   GRC_AI,
@@ -174,12 +175,13 @@ function SampleDashboard() {
 }
 
 function Hero() {
+  const { pathname } = useLocation();
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 md:px-8">
       <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-1 text-sm text-muted-foreground">
-        <Link to="/" className="hover:text-foreground">Home</Link>
+        <Link to={marketingHref('/', pathname)} className="hover:text-foreground">Home</Link>
         <ChevronRight className="h-3.5 w-3.5" />
-        <Link to="/solutions" className="hover:text-foreground">Solutions</Link>
+        <Link to={marketingHref('/solutions', pathname)} className="hover:text-foreground">Solutions</Link>
         <ChevronRight className="h-3.5 w-3.5" />
         <span className="text-foreground">GRC</span>
       </nav>

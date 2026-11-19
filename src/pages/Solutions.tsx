@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ import { useSolutionsContent } from '@/content/solutions/useSolutionsContent';
 import type { SolutionStep } from '@/content/solutions/steps';
 import SiteHeader from '@/components/layout/SiteHeader';
 import GrcSolution from '@/components/landing/GrcSolution';
+import { DEFAULT_SOLUTION_ID, isSolutionId, solutionIdFromSlug, solutionPath } from '@/content/solutions/slugs';
+import { stripMarketPrefix } from '@/lib/seo';
 
 const Timeline: React.FC<{ steps: SolutionStep[] }> = ({ steps }) => (
   <div className="relative max-w-6xl mx-auto" dir="ltr" lang="en">
@@ -72,13 +74,24 @@ const Timeline: React.FC<{ steps: SolutionStep[] }> = ({ steps }) => (
 const Solutions: React.FC = () => {
   const { t } = useTranslation();
   const solutions = useSolutionsContent();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab');
-  const validIds = solutions.map((s) => s.id);
-  const activeTab = initialTab && validIds.includes(initialTab) ? initialTab : 'onboarding';
+  const { slug } = useParams();
+  const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { market } = stripMarketPrefix(pathname);
+  const basePath = `${market ? `/${market}` : ''}/solutions`;
+
+  const legacyTab = searchParams.get('tab');
+  if (legacyTab !== null) {
+    return <Navigate to={isSolutionId(legacyTab) ? solutionPath(legacyTab, market) : basePath} replace />;
+  }
+  const slugId = solutionIdFromSlug(slug);
+  if (slug && !slugId) return <Navigate to={basePath} replace />;
+  const activeTab = slugId ?? DEFAULT_SOLUTION_ID;
 
   const handleTabChange = (value: string) => {
-    setSearchParams({ tab: value }, { replace: true });
+    if (!isSolutionId(value)) return;
+    navigate(solutionPath(value, market));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
