@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,9 @@ import {
 import { useSolutionsContent } from '@/content/solutions/useSolutionsContent';
 import type { SolutionStep } from '@/content/solutions/steps';
 import SiteHeader from '@/components/layout/SiteHeader';
+import GrcSolution from '@/components/landing/GrcSolution';
+import { DEFAULT_SOLUTION_ID, isSolutionId, solutionIdFromSlug, solutionPath } from '@/content/solutions/slugs';
+import { stripMarketPrefix } from '@/lib/seo';
 
 const Timeline: React.FC<{ steps: SolutionStep[] }> = ({ steps }) => (
   <div className="relative max-w-6xl mx-auto" dir="ltr" lang="en">
@@ -71,13 +74,27 @@ const Timeline: React.FC<{ steps: SolutionStep[] }> = ({ steps }) => (
 const Solutions: React.FC = () => {
   const { t } = useTranslation();
   const solutions = useSolutionsContent();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab');
-  const validIds = solutions.map((s) => s.id);
-  const activeTab = initialTab && validIds.includes(initialTab) ? initialTab : 'onboarding';
+  const { slug } = useParams();
+  const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { market } = stripMarketPrefix(pathname);
+  const basePath = `${market ? `/${market}` : ''}/solutions`;
+
+  const legacyTab = searchParams.get('tab');
+  if (legacyTab !== null) {
+    return <Navigate to={isSolutionId(legacyTab) ? solutionPath(legacyTab, market) : basePath} replace />;
+  }
+  const slugId = solutionIdFromSlug(slug);
+  if (slug && !slugId) return <Navigate to={basePath} replace />;
+  if (slugId && solutionPath(slugId, market) !== pathname.replace(/\/$/, '')) {
+    return <Navigate to={solutionPath(slugId, market)} replace />;
+  }
+  const activeTab = slugId ?? DEFAULT_SOLUTION_ID;
 
   const handleTabChange = (value: string) => {
-    setSearchParams({ tab: value }, { replace: true });
+    if (!isSolutionId(value)) return;
+    navigate(solutionPath(value, market));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -85,7 +102,7 @@ const Solutions: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <SiteHeader />
 
-      <header className="container mx-auto px-4 pt-12 md:pt-16 pb-6 text-center">
+      <header className={`container mx-auto px-4 pt-12 md:pt-16 pb-6 text-center ${activeTab === 'grc' ? 'hidden' : ''}`}>
         <Badge variant="secondary" className="mb-4 bg-primary/10 text-primary">
           <Sparkles className="icon-xs mr-1" />
           {t('solutionsPage.badge')}
@@ -113,7 +130,11 @@ const Solutions: React.FC = () => {
             </TabsList>
           </div>
 
-          {solutions.map((s) => (
+          <TabsContent value="grc" className="-mx-4 mt-8">
+            <GrcSolution />
+          </TabsContent>
+
+          {solutions.filter((s) => s.id !== 'grc').map((s) => (
             <TabsContent key={s.id} value={s.id} className="mt-8">
               <div className="text-center py-10 md:py-14">
                 <h2 className="text-3xl md:text-5xl font-bold mb-5 leading-tight">{s.title}</h2>

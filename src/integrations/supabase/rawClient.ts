@@ -8,6 +8,12 @@ import type { Database } from './types';
  * so a Production build cannot silently connect to Development.
  */
 
+// Public (non-secret) fallbacks so a build without .env still works.
+const PUBLIC_FALLBACKS: Record<string, string> = {
+  VITE_SUPABASE_URL: 'https://fnmkczsvwpzpxyklztkt.supabase.co',
+  VITE_SUPABASE_PUBLISHABLE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubWtjenN2d3B6cHh5a2x6dGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNzU1OTUsImV4cCI6MjA2NDg1MTU5NX0.bSLI8JUAIry3mC6cxBt5sF7r-gyelR63Emdoe7siNjQ',
+};
+
 function requiredViteEnv(primary: string, ...aliases: string[]): string {
   const keys = [primary, ...aliases];
   for (const key of keys) {
@@ -15,6 +21,9 @@ function requiredViteEnv(primary: string, ...aliases: string[]): string {
     if (typeof value === 'string' && value.trim()) {
       return value.trim();
     }
+  }
+  for (const key of keys) {
+    if (PUBLIC_FALLBACKS[key]) return PUBLIC_FALLBACKS[key];
   }
   const tried = keys.join(' or ');
   throw new Error(

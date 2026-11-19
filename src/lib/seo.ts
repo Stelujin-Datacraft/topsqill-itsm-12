@@ -161,7 +161,7 @@ export function absoluteAssetUrl(pathOrUrl: string | undefined | null): string {
 
 export function isNoIndexPath(pathname: string): boolean {
   if (NOINDEX_EXACT.has(pathname)) return true;
-  if (pathname.startsWith('/solutions/')) return true;
+  if (pathname.startsWith('/solutions/')) return !isKnownPublicPath(pathname);
   return APP_PREFIXES.some(
     (prefix) => pathname === prefix.replace(/\/$/, '') || pathname.startsWith(prefix),
   );

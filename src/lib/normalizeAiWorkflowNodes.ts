@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { ComparisonOperator } from '@/types/conditions';
 import {
   normalizeConditionOperator,

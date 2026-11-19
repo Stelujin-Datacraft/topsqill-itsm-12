@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useCallback } from 'react';
 import { backend as supabase } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';

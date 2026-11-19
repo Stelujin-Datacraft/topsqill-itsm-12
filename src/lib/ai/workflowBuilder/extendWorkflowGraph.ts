@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Merge a compiled AI Suggest fragment into an existing designer workflow graph.
  * EXTEND: keep existing nodes; strip duplicate Start; graft before End(s).

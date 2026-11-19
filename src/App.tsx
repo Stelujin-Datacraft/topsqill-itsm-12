@@ -329,13 +329,14 @@ const App = () => (
                         <Route key={`${code}-privacy`} path={`/${code}/privacy`} element={<Suspense fallback={<RouteLoader />}><Privacy /></Suspense>} />,
                         <Route key={`${code}-terms`} path={`/${code}/terms`} element={<Suspense fallback={<RouteLoader />}><Terms /></Suspense>} />,
                       ]))}
-                      {/* Legacy direct links redirect into the tabbed Solutions page */}
-                      <Route path="/solutions/employee-onboarding" element={<Navigate to="/solutions?tab=onboarding" replace />} />
-                      <Route path="/solutions/grc" element={<Navigate to="/solutions?tab=grc" replace />} />
-                      <Route path="/solutions/itsm" element={<Navigate to="/solutions?tab=itsm" replace />} />
-                      <Route path="/solutions/vendor-management" element={<Navigate to="/solutions?tab=vendor" replace />} />
-                      <Route path="/solutions/security" element={<Navigate to="/solutions?tab=security" replace />} />
-                      <Route path="/solutions/hr" element={<Navigate to="/solutions?tab=hr" replace />} />
+                      <Route path="/solutions/:slug" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Solutions />
+                        </Suspense>
+                      } />
+                      {MARKET_CODES.map((code) => (
+                        <Route key={`${code}-solutions-slug`} path={`/${code}/solutions/:slug`} element={<Suspense fallback={<RouteLoader />}><Solutions /></Suspense>} />
+                      ))}
                       <Route path="/forgot-password" element={
                         <Suspense fallback={<RouteLoader />}>
                           <ForgotPassword />

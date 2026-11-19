@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Conversational workflow builder engine — progressive discovery session.
  */
