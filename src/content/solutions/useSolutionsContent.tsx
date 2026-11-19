@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import { solutionStepsById, type SolutionStep } from './steps';
+import { SOLUTION_IDS } from './slugs';
 
 export type SolutionContent = {
   id: string;
@@ -14,7 +15,7 @@ export type SolutionContent = {
   steps: SolutionStep[];
 };
 
-const solutionIds = ['onboarding', 'grc', 'itsm', 'vendor', 'security', 'hr'] as const;
+const solutionIds = SOLUTION_IDS;
 
 export function useSolutionsContent(): SolutionContent[] {
   const { t } = useTranslation();
